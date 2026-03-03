@@ -12,10 +12,11 @@
 6. **安全模块** - DDS-Security 认证/加密/访问控制
 7. **性能优化** - 关键参数、内存优化、网络优化
 8. **调试工具** - 日志系统、Wireshark、Fast-DDS Monitor
+9. **进阶主题** - ACKNACK/HEARTBEAT、Proxy机制、调用链、SEDP匹配、Discovery Server深度解析（2026-03-03更新）
 
 ## 总字数
 
-约 35,000+ 字
+约 50,000+ 字（含进阶主题）
 
 ## 作者
 
