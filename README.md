@@ -4,6 +4,9 @@
 
 ## 笔记目录
 
+### 快速参考篇
+**[00. 核心类体系详解](./00-Core-Classes-Reference.md)** - 20+核心类完整参考，含类图和关系（2026-03-10更新）
+
 ### 理论基础篇
 1. **RTPS 源码分析** - RTPSDomain/Participant/Writer/Reader 核心实现
 2. **DDS 层架构** - DDS API 与 RTPS 映射、设计模式
