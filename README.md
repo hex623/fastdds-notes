@@ -29,6 +29,7 @@
 17. **Instance Management** - Key、生命周期、三种State、实战示例（2026-03-11更新）
 18. **序列化机制** - CDR/XCDR编码、TypeSupport、动态类型、性能优化（2026-03-11更新）
 19. **RTPS 消息格式** - Header/SubMessage结构、Wireshark抓包分析（2026-03-11更新）
+20. **Stateless vs Stateful** - 两种Writer对比、架构设计、性能分析（2026-03-11更新）
 
 ### 实战示例篇
 13. **Examples 教程系列** - 13个官方示例完整学习指南（2026-03-04更新）
@@ -39,7 +40,7 @@
 
 ## 总字数
 
-约 135,000+ 字（19篇完整笔记 + Examples系列）
+约 140,000+ 字（20篇完整笔记 + Examples系列）
 
 ## 学习路线图
 
