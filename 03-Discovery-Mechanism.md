@@ -320,18 +320,18 @@ sequenceDiagram
 
 ```mermaid
 graph TB
-    P1[Participant A] -->|DATA(p) 广播| M1[组播]
-    P2[Participant B] -->|DATA(p) 广播| M1
-    M1 -->|接收| P1
-    M1 -->|接收| P2
+    P1["Participant A"] -->|"DATA(p) broadcast"| M1["Multicast"]
+    P2["Participant B"] -->|"DATA(p) broadcast"| M1
+    M1 -->|"receive"| P1
+    M1 -->|"receive"| P2
     
-    P1 -->|DATA(w) + DATA(r)| P2
-    P2 -->|DATA(w) + DATA(r)| P1
+    P1 -->|"DATA(w) + DATA(r)"| P2
+    P2 -->|"DATA(w) + DATA(r)"| P1
     
-    P1 -->|匹配检查| M[匹配引擎]
-    P2 -->|匹配检查| M
-    M -->|匹配成功| C[建立连接]
-    C -->|用户数据| D[数据传输]
+    P1 -->|"matching check"| M["Matching Engine"]
+    P2 -->|"matching check"| M
+    M -->|"matched"| C["Connection"]
+    C -->|"user data"| D["Data Transfer"]
     
     style P1 fill:#e1f5ff
     style P2 fill:#e1f5ff
