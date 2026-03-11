@@ -70,6 +70,50 @@
 └────────────────────────────────────────────────────────────────────────┘
    │
    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│ 3.5 触发数据发送 - 哪个线程？                                          │
+│                                                                        │
+│   取决于 PublishMode 配置：                                            │
+│                                                                        │
+│   【同步模式 SYNCHRONOUS】                                             │
+│   ├── 当前用户线程直接发送                                             │
+│   │   StatefulWriter::unsent_change_added_to_history()                 │
+│   │   └── send_any_unsent_changes()  ← 同线程立即执行                   │
+│   │                                                                    │
+│   └── 特点：                                                           │
+│       • write() 阻塞直到数据发送完成                                   │
+│       • 低延迟（无线程切换）                                           │
+│       • 适合实时性要求高的场景                                         │
+│                                                                        │
+│   【异步模式 ASYNCHRONOUS】                                            │
+│   ├── 数据入队，由 AsyncWriterThread 发送                              │
+│   │   FlowController::add_new_sample()                                 │
+│   │   └── AsyncWriterThread::wake_up()  ← 唤醒后台线程                  │
+│   │                                                                    │
+│   └── AsyncWriterThread 工作流程：                                     │
+│       while (running) {                                                │
+│           for each async_writer:                                       │
+│               writer->send_any_unsent_changes();                       │
+│           wait_until(next_wakeup);  // 流控或新数据唤醒                 │
+│       }                                                                │
+│                                                                        │
+│   └── 特点：                                                           │
+│       • write() 立即返回（非阻塞）                                     │
+│       • 支持流量控制（FlowController）                                 │
+│       • 支持批量发送优化                                               │
+│                                                                        │
+│   【关键代码】src/cpp/rtps/writer/StatefulWriter.cpp:                  │
+│   bool StatefulWriter::unsent_change_added_to_history(...) {           │
+│       if (is_async()) {                                                │
+│           AsyncWriterThread::wake_up(this);  // 异步：通知后台线程      │
+│           return true;                                                 │
+│       } else {                                                         │
+│           return send_any_unsent_changes();  // 同步：立即发送          │
+│       }                                                                │
+│   }                                                                    │
+└────────────────────────────────────────────────────────────────────────┘
+   │
+   ▼
 【匹配与发送阶段】
 ┌────────────────────────────────────────────────────────────────────────┐
 │ 4. 遍历所有匹配的 Reader                                                │
