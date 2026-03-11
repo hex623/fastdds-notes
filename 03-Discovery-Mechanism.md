@@ -320,27 +320,30 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    subgraph 参与者发现[Phase 1: PDP - 参与者发现]
+    subgraph phase1["Phase 1: PDP - 参与者发现"]
+        direction TB
         P1[Participant A] -->|DATA(p) 广播| M1((组播))
         P2[Participant B] -->|DATA(p) 广播| M1
         M1 -->|接收| P1
         M1 -->|接收| P2
     end
-    
-    subgraph 端点发现[Phase 2: EDP - 端点发现]
+
+    subgraph phase2["Phase 2: EDP - 端点发现"]
+        direction TB
         P1 -->|DATA(w) + DATA(r)| P2
         P2 -->|DATA(w) + DATA(r)| P1
     end
-    
-    subgraph 匹配与通信[Phase 3: 匹配与数据通信]
+
+    subgraph phase3["Phase 3: 匹配与数据通信"]
+        direction TB
         P1 -->|匹配检查| M[匹配引擎]
         P2 -->|匹配检查| M
         M -->|匹配成功| C[建立连接]
         C -->|用户数据| D[数据传输]
     end
-    
-    参与者发现 --> 端点发现
-    端点发现 --> 匹配与通信
+
+    phase1 --> phase2
+    phase2 --> phase3
 ```
 
 ### 发现消息类型总结
