@@ -4,7 +4,7 @@
 > 1. **实际源码**：来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
 > 2. **简化示例**：为教学目的简化，省略了锁、异常处理等细节
 >
-> **重要更正**：文中使用的 <code>AsyncWriterThread</code> 是**概念性命名**，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code>
+> **重要更正**：文中使用的 `AsyncWriterThread` 是**概念性命名**，实际源码中的对应实现为 `FlowControllerAsyncPublishMode`，位于 `src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp`
 
 ---
 

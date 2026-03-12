@@ -45,6 +45,23 @@
 
 约 165,000+ 字（23篇完整笔记 + Examples系列）
 
+## 📌 重要更正 (2026-03-12)
+
+### 代码示例说明
+
+本文档中的代码示例分为两类：
+
+1. **实际源码** - 来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
+2. **简化示例** - 为教学目的简化，可能省略了锁、异常处理等细节
+
+### 已修正的内容
+
+**`AsyncWriterThread` → `FlowControllerAsyncPublishMode`**
+
+- 受影响文件：`14-Flow-Control.md`, `15-Data-Transmission-Flow.md`, `21-Thread-Model.md`, `21-Thread-Model-Detailed.md`, `22-Inter-Thread-Communication.md`
+- 说明：文中使用的 `AsyncWriterThread` 是**概念性命名**，实际源码中的对应实现为 `FlowControllerAsyncPublishMode`，位于 `src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp`
+- 详见：[CODE_CORRECTIONS.md](./CODE_CORRECTIONS.md)
+
 ## 学习路线图
 
 ```
