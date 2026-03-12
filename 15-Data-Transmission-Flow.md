@@ -1,5 +1,14 @@
 # Fast-DDS 数据收发完整流程详解
 
+> 📌 **代码来源说明**：本文中的代码示例分为两类：
+> 1. **实际源码**：来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
+> 2. **简化示例**：为教学目的简化，省略了锁、异常处理等细节
+>
+> **重要更正**：文中使用的 <code>AsyncWriterThread</code> 是**概念性命名**，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code>
+
+---
+
+
 **创建时间**: 2026-03-10  
 **源码版本**: Fast-DDS 3.5.0  
 **作者**: 旭旭助手
@@ -86,11 +95,11 @@
 │       • 适合实时性要求高的场景                                         │
 │                                                                        │
 │   【异步模式 ASYNCHRONOUS】                                            │
-│   ├── 数据入队，由 AsyncWriterThread 发送                              │
+│   ├── 数据入队，由 FlowControllerAsyncPublishMode 发送                              │
 │   │   FlowController::add_new_sample()                                 │
-│   │   └── AsyncWriterThread::wake_up()  ← 唤醒后台线程                  │
+│   │   └── FlowControllerAsyncPublishMode::wake_up()  ← 唤醒后台线程                  │
 │   │                                                                    │
-│   └── AsyncWriterThread 工作流程：                                     │
+│   └── FlowControllerAsyncPublishMode 工作流程：                                     │
 │       while (running) {                                                │
 │           for each async_writer:                                       │
 │               writer->send_any_unsent_changes();                       │
@@ -105,7 +114,7 @@
 │   【关键代码】src/cpp/rtps/writer/StatefulWriter.cpp:                  │
 │   bool StatefulWriter::unsent_change_added_to_history(...) {           │
 │       if (is_async()) {                                                │
-│           AsyncWriterThread::wake_up(this);  // 异步：通知后台线程      │
+│           FlowControllerAsyncPublishMode::wake_up(this);  // 异步：通知后台线程      │
 │           return true;                                                 │
 │       } else {                                                         │
 │           return send_any_unsent_changes();  // 同步：立即发送          │

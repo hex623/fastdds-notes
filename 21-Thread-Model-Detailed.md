@@ -1,11 +1,20 @@
 # Fast-DDS 线程模型源码级深度解析
 
+> 📌 **代码来源说明**：本文中的代码示例分为两类：
+> 1. **实际源码**：来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
+> 2. **简化示例**：为教学目的简化，省略了锁、异常处理等细节
+>
+> **重要更正**：文中使用的 <code>AsyncWriterThread</code> 是**概念性命名**，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code>
+
+---
+
+
 > **本文目标**：通过源码级别的分析，彻底理解 Fast-DDS 的线程模型，掌握线程创建、运行、协作、销毁的全生命周期，为性能调优和问题排查打下坚实基础。
 
 ## 目录
 1. [线程模型架构总览](#1-线程模型架构总览)
 2. [ResourceEvent 线程（定时器核心）](#2-resourceevent-线程定时器核心)
-3. [AsyncWriterThread（异步发送）](#3-asyncwriterthread异步发送)
+3. [FlowControllerAsyncPublishMode（异步发送）](#3-asyncwriterthread异步发送)
 4. [Transport 接收线程](#4-transport-接收线程)
 5. [Discovery 线程](#5-discovery-线程)
 6. [线程间协作机制](#6-线程间协作机制)
@@ -52,9 +61,9 @@
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                    │                                         │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ 2. AsyncWriterThread (全局单例)                                      │   │
-│  │    类: eprosima::fastdds::rtps::AsyncWriterThread                    │   │
-│  │    文件: src/cpp/rtps/writer/AsyncWriterThread.cpp                   │   │
+│  │ 2. FlowControllerAsyncPublishMode (全局单例)                                      │   │
+│  │    类: eprosima::fastdds::rtps::FlowControllerAsyncPublishMode                    │   │
+│  │    文件: src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp                   │   │
 │  │    数量: 全局唯一 1 个 (static 单例)                                 │   │
 │  │    职责:                                                             │   │
 │  │    ├── 所有 ASYNC 模式 DataWriter 的数据发送调度                     │   │
@@ -169,8 +178,8 @@ publisher->create_datawriter()
     │           └── 无定时器
     │
     └── 如果 PublishMode = ASYNC
-        └── AsyncWriterThread::add_writer(this)
-            └── 将 Writer 注册到全局 AsyncWriterThread
+        └── FlowControllerAsyncPublishMode::add_writer(this)
+            └── 将 Writer 注册到全局 FlowControllerAsyncPublishMode
 
 【阶段 4: 创建 Subscriber 和 DataReader】
 participant->create_subscriber()
@@ -196,9 +205,9 @@ subscriber->create_datareader()
     │       └── io_service_.stop()
     │       └── join 事件线程
     │
-    ├── 3. 停止 AsyncWriterThread (全局)
+    ├── 3. 停止 FlowControllerAsyncPublishMode (全局)
     │   └── 在所有 Participant 销毁后
-    │       └── AsyncWriterThread::stop()
+    │       └── FlowControllerAsyncPublishMode::stop()
     │
     └── 4. 停止 Security 线程 (如果启用)
         └── SecurityManager::stop()
@@ -493,34 +502,34 @@ private:
 
 ---
 
-## 3. AsyncWriterThread（异步发送）
+## 3. FlowControllerAsyncPublishMode（异步发送）
 
 ### 3.1 全局单例实现
 
 ```cpp
-// src/cpp/rtps/writer/AsyncWriterThread.cpp
+// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp
 
 namespace eprosima {
 namespace fastdds {
 namespace rtps {
 
 /**
- * AsyncWriterThread 是全局单例
+ * FlowControllerAsyncPublishMode 是全局单例
  * 所有 ASYNC 模式的 DataWriter 共享这一个线程
  */
-class AsyncWriterThread {
+class FlowControllerAsyncPublishMode {
 public:
     /**
      * 获取全局单例实例
      */
-    static AsyncWriterThread& get_instance() {
+    static FlowControllerAsyncPublishMode& get_instance() {
         // C++11 保证线程安全的静态初始化
-        static AsyncWriterThread instance;
+        static FlowControllerAsyncPublishMode instance;
         return instance;
     }
     
     /**
-     * 启动 AsyncWriterThread
+     * 启动 FlowControllerAsyncPublishMode
      * 在第一个 ASYNC DataWriter 创建时调用
      */
     static bool start() {
@@ -528,7 +537,7 @@ public:
     }
     
     /**
-     * 停止 AsyncWriterThread
+     * 停止 FlowControllerAsyncPublishMode
      * 在最后一个 Participant 销毁时调用
      */
     static bool stop() {
@@ -557,7 +566,7 @@ public:
     }
 
 private:
-    AsyncWriterThread()
+    FlowControllerAsyncPublishMode()
         : thread_()
         , mutex_()
         , cv_()
@@ -565,15 +574,15 @@ private:
         , running_(false)
     {}
     
-    ~AsyncWriterThread() {
+    ~FlowControllerAsyncPublishMode() {
         if (running_) {
             stop_thread();
         }
     }
     
     // 禁止拷贝
-    AsyncWriterThread(const AsyncWriterThread&) = delete;
-    AsyncWriterThread& operator=(const AsyncWriterThread&) = delete;
+    FlowControllerAsyncPublishMode(const FlowControllerAsyncPublishMode&) = delete;
+    FlowControllerAsyncPublishMode& operator=(const FlowControllerAsyncPublishMode&) = delete;
 
 private:
     /**
@@ -587,7 +596,7 @@ private:
         }
         
         running_ = true;
-        thread_ = std::thread(&AsyncWriterThread::run, this);
+        thread_ = std::thread(&FlowControllerAsyncPublishMode::run, this);
         
         // 设置线程名称
         eprosima::utilities::set_name_to_current_thread("FastDDS_AsyncWriter");
@@ -753,7 +762,7 @@ ReturnCode_t DataWriterImpl::write(void* data) {
     }
     
     // 3. 触发异步发送
-    // 关键：这里不会立即发送，而是入队等待 AsyncWriterThread
+    // 关键：这里不会立即发送，而是入队等待 FlowControllerAsyncPublishMode
     if (qos_.publish_mode().kind == ASYNCHRONOUS) {
         // 3.1 获取 FlowController（如果有配置）
         FlowController* fc = get_flow_controller();
@@ -768,9 +777,9 @@ ReturnCode_t DataWriterImpl::write(void* data) {
             );
         }
         
-        // 3.3 唤醒 AsyncWriterThread
+        // 3.3 唤醒 FlowControllerAsyncPublishMode
         // 通知有新数据需要发送
-        AsyncWriterThread::wake_up();
+        FlowControllerAsyncPublishMode::wake_up();
     }
     
     return RETCODE_OK;
@@ -1176,14 +1185,14 @@ private:
 │           FlowController::add_new_sample  │                                   │
 │               │                           │                                   │
 │               ├── 数据入队                │                                   │
-│               └── AsyncWriterThread::wake_up()                               │
+│               └── FlowControllerAsyncPublishMode::wake_up()                               │
 │                       │                   │                                   │
 │                       ▼                   │                                   │
 │               【条件变量通知】────────────┘                                   │
 │                       │                                                       │
 │  ═════════════════════╪══════════════════════════════════════════════════════│
 │                       │                                                       │
-│  【AsyncWriterThread】▼                                                       │
+│  【FlowControllerAsyncPublishMode】▼                                                       │
 │  cv_.wait() 返回                                                              │
 │       │                                                                       │
 │       ├── 检查 FlowController 令牌                                            │
@@ -1254,13 +1263,13 @@ void DataWriterImpl::write_async(void* data) {
     CacheChange_t* change = create_change(data);
     history_->add_change(change);
     
-    // 2. 通知 AsyncWriterThread
+    // 2. 通知 FlowControllerAsyncPublishMode
     // 使用条件变量唤醒
-    AsyncWriterThread::wake_up();
+    FlowControllerAsyncPublishMode::wake_up();
 }
 
-// AsyncWriterThread
-void AsyncWriterThread::wake_up() {
+// FlowControllerAsyncPublishMode
+void FlowControllerAsyncPublishMode::wake_up() {
     cv_.notify_one();  // 唤醒等待的线程
 }
 
@@ -1453,8 +1462,8 @@ public:
             open_receive_channel(locator);
         }
         
-        // 3. 启动 AsyncWriterThread（如果是第一个 ASYNC Writer）
-        AsyncWriterThread::start();
+        // 3. 启动 FlowControllerAsyncPublishMode（如果是第一个 ASYNC Writer）
+        FlowControllerAsyncPublishMode::start();
         
         // 4. 注册 PDP 定时器
         pdp_->enable();
@@ -1484,10 +1493,10 @@ public:
             resource_event_->stop();
         }
         
-        // 4. 停止 AsyncWriterThread（如果是最后一个参与者）
-        // 注意：AsyncWriterThread 是全局的，需要引用计数
+        // 4. 停止 FlowControllerAsyncPublishMode（如果是最后一个参与者）
+        // 注意：FlowControllerAsyncPublishMode 是全局的，需要引用计数
         if (participant_count_ == 1) {
-            AsyncWriterThread::stop();
+            FlowControllerAsyncPublishMode::stop();
         }
         
         // 5. 清理资源
@@ -1525,7 +1534,7 @@ void configure_real_time_threads() {
     
     qos.transport().user_transports[0]->set_thread_config(transport_settings);
     
-    // 2. AsyncWriterThread - 中高优先级
+    // 2. FlowControllerAsyncPublishMode - 中高优先级
     ThreadSettings async_settings;
     async_settings.scheduling_policy = SCHED_FIFO;
     async_settings.priority = 70;
@@ -1552,7 +1561,7 @@ void configure_cpu_affinity() {
     // 假设有 4 个 CPU 核心
     
     // CPU 0: Transport 接收线程
-    // CPU 1: AsyncWriterThread
+    // CPU 1: FlowControllerAsyncPublishMode
     // CPU 2: ResourceEvent + 业务逻辑
     // CPU 3: 其他后台任务
     
@@ -1591,7 +1600,7 @@ void tune_thread_count() {
     qos.transport().receive_thread_pool_size = 
         std::min(8u, num_cores);
     
-    // 注意：AsyncWriterThread 和 ResourceEvent 
+    // 注意：FlowControllerAsyncPublishMode 和 ResourceEvent 
     // 每个 Participant 各只有 1 个，不需要调整
 }
 ```
@@ -1614,8 +1623,8 @@ void print_thread_status() {
     std::cout << "  Active timers: " << get_active_timer_count() << std::endl;
     std::cout << "  Next timeout: " << get_next_timeout_ms() << " ms" << std::endl;
     
-    // 2. AsyncWriterThread 状态
-    std::cout << "AsyncWriterThread:" << std::endl;
+    // 2. FlowControllerAsyncPublishMode 状态
+    std::cout << "FlowControllerAsyncPublishMode:" << std::endl;
     std::cout << "  Thread ID: " << async_writer_thread_id_ << std::endl;
     std::cout << "  Registered writers: " << get_registered_writer_count() << std::endl;
     std::cout << "  Running: " << (is_async_writer_running() ? "yes" : "no") << std::endl;
@@ -1646,7 +1655,7 @@ gdb -p $(pgrep your_app)
 (gdb) thread 3
 (gdb) bt
 #0  pthread_cond_wait ()
-#1  AsyncWriterThread::run ()
+#1  FlowControllerAsyncPublishMode::run ()
 #2  std::thread::_State_impl::_M_run ()
 
 # 3. 查看所有线程的堆栈
@@ -1689,14 +1698,14 @@ g++ -fsanitize=thread -g your_app.cpp -o your_app
 │  核心线程 (每个 Participant):                                                │
 │  ─────────────────────────                                                   │
 │  1. ResourceEvent      - ASIO io_service 事件循环，处理定时器                │
-│  2. AsyncWriterThread  - 全局单例，ASYNC 模式数据发送                        │
+│  2. FlowControllerAsyncPublishMode  - 全局单例，ASYNC 模式数据发送                        │
 │  3. Transport 接收     - 每端口一个，阻塞 recvfrom                           │
 │  4. PDP 定时器         - 复用 ResourceEvent                                  │
 │  5. Security 线程      - 可选，认证加密                                      │
 │                                                                              │
 │  线程协作机制:                                                               │
 │  ───────────────                                                             │
-│  • 条件变量: AsyncWriterThread 唤醒                                          │
+│  • 条件变量: FlowControllerAsyncPublishMode 唤醒                                          │
 │  • ASIO post: ResourceEvent 任务投递                                         │
 │  • 回调: Transport 接收 → Reader Listener                                    │
 │  • 无锁队列: 高吞吐数据缓冲                                                  │

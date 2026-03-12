@@ -1,5 +1,14 @@
 # Fast-DDS 线程模型深度分析
 
+> 📌 **代码来源说明**：本文中的代码示例分为两类：
+> 1. **实际源码**：来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
+> 2. **简化示例**：为教学目的简化，省略了锁、异常处理等细节
+>
+> **重要更正**：文中使用的 <code>AsyncWriterThread</code> 是**概念性命名**，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code>
+
+---
+
+
 ## 目录
 1. [线程模型概览](#1-线程模型概览)
 2. [核心线程详解](#2-核心线程详解)
@@ -40,7 +49,7 @@
 │  │  │ • 租约检查      │  │ • 流量控制      │  │ • TCP连接管理   │    │ │
 │  │  │ • 心跳/重传     │  │ • 批量发送      │  │ • SHM事件       │    │ │
 │  │  │                 │  │                 │  │                 │    │ │
-│  │  │   ResourceEvent │  │ AsyncWriterThread│  │  TransportLayer │    │ │
+│  │  │   ResourceEvent │  │ FlowControllerAsyncPublishMode│  │  TransportLayer │    │ │
 │  │  └─────────────────┘  └─────────────────┘  └─────────────────┘    │ │
 │  │                                                                   │ │
 │  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐    │ │
@@ -84,7 +93,7 @@
     └── 认证握手、加密解密
 
 【DataWriter 创建时 (ASYNC 模式)】
-└── AsyncWriterThread (全局单例)
+└── FlowControllerAsyncPublishMode (全局单例)
     └── 异步发送数据
 
 【Discovery Server 模式】
@@ -183,16 +192,16 @@ TimedEvent nack_response_event_(
 );
 ```
 
-### 2.2 AsyncWriterThread (异步写入线程)
+### 2.2 FlowControllerAsyncPublishMode (异步写入线程)
 
 ```cpp
-// src/cpp/rtps/writer/AsyncWriterThread.cpp
+// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp
 
-class AsyncWriterThread
+class FlowControllerAsyncPublishMode
 {
 public:
     // 全局单例
-    static AsyncWriterThread& get_instance();
+    static FlowControllerAsyncPublishMode& get_instance();
     
     // 启动/停止
     static bool start();
@@ -220,7 +229,7 @@ private:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   AsyncWriterThread 线程循环                     │
+│                   FlowControllerAsyncPublishMode 线程循环                     │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  启动                                                            │
@@ -420,7 +429,7 @@ class DiscoveryServerManager
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  1. 条件变量 + 互斥锁 (最常见)                                   │
-│     ├── AsyncWriterThread 唤醒                                  │
+│     ├── FlowControllerAsyncPublishMode 唤醒                                  │
 │     └── ResourceEvent 新定时器                                  │
 │                                                                  │
 │  2. 无锁队列 (Lock-free Queue)                                  │
@@ -444,19 +453,19 @@ class DiscoveryServerManager
 ### 3.2 关键通信场景
 
 ```cpp
-// 场景 1: write() 唤醒 AsyncWriterThread
+// 场景 1: write() 唤醒 FlowControllerAsyncPublishMode
 
 // 用户线程 (调用 write)
 void DataWriterImpl::write(void* data) {
     // ... 序列化 ...
     history_->add_change(change);
     
-    // 唤醒 AsyncWriterThread
-    AsyncWriterThread::wake_up();
+    // 唤醒 FlowControllerAsyncPublishMode
+    FlowControllerAsyncPublishMode::wake_up();
 }
 
-// AsyncWriterThread
-void AsyncWriterThread::wake_up() {
+// FlowControllerAsyncPublishMode
+void FlowControllerAsyncPublishMode::wake_up() {
     std::lock_guard<std::mutex> lock(mutex_);
     cv_.notify_one();  // 唤醒等待的线程
 }
@@ -609,7 +618,7 @@ void configure_thread_priorities()
             ""              // 线程名称
         });
     
-    // AsyncWriterThread - 中等优先级
+    // FlowControllerAsyncPublishMode - 中等优先级
     qos.publish_mode().thread_settings = {
         SCHED_OTHER,    // 普通调度
         0,              // 忽略
@@ -672,7 +681,7 @@ void tune_thread_pool_size()
     // 不需要太多，避免线程切换开销
     qos.transport().max_num_threads = std::min(4u, num_cores / 2);
     
-    // AsyncWriterThread: 全局只有一个，不需要调整
+    // FlowControllerAsyncPublishMode: 全局只有一个，不需要调整
     
     // Event 线程: 每个 Participant 一个
     // 通常不需要调整
@@ -728,7 +737,7 @@ void enable_thread_logging()
 }
 
 // 典型日志输出
-[THREAD] Creating AsyncWriterThread
+[THREAD] Creating FlowControllerAsyncPublishMode
 [THREAD] Starting ResourceEvent thread
 [THREAD] Transport receive thread started on CPU 0
 [THREAD] Thread priority set to 80 (SCHED_FIFO)
@@ -751,8 +760,8 @@ void print_thread_dump()
     std::cout << "  - Active timers: " << resource_event_.get_timer_count() << std::endl;
     std::cout << "  - Next timeout: " << resource_event_.get_next_timeout() << std::endl;
     
-    // 2. AsyncWriterThread
-    std::cout << "AsyncWriterThread:" << std::endl;
+    // 2. FlowControllerAsyncPublishMode
+    std::cout << "FlowControllerAsyncPublishMode:" << std::endl;
     std::cout << "  - Registered writers: " << async_writer_thread_.get_writer_count() << std::endl;
     std::cout << "  - Running: " << async_writer_thread_.is_running() << std::endl;
     
@@ -802,7 +811,7 @@ Thread 1 (ResourceEvent):
 │                                                                  │
 │  核心线程                                                        │
 │  ├── ResourceEvent: 定时器、心跳、重传 (1个/Participant)        │
-│  ├── AsyncWriterThread: 异步数据发送 (全局1个)                  │
+│  ├── FlowControllerAsyncPublishMode: 异步数据发送 (全局1个)                  │
 │  ├── Transport 线程: 网络接收 (每个通道1个)                     │
 │  └── Discovery 线程: 发现协议 (Simple用定时器, Server独立线程)  │
 │                                                                  │

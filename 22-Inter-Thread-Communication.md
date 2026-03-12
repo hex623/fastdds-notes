@@ -1,5 +1,14 @@
 # Fast-DDS 线程间通信机制深度解析
 
+> 📌 **代码来源说明**：本文中的代码示例分为两类：
+> 1. **实际源码**：来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
+> 2. **简化示例**：为教学目的简化，省略了锁、异常处理等细节
+>
+> **重要更正**：文中使用的 <code>AsyncWriterThread</code> 是**概念性命名**，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code>
+
+---
+
+
 ## 目录
 1. [为什么需要线程间通信](#1-为什么需要线程间通信)
 2. [通信机制总览](#2-通信机制总览)
@@ -67,10 +76,10 @@
                           │
                           ├── 序列化数据
                           ├── 存入 HistoryCache
-                          └── 通知 AsyncWriterThread
+                          └── 通知 FlowControllerAsyncPublishMode
                                     │
                                     ▼
-                          AsyncWriterThread 被唤醒
+                          FlowControllerAsyncPublishMode 被唤醒
                                     │
                                     └── 执行实际发送
 
@@ -110,7 +119,7 @@ ResourceEvent 线程 ──定时器到期──→ 执行回调
 │  │  1. 条件变量 + 互斥锁 (Condition Variable + Mutex)                  │   │
 │  │                                                                     │   │
 │  │  使用场景:                                                          │   │
-│  │  • AsyncWriterThread 的唤醒                                        │   │
+│  │  • FlowControllerAsyncPublishMode 的唤醒                                        │   │
 │  │  • ResourceEvent 的新定时器通知                                     │   │
 │  │  • 线程池的任务分发                                                 │   │
 │  │                                                                     │   │
@@ -243,16 +252,16 @@ void consumer() {
 }
 ```
 
-### 3.2 Fast-DDS 中的实现：AsyncWriterThread
+### 3.2 Fast-DDS 中的实现：FlowControllerAsyncPublishMode
 
 ```cpp
-// src/cpp/rtps/writer/AsyncWriterThread.cpp
+// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp
 
-class AsyncWriterThread {
+class FlowControllerAsyncPublishMode {
 public:
     // 启动线程
     bool start() {
-        thread_ = std::thread(&AsyncWriterThread::run, this);
+        thread_ = std::thread(&FlowControllerAsyncPublishMode::run, this);
         return true;
     }
     
@@ -889,7 +898,7 @@ public:
 };
 
 // 场景 2: 无锁标志位
-class AsyncWriterThread {
+class FlowControllerAsyncPublishMode {
     std::atomic<bool> running_{true};
     std::atomic<bool> work_available_{false};
     
@@ -961,11 +970,11 @@ public:
 │                       │                                                      │
 │                       ▼                                                      │
 │               【条件变量通知】                                               │
-│               AsyncWriterThread::wake_up()                                   │
+│               FlowControllerAsyncPublishMode::wake_up()                                   │
 │                       │                                                      │
 │                       └── cv_.notify_one()                                   │
 │                                                                              │
-│  【AsyncWriterThread】                                                       │
+│  【FlowControllerAsyncPublishMode】                                                       │
 │  4. 被唤醒                                                                   │
 │       └── cv_.wait() 返回                                                  │
 │               │                                                              │
@@ -1303,7 +1312,7 @@ public:
 │  4. 正确同步: 条件变量用谓词、原子操作用正确内存序                        │
 │                                                                              │
 │  Fast-DDS 典型线程交互:                                                      │
-│  • write() → 条件变量 → AsyncWriterThread → 网络发送                      │
+│  • write() → 条件变量 → FlowControllerAsyncPublishMode → 网络发送                      │
 │  • 网络接收 → 回调 → Listener 或 WaitSet                                  │
 │  • 定时器 → ASIO → ResourceEvent 线程 → 心跳/重传                         │
 │                                                                              │

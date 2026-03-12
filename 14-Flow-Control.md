@@ -1,11 +1,19 @@
 # Fast-DDS 流量控制（Flow Control）详解
 
+> 📌 **代码来源说明**：本文中的代码示例分为两类：
+> 1. **实际源码**：来自 [Fast-DDS 官方仓库](https://github.com/eProsima/Fast-DDS)，链接已标注
+> 2. **简化示例**：为教学目的简化，省略了锁、异常处理等细节
+>
+> **重要更正**：文中使用的 `FlowControllerAsyncPublishMode` 是**概念性命名**，实际源码中的对应实现为 `FlowControllerAsyncPublishMode`，位于 `src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp`
+
+---
+
 ## 目录
 1. [流量控制概述](#1-流量控制概述)
 2. [核心概念与架构](#2-核心概念与架构)
 3. [PublishMode（发布模式）](#3-publishmode发布模式)
 4. [FlowController（流控器）](#4-flowcontroller流控器)
-5. [AsyncWriterThread（异步写入线程）](#5-asyncwriterthread异步写入线程)
+5. [FlowControllerAsyncPublishMode（异步写入）](#5-flowcontrollerasyncpublishmode异步写入)
 6. [源码解析](#6-源码解析)
 7. [配置与调优](#7-配置与调优)
 8. [实战示例](#8-实战示例)
@@ -80,7 +88,7 @@ graph TB
     subgraph FlowControl["流量控制层"]
         direction TB
         FC["FlowController<br/>流控器"]
-        AWT["AsyncWriterThread<br/>异步写入线程"]
+        AWT["FlowControllerAsyncPublishMode<br/>异步写入模式"]
         Queue["发送队列"]
     end
 
@@ -111,7 +119,7 @@ DataWriter
 │   ├── FlowControllerDescriptor  // 流控器描述
 │   ├── ReservationToken      // 预留令牌
 │   └── Schedules             // 调度策略
-└── AsyncWriterThread         // 异步写入线程 (全局)
+└── FlowControllerAsyncPublishMode         // 异步写入线程 (全局)
 
 // 相关 QoS 策略
 DataWriterQos
@@ -190,7 +198,7 @@ public:
 │                         异步模式数据流                                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  用户线程                          AsyncWriterThread                    │
+│  用户线程                          FlowControllerAsyncPublishMode                    │
 │     │                                    │                              │
 │     ▼                                    ▼                              │
 │  write(data) ─────────────────────────────────────────────────────────┐│
@@ -399,14 +407,14 @@ Writer 请求发送 100 bytes:
 
 ---
 
-## 5. AsyncWriterThread（异步写入线程）
+## 5. FlowControllerAsyncPublishMode（异步写入线程）
 
 ### 5.1 线程模型
 
 ```cpp
-// src/cpp/rtps/writer/AsyncWriterThread.cpp
+// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp
 
-class AsyncWriterThread
+class FlowControllerAsyncPublishMode
 {
 public:
     // 启动异步写入线程
@@ -424,7 +432,7 @@ public:
 private:
     static void run();  // 主循环
 
-    struct AsyncWriterThreadState
+    struct FlowControllerAsyncPublishModeState
     {
         std::thread thread_;           // 工作线程
         std::mutex mutex_;             // 保护 writers_ 集合
@@ -433,7 +441,7 @@ private:
         bool running_ = false;
     };
 
-    static AsyncWriterThreadState s_state_;
+    static FlowControllerAsyncPublishModeState s_state_;
 };
 ```
 
@@ -441,7 +449,7 @@ private:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   AsyncWriterThread::run()                       │
+│                   FlowControllerAsyncPublishMode::run()                       │
 └─────────────────────────────────────────────────────────────────┘
                            │
                            ▼
@@ -485,9 +493,9 @@ private:
 ### 5.3 唤醒机制
 
 ```cpp
-// 何时唤醒 AsyncWriterThread？
+// 何时唤醒 FlowControllerAsyncPublishMode？
 
-void AsyncWriterThread::wake_up()
+void FlowControllerAsyncPublishMode::wake_up()
 {
     std::lock_guard<std::mutex> lock(s_state_.mutex_);
     s_state_.cv_.notify_one();  // 唤醒线程
@@ -573,12 +581,12 @@ public:
 };
 ```
 
-### 6.3 AsyncWriterThread 主循环
+### 6.3 FlowControllerAsyncPublishMode 主循环
 
 ```cpp
-// src/cpp/rtps/writer/AsyncWriterThread.cpp
+// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp
 
-void AsyncWriterThread::run()
+void FlowControllerAsyncPublishMode::run()
 {
     while (s_state_.running_)
     {
@@ -967,7 +975,7 @@ qos3.publish_mode().flow_controller_name = "FastDDSFlowControllerDefault";
 │     • 支持速率限制和优先级调度                                    │
 │     • 内置三种类型: Default/FixedRate/ReservedBandwidth          │
 │                                                                  │
-│  3. AsyncWriterThread                                           │
+│  3. FlowControllerAsyncPublishMode                                           │
 │     • 全局单线程调度所有异步 Writer                              │
 │     • 条件变量实现高效唤醒                                       │
 │                                                                  │
