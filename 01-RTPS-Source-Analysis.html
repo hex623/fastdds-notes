@@ -118,13 +118,11 @@
 <hr/>
 <div class="learning-goal">
 <h3>🎯 学习目标</h3>
-<ul>
-<li>理解 一、RTPS 架构总览 的核心原理</li><li>理解 1.1 核心设计理念 的核心原理</li><li>理解 3.3 History 缓存机制 的核心原理</li>
-</ul>
+<ul><li>理解 RTPS 架构的分层设计（DDS层/RTPS层/传输层）</li><li>掌握核心类（RTPSDomain/Participant/Writer/Reader）的职责与交互</li><li>能够追踪从 DataWriter::write() 到网络发送的完整代码路径</li></ul>
 </div>
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
-<p>C++ 基础、RTPS 协议基础</p>
+<p>C++ 面向对象、DDS 基本概念、Fast-DDS 源码环境</p>
 </div>
 <h2 id="rtps">1. RTPS 架构总览</h2>
 <div class="demo-container">
@@ -630,7 +628,6 @@ Endpoint (端点基类)
 <li>能够排查常见问题</li>
 </ul>
 </div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

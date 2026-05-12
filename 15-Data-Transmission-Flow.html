@@ -124,13 +124,11 @@
 <hr/>
 <div class="learning-goal">
 <h3>🎯 学习目标</h3>
-<ul>
-<li>理解 一、Writer 发送数据流程 的核心原理</li><li>理解 1.1 整体流程图 的核心原理</li><li>理解 二、Reader 接收数据流程 的核心原理</li>
-</ul>
+<ul><li>理解从应用层 write() 到网络发送的完整数据流</li><li>掌握 HistoryCache、CacheChange、序列化的工作机制</li><li>能够分析数据发送失败时的排查思路</li></ul>
 </div>
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
-<p>DDS 发布订阅、RTPS Writer/Reader</p>
+<p>DDS 核心类、内存管理基础</p>
 </div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -817,7 +815,6 @@ ReaderHistory [暂存]
 <li>能够排查常见问题</li>
 </ul>
 </div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

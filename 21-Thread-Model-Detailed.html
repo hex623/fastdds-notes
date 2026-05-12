@@ -111,7 +111,7 @@
 <span class="sep">/</span>
 <span>21 线程模型源码</span>
 </div>
-<h1 id="fast-dds">21A - Fast-DDS 线程模型源码级深度解析</h1>
+<h1 id="fast-dds">21A - Fast-DDS 线程模型源码级深度解析</h1><div class="positioning-note" style="background:#1f6feb22;border-left:3px solid #58a6ff;padding:10px 15px;margin:15px 0;border-radius:4px;color:#8b949e;font-size:14px;">📌 本文定位：线程模型<b>源码级详解</b>。深入代码走读各线程的实现细节。建议先阅读 <a href="16-Threading-Model.html">16 - 线程模型概览</a> 建立整体认知。</div>
 <blockquote>
 <p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
 1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
@@ -121,13 +121,11 @@
 </blockquote>
 <div class="learning-goal">
 <h3>🎯 学习目标</h3>
-<ul>
-<li>理解 1. 线程模型架构总览 的核心原理</li><li>理解 1.1 完整线程架构图 的核心原理</li><li>理解 2.2 TimedEvent 实现机制 的核心原理</li>
-</ul>
+<ul><li>深入理解各核心线程（EventLoop/FlowController/Transport）的源码实现</li><li>掌握线程间通信的具体机制（条件变量/无锁队列/回调）</li><li>能够进行线程相关的性能调优和问题排查</li></ul>
 </div>
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
-<p>多线程、DDS 内部线程</p>
+<p>多线程编程、锁与同步、DDS 内部架构</p>
 </div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -1792,7 +1790,6 @@ g++<span class="w"> </span>-fsanitize<span class="o">=</span>thread<span class="
 <li>能够排查常见问题</li>
 </ul>
 </div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

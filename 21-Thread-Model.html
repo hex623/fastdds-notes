@@ -111,7 +111,7 @@
 <span class="sep">/</span>
 <span>21 线程模型分析</span>
 </div>
-<h1 id="fast-dds">21 - Fast-DDS 线程模型深度分析</h1>
+<h1 id="fast-dds">21 - Fast-DDS 线程模型深度分析</h1><div class="positioning-note" style="background:#1f6feb22;border-left:3px solid #58a6ff;padding:10px 15px;margin:15px 0;border-radius:4px;color:#8b949e;font-size:14px;">📌 本文定位：线程模型<b>深度分析</b>。涵盖概念解释、配置调优和问题排查。如需源码级细节，请阅读 <a href="21-Thread-Model-Detailed.html">21A - 线程模型源码详解</a>。</div>
 <blockquote>
 <p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
 1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
@@ -120,13 +120,11 @@
 </blockquote>
 <div class="learning-goal">
 <h3>🎯 学习目标</h3>
-<ul>
-<li>理解 1.1 线程架构全景图 的核心原理</li><li>理解 3. 线程间通信机制 的核心原理</li><li>理解 4. 线程安全设计 的核心原理</li>
-</ul>
+<ul><li>理解 Fast-DDS 线程模型的整体架构和各线程职责</li><li>掌握线程间协作关系和数据流动路径</li><li>了解线程配置参数对性能的影响</li></ul>
 </div>
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
-<p>多线程、DDS 内部线程</p>
+<p>多线程基础、操作系统调度、DDS 架构概览</p>
 </div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -930,7 +928,6 @@ Thread 1 (ResourceEvent):
 <li>能够排查常见问题</li>
 </ul>
 </div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
