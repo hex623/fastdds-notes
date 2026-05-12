@@ -132,45 +132,39 @@
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 性能调优建议</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 总结</span></div></div>
 <div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
-<defs>
-<marker id="arrow2" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3">
-<path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path>
-</marker>
-</defs>
-<!-- Stages -->
-<rect fill="#161b22" height="80" rx="6" stroke="#7ee787" stroke-width="2" width="100" x="20" y="60"></rect>
-<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="70" y="90">Publisher</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="70" y="108">Application</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#58a6ff" stroke-width="2" width="100" x="180" y="60"></rect>
-<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="230" y="90">Writer</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="230" y="108">RTPS Layer</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#f0883e" stroke-width="2" width="100" x="340" y="60"></rect>
-<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="390" y="90">Transport</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="390" y="108">UDP/TCP/SHM</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#f778ba" stroke-width="2" width="80" x="500" y="60"></rect>
-<text fill="#f778ba" font-size="12" font-weight="600" text-anchor="middle" x="540" y="90">Network</text>
-<!-- Flow arrows -->
-<path d="M 120 100 L 170 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<path d="M 280 100 L 330 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<path d="M 440 100 L 490 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<!-- Animated packet -->
-<circle fill="#58a6ff" r="6">
-<animatemotion dur="1.5s" path="M 120 100 L 170 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<circle fill="#58a6ff" r="6">
-<animatemotion begin="0.5s" dur="1.5s" path="M 280 100 L 330 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<circle fill="#58a6ff" r="6">
-<animatemotion begin="1s" dur="1.5s" path="M 440 100 L 490 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<!-- Labels -->
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="145" y="130">write()</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="305" y="130">serialize</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="465" y="130">send()</text>
+<div class="demo-title">💾 CacheChangePool 内存池架构</div>
+<svg class="svg-animate" viewbox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Pool -->
+<rect fill="#161b22" height="180" rx="8" stroke="#58a6ff" stroke-width="2" width="200" x="30" y="30"></rect>
+<text fill="#58a6ff" font-size="13" font-weight="600" text-anchor="middle" x="130" y="55">CacheChangePool</text>
+<!-- Pool slots -->
+<rect fill="#0d1117" height="28" rx="3" stroke="#7ee787" stroke-width="1" width="160" x="50" y="70"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="88">Slot 0: FREE</text>
+<rect fill="#0d1117" height="28" rx="3" stroke="#7ee787" stroke-width="1" width="160" x="50" y="102"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="120">Slot 1: FREE</text>
+<rect fill="#0d1117" height="28" rx="3" stroke="#f0883e" stroke-width="1" width="160" x="50" y="134"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="152">Slot 2: USED</text>
+<rect fill="#0d1117" height="28" rx="3" stroke="#7ee787" stroke-width="1" width="160" x="50" y="166"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="184">Slot 3: FREE</text>
+<!-- Allocation Flow -->
+<path d="M 230 88 L 270 88" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<text fill="#58a6ff" font-size="10" text-anchor="middle" x="250" y="80">alloc()</text>
+<!-- Writer -->
+<rect fill="#1a2332" height="80" rx="8" stroke="#f0883e" stroke-width="2" width="140" x="280" y="50"></rect>
+<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="350" y="75">Writer</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="350" y="95">new_change()</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="350" y="112">→ Pool.alloc()</text>
+<!-- Return Flow -->
+<path d="M 280 120 L 240 120" fill="none" marker-end="url(#arrow)" stroke="#7ee787" stroke-width="1.5"></path>
+<text fill="#7ee787" font-size="10" text-anchor="middle" x="255" y="135">return_change()</text>
+<!-- HistoryCache -->
+<rect fill="#1a2332" height="80" rx="8" stroke="#7ee787" stroke-width="2" width="140" x="440" y="50"></rect>
+<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="510" y="75">HistoryCache</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="510" y="95">add_change()</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="510" y="112">remove_change()</text>
+<path d="M 420 90 L 440 90" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<!-- Performance Note -->
+<rect fill="#0d1117" height="40" rx="6" stroke="#30363d" stroke-width="1" width="300" x="280" y="170"></rect>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="430" y="195">O(1) 分配 | 预分配避免碎片 | 可配置增长策略</text>
 </svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">Writer从Pool申请CacheChange → 写入数据 → 存入HistoryCache → 使用完毕后归还Pool</div>
 </div>
 <ol>
 <li><a href="#一为什么需要特殊内存管理">为什么需要特殊内存管理？</a></li>

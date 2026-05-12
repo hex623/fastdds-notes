@@ -134,42 +134,41 @@
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">参考链接</span></div></div>
 <h2 id="1">1. 异步通知机制全景</h2>
 <div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg viewbox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
-<!-- Reliable -->
-<rect fill="#161b22" height="80" rx="8" stroke="#3fb950" stroke-width="2" width="250" x="30" y="30"></rect>
-<text fill="#3fb950" font-size="14" font-weight="600" text-anchor="middle" x="155" y="55">RELIABLE</text>
-<text fill="#8b949e" font-size="11" text-anchor="middle" x="155" y="75">确认 + 重传机制</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="155" y="92">不丢包，延迟可能增加</text>
-<!-- Best-Effort -->
-<rect fill="#161b22" height="80" rx="8" stroke="#f0883e" stroke-width="2" width="250" x="320" y="30"></rect>
-<text fill="#f0883e" font-size="14" font-weight="600" text-anchor="middle" x="445" y="55">BEST_EFFORT</text>
-<text fill="#8b949e" font-size="11" text-anchor="middle" x="445" y="75">发完即走，不确认</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="445" y="92">低延迟，可能丢包</text>
-<!-- Comparison bars -->
-<text fill="#8b949e" font-size="12" x="50" y="145">延迟</text>
-<rect fill="#3fb950" height="16" opacity="0.3" rx="3" width="160" x="120" y="135"></rect>
-<rect fill="#3fb950" height="16" rx="3" width="60" x="120" y="135"></rect>
-<text fill="#3fb950" font-size="11" x="290" y="147">高</text>
-<rect fill="#f0883e" height="16" opacity="0.3" rx="3" width="160" x="340" y="135"></rect>
-<rect fill="#f0883e" height="16" rx="3" width="40" x="340" y="135"></rect>
-<text fill="#f0883e" font-size="11" x="510" y="147">低</text>
-<text fill="#8b949e" font-size="12" x="50" y="175">可靠性</text>
-<rect fill="#3fb950" height="16" opacity="0.3" rx="3" width="160" x="120" y="165"></rect>
-<rect fill="#3fb950" height="16" rx="3" width="150" x="120" y="165"></rect>
-<text fill="#3fb950" font-size="11" x="290" y="177">高</text>
-<rect fill="#f0883e" height="16" opacity="0.3" rx="3" width="160" x="340" y="165"></rect>
-<rect fill="#f0883e" height="16" rx="3" width="80" x="340" y="165"></rect>
-<text fill="#f0883e" font-size="11" x="510" y="177">中</text>
-<text fill="#8b949e" font-size="12" x="50" y="205">带宽</text>
-<rect fill="#3fb950" height="16" opacity="0.3" rx="3" width="160" x="120" y="195"></rect>
-<rect fill="#3fb950" height="16" rx="3" width="140" x="120" y="195"></rect>
-<text fill="#3fb950" font-size="11" x="290" y="207">高</text>
-<rect fill="#f0883e" height="16" opacity="0.3" rx="3" width="160" x="340" y="195"></rect>
-<rect fill="#f0883e" height="16" rx="3" width="50" x="340" y="195"></rect>
-<text fill="#f0883e" font-size="11" x="510" y="207">低</text>
+<div class="demo-title">🔔 Listener 回调机制与事件分发</div>
+<svg class="svg-animate" viewbox="0 0 600 260" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Event Sources -->
+<rect fill="#161b22" height="80" rx="8" stroke="#30363d" stroke-width="2" width="140" x="30" y="30"></rect>
+<text fill="#c9d1d9" font-size="12" font-weight="600" text-anchor="middle" x="100" y="55">Event Sources</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="100" y="75">DataReader</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="100" y="92">DataWriter</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="100" y="109">Participant</text>
+<!-- Listener -->
+<path d="M 170 70 L 210 70" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<rect fill="#1a2332" height="80" rx="8" stroke="#58a6ff" stroke-width="2" width="160" x="215" y="30"></rect>
+<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="295" y="55">Listener</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="295" y="75">on_data_available()</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="295" y="92">on_subscription_matched()</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="295" y="109">on_liveliness_changed()</text>
+<!-- User Callback -->
+<path d="M 375 70 L 415 70" fill="none" marker-end="url(#arrow)" stroke="#f0883e" stroke-width="1.5"></path>
+<rect fill="#1a2332" height="80" rx="8" stroke="#f0883e" stroke-width="2" width="150" x="420" y="30"></rect>
+<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="495" y="55">User Code</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="495" y="75">处理数据</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="495" y="92">更新状态</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="495" y="109">触发业务逻辑</text>
+<!-- WaitSet Alternative -->
+<rect fill="#0d1117" height="60" rx="6" stroke="#7ee787" stroke-dasharray="4,2" stroke-width="1.5" width="540" x="30" y="150"></rect>
+<text fill="#7ee787" font-size="11" font-weight="600" text-anchor="middle" x="300" y="172">替代方案: WaitSet (同步等待)</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="300" y="192">attach_condition() → wait() → dispatch()</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="300" y="208">适合：需要精确控制回调时机的场景</text>
+<!-- Animated event flow -->
+<path d="M 100 120 Q 300 140 495 120" fill="none" stroke="#58a6ff" stroke-dasharray="6,3" stroke-width="1.5">
+<animate attributename="stroke-dashoffset" dur="1.5s" from="0" repeatcount="indefinite" to="-9"></animate>
+</path>
+<text fill="#58a6ff" font-size="9" text-anchor="middle" x="300" y="138">事件沿回调链传递 (默认在同线程或专用事件线程执行)</text>
 </svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">事件源 → Listener回调 → 用户代码处理 | WaitSet提供同步替代方案</div>
 </div>
 <h3 id="_1">三种核心模式</h3>
 <table>

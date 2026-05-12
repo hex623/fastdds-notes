@@ -127,20 +127,39 @@
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 最佳实践</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">参考资料</span></div></div>
 <div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg class="svg-animate" viewbox="0 0 800 180" xmlns="http://www.w3.org/2000/svg">
-<rect fill="#21262d" height="100" rx="5" stroke="#7ee787" stroke-width="2" width="300" x="50" y="40"></rect>
-<text fill="#7ee787" font-size="16" font-weight="bold" text-anchor="middle" x="200" y="70">RELIABLE</text>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="200" y="95">✓ ACK/NACK 确认</text>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="200" y="115">✓ 自动重传丢失数据</text>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="200" y="135">✓ 顺序保证</text>
-<rect fill="#21262d" height="100" rx="5" stroke="#f0883e" stroke-width="2" width="300" x="450" y="40"></rect>
-<text fill="#f0883e" font-size="16" font-weight="bold" text-anchor="middle" x="600" y="70">BEST_EFFORT</text>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="600" y="95">✗ 不确认接收</text>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="600" y="115">✗ 丢失不重传</text>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="600" y="135">⚡ 更低延迟</text>
+<div class="demo-title">⚖️ QoS 策略层次与兼容性</div>
+<svg class="svg-animate" viewbox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Writer Side -->
+<rect fill="#161b22" height="220" rx="8" stroke="#58a6ff" stroke-width="2" width="200" x="30" y="40"></rect>
+<text fill="#58a6ff" font-size="14" font-weight="600" text-anchor="middle" x="130" y="65">DataWriter QoS</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#58a6ff" stroke-width="1" width="160" x="50" y="80"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="100">RELIABLE</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#58a6ff" stroke-width="1" width="160" x="50" y="120"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="140">TRANSIENT_LOCAL</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#58a6ff" stroke-width="1" width="160" x="50" y="160"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="180">KEEP_ALL</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#58a6ff" stroke-width="1" width="160" x="50" y="200"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="130" y="220">Deadline: 1s</text>
+<!-- Reader Side -->
+<rect fill="#161b22" height="220" rx="8" stroke="#f0883e" stroke-width="2" width="200" x="370" y="40"></rect>
+<text fill="#f0883e" font-size="14" font-weight="600" text-anchor="middle" x="470" y="65">DataReader QoS</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#f0883e" stroke-width="1" width="160" x="390" y="80"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="470" y="100">RELIABLE ✅</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#f0883e" stroke-width="1" width="160" x="390" y="120"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="470" y="140">VOLATILE ⚠️</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#f0883e" stroke-width="1" width="160" x="390" y="160"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="470" y="180">KEEP_LAST(10) ✅</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#f0883e" stroke-width="1" width="160" x="390" y="200"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="470" y="220">Deadline: 1s ✅</text>
+<!-- Compatibility Check -->
+<rect fill="#0d1117" height="40" rx="6" stroke="#7ee787" stroke-dasharray="4,2" stroke-width="2" width="100" x="250" y="130"></rect>
+<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="300" y="156">兼容性检查</text>
+<!-- Arrows -->
+<path d="M 230 110 L 250 140" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<path d="M 230 170 L 250 155" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<path d="M 350 140 L 370 110" fill="none" marker-end="url(#arrow)" stroke="#f0883e" stroke-width="1.5"></path>
+<path d="M 350 155 L 370 170" fill="none" marker-end="url(#arrow)" stroke="#f0883e" stroke-width="1.5"></path>
+<!-- Match Result -->
+<circle cx="300" cy="230" fill="#0d1117" r="18" stroke="#f0883e" stroke-width="2">
+<animate attributename="stroke" dur="2s" repeatcount="indefinite" values="#f0883e;#da3633;#f0883e"></animate>
+</circle>
+<text fill="#f0883e" font-size="14" font-weight="600" text-anchor="middle" x="300" y="236">❌</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="300" y="265">TRANSIENT_LOCAL ≠ VOLATILE</text>
 </svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">Writer QoS必须满足Reader QoS的需求才能建立匹配</div>
 </div>
 <ol>
 <li><a href="#1-qos-架构设计概述">QoS 架构设计概述</a></li>

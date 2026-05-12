@@ -130,45 +130,30 @@
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 性能对比</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 实战配置</span></div></div>
 <div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
-<defs>
-<marker id="arrow2" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3">
-<path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path>
-</marker>
-</defs>
-<!-- Stages -->
-<rect fill="#161b22" height="80" rx="6" stroke="#7ee787" stroke-width="2" width="100" x="20" y="60"></rect>
-<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="70" y="90">Publisher</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="70" y="108">Application</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#58a6ff" stroke-width="2" width="100" x="180" y="60"></rect>
-<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="230" y="90">Writer</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="230" y="108">RTPS Layer</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#f0883e" stroke-width="2" width="100" x="340" y="60"></rect>
-<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="390" y="90">Transport</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="390" y="108">UDP/TCP/SHM</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#f778ba" stroke-width="2" width="80" x="500" y="60"></rect>
-<text fill="#f778ba" font-size="12" font-weight="600" text-anchor="middle" x="540" y="90">Network</text>
-<!-- Flow arrows -->
-<path d="M 120 100 L 170 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<path d="M 280 100 L 330 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<path d="M 440 100 L 490 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<!-- Animated packet -->
-<circle fill="#58a6ff" r="6">
-<animatemotion dur="1.5s" path="M 120 100 L 170 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<circle fill="#58a6ff" r="6">
-<animatemotion begin="0.5s" dur="1.5s" path="M 280 100 L 330 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<circle fill="#58a6ff" r="6">
-<animatemotion begin="1s" dur="1.5s" path="M 440 100 L 490 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<!-- Labels -->
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="145" y="130">write()</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="305" y="130">serialize</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="465" y="130">send()</text>
+<div class="demo-title">📊 Stateful vs Stateless Writer 对比</div>
+<svg class="svg-animate" viewbox="0 0 650 260" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Stateless -->
+<rect fill="#161b22" height="200" rx="8" stroke="#58a6ff" stroke-width="2" width="280" x="30" y="30"></rect>
+<text fill="#58a6ff" font-size="14" font-weight="600" text-anchor="middle" x="170" y="55">Stateless Writer</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#58a6ff" stroke-width="1" width="240" x="50" y="70"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="170" y="88">发送给所有已发现Reader</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#58a6ff" stroke-width="1" width="240" x="50" y="110"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="170" y="128">不跟踪ACK (BEST_EFFORT)</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#58a6ff" stroke-width="1" width="240" x="50" y="150"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="170" y="168">无ReaderProxy状态维护</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#58a6ff" stroke-width="1" width="240" x="50" y="190"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="170" y="208">低开销 / 高吞吐</text>
+<!-- Stateful -->
+<rect fill="#161b22" height="200" rx="8" stroke="#f0883e" stroke-width="2" width="280" x="340" y="30"></rect>
+<text fill="#f0883e" font-size="14" font-weight="600" text-anchor="middle" x="480" y="55">Stateful Writer</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#f0883e" stroke-width="1" width="240" x="360" y="70"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="480" y="88">按Reader状态分别发送</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#f0883e" stroke-width="1" width="240" x="360" y="110"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="480" y="128">跟踪ACK等待确认 (RELIABLE)</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#f0883e" stroke-width="1" width="240" x="360" y="150"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="480" y="168">每个Reader维护ReaderProxy</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#f0883e" stroke-width="1" width="240" x="360" y="190"></rect><text fill="#c9d1d9" font-size="10" text-anchor="middle" x="480" y="208">高可靠性 / 支持重传</text>
+<!-- Animated divider -->
+<line stroke="#30363d" stroke-dasharray="4,4" stroke-width="2" x1="320" x2="320" y1="30" y2="230"></line>
+<!-- QoS label -->
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="170" y="245">QoS: BEST_EFFORT</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="480" y="245">QoS: RELIABLE</text>
 </svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">Stateless: 广播式发送，不等待确认 | Stateful: 按Reader分别管理，支持重传</div>
 </div>
 <ol>
 <li><a href="#1-核心概念对比">核心概念对比</a></li>

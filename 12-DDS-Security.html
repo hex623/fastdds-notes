@@ -135,17 +135,38 @@
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 安全检查清单</span></div></div>
 <h2 id="1-dds-security">1. 为什么需要 DDS-Security？</h2>
 <div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg class="svg-animate" viewbox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow-s" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#f85149"></path></marker></defs>
-<rect fill="#21262d" height="60" rx="5" stroke="#58a6ff" stroke-width="2" width="150" x="50" y="70"></rect><text fill="#c9d1d9" font-size="14" text-anchor="middle" x="125" y="105">Participant A</text>
-<line marker-end="url(#arrow-s)" stroke="#58a6ff" stroke-width="2" x1="200" x2="350" y1="100" y2="100"></line>
-<rect fill="#21262d" height="100" rx="10" stroke="#f85149" stroke-width="2" width="100" x="350" y="50"></rect><text fill="#c9d1d9" font-size="13" text-anchor="middle" x="400" y="105">Auth +</text><text fill="#c9d1d9" font-size="13" text-anchor="middle" x="400" y="120">Encrypt</text>
-<line marker-end="url(#arrow-s)" stroke="#58a6ff" stroke-width="2" x1="450" x2="600" y1="100" y2="100"></line>
-<rect fill="#21262d" height="60" rx="5" stroke="#7ee787" stroke-width="2" width="150" x="600" y="70"></rect><text fill="#c9d1d9" font-size="14" text-anchor="middle" x="675" y="105">Participant B</text>
-<text fill="#8b949e" font-size="12" text-anchor="middle" x="400" y="170">DDS-Security: 认证 → 加密 → 传输</text>
+<div class="demo-title">🔒 DDS-Security 五层安全架构</div>
+<svg class="svg-animate" viewbox="0 0 600 360" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Application Layer -->
+<rect fill="#161b22" height="50" rx="6" stroke="#7ee787" stroke-width="2" width="500" x="50" y="30"></rect>
+<text fill="#7ee787" font-size="14" font-weight="600" text-anchor="middle" x="300" y="60">Application (User Data)</text>
+<!-- Security Layers Stack -->
+<rect fill="#1a2332" height="40" rx="4" stroke="#f0883e" stroke-width="1.5" width="480" x="60" y="95"></rect>
+<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="300" y="120">① Authentication (X.509 + PKI)</text>
+<rect fill="#1a2332" height="40" rx="4" stroke="#f0883e" stroke-width="1.5" width="480" x="60" y="140"></rect>
+<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="300" y="165">② Access Control (Governance + Permissions)</text>
+<rect fill="#1a2332" height="40" rx="4" stroke="#58a6ff" stroke-width="1.5" width="480" x="60" y="185"></rect>
+<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="300" y="210">③ Encryption (AES-128/256-GCM)</text>
+<rect fill="#1a2332" height="40" rx="4" stroke="#58a6ff" stroke-width="1.5" width="480" x="60" y="230"></rect>
+<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="300" y="255">④ Integrity (GMAC Signature)</text>
+<rect fill="#1a2332" height="40" rx="4" stroke="#7ee787" stroke-width="1.5" width="480" x="60" y="275"></rect>
+<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="300" y="300">⑤ Logging (Audit Trail)</text>
+<!-- Animated Lock -->
+<circle class="node" cx="540" cy="170" fill="#0d1117" r="25" stroke="#f0883e" stroke-width="2">
+<animate attributename="r" dur="2s" repeatcount="indefinite" values="22;28;22"></animate>
+</circle>
+<text fill="#f0883e" font-size="18" font-weight="600" text-anchor="middle" x="540" y="178">🔒</text>
+<!-- Flow arrows -->
+<path d="M 300 80 L 300 95" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<path d="M 300 135 L 300 140" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<path d="M 300 180 L 300 185" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<path d="M 300 225 L 300 230" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<path d="M 300 270 L 300 275" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<!-- Bottom -->
+<text fill="#8b949e" font-size="11" text-anchor="middle" x="300" y="345">RTPS Protocol (安全通道之上运行标准RTPS)</text>
 </svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">数据从应用层向下经过5层安全处理，最终通过RTPS传输</div>
 </div>
 <h3 id="dds">默认 DDS 的安全问题</h3>
 <ul>

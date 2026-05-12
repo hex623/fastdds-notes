@@ -133,18 +133,40 @@
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 实战案例分析</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 故障排查技巧</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 高级技巧</span></div></div>
-<div class="demo-container"><svg class="svg-animate" viewbox="0 0 600 160" xmlns="http://www.w3.org/2000/svg">
-<rect fill="#21262d" height="80" rx="5" stroke="#58a6ff" stroke-width="2" width="180" x="50" y="40"></rect>
-<text fill="#58a6ff" font-size="14" text-anchor="middle" x="140" y="70">Wireshark</text>
-<text fill="#8b949e" font-size="11" text-anchor="middle" x="140" y="90">捕获网络数据包</text>
-<line stroke="#58a6ff" stroke-width="2" x1="230" x2="300" y1="80" y2="80"></line>
-<polygon fill="#58a6ff" points="300,75 310,80 300,85"></polygon>
-<rect fill="#21262d" height="80" rx="5" stroke="#7ee787" stroke-width="2" width="220" x="320" y="40"></rect>
-<text fill="#7ee787" font-size="13" text-anchor="middle" x="430" y="65">Packet Details</text>
-<text fill="#c9d1d9" font-size="11" text-anchor="middle" x="430" y="85">RTPS ▶ SubMessage ▶ DATA</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="430" y="100">序列号 | WriterID | 数据</text>
-<text fill="#8b949e" font-size="12" text-anchor="middle" x="300" y="145">Wireshark RTPS协议分析</text>
-</svg></div>
+<div class="demo-container">
+<div class="demo-title">🦈 Wireshark DDS 抓包分析视角</div>
+<svg class="svg-animate" viewbox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Network Interface -->
+<rect fill="#161b22" height="50" rx="8" stroke="#30363d" stroke-width="2" width="160" x="30" y="30"></rect>
+<text fill="#c9d1d9" font-size="12" font-weight="600" text-anchor="middle" x="110" y="55">Network Interface</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="110" y="72">eth0 / lo0</text>
+<!-- Wireshark -->
+<path d="M 190 55 L 220 55" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<rect fill="#1a2332" height="50" rx="8" stroke="#58a6ff" stroke-width="2" width="160" x="225" y="30"></rect>
+<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="305" y="50">Wireshark</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="305" y="68">Filter: rtps || udp.portrange 7400-7800</text>
+<!-- Dissector -->
+<path d="M 385 55 L 415 55" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<rect fill="#1a2332" height="50" rx="8" stroke="#7ee787" stroke-width="2" width="150" x="420" y="30"></rect>
+<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="495" y="50">RTPS Dissector</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="495" y="68">解析SubMessage</text>
+<!-- Packet List -->
+<rect fill="#0d1117" height="110" rx="6" stroke="#30363d" stroke-width="1" width="540" x="30" y="110"></rect>
+<text fill="#8b949e" font-size="11" text-anchor="start" x="45" y="132">No.  Time   Source    Destination   Protocol  Info</text>
+<line stroke="#30363d" stroke-width="1" x1="45" x2="555" y1="138" y2="138"></line>
+<text fill="#58a6ff" font-size="10" text-anchor="start" x="45" y="155">1  0.000  192.168.1.10  239.255.0.1   RTPS      SPDP DATA(p)</text>
+<text fill="#58a6ff" font-size="10" text-anchor="start" x="45" y="173">2  0.050  192.168.1.11  239.255.0.1   RTPS      SPDP DATA(p)</text>
+<text fill="#f0883e" font-size="10" text-anchor="start" x="45" y="191">3  0.100  192.168.1.10  192.168.1.11  RTPS      SEDP DATA(w)</text>
+<text fill="#7ee787" font-size="10" text-anchor="start" x="45" y="209">4  0.150  192.168.1.11  192.168.1.10  RTPS      ACKNACK</text>
+<!-- Animated capture indicator -->
+<circle cx="565" cy="45" fill="#da3633" r="8">
+<animate attributename="opacity" dur="1s" repeatcount="indefinite" values="1;0.3;1"></animate>
+</circle>
+<text fill="#da3633" font-size="9" font-weight="600" text-anchor="middle" x="565" y="65">REC</text>
+</svg>
+<div class="demo-caption">网卡捕获 → Wireshark过滤 → RTPS协议解析 → SubMessage明细展示</div>
+</div>
 <ol>
 <li><a href="#1-准备工作">准备工作</a></li>
 <li><a href="#2-捕获-dds-流量">捕获 DDS 流量</a></li>
