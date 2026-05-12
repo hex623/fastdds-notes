@@ -1,181 +1,172 @@
 <!DOCTYPE html>
+
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>11 Transport性能 | Fast-DDS 学习笔记</title>
-<link rel="stylesheet" href="styles.css">
+<link href="styles.css" rel="stylesheet"/>
 </head>
 <body>
 <div class="page-wrapper">
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <h1 class="logo">📚 Fast-DDS Notes</h1>
-      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
-      <a class="home-link" href="index.html">🏠 返回首页</a>
-    </div>
-    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-    <nav class="sidebar-nav">
-    <div class="nav-group open">
-      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
-      <div class="nav-group-items">
-      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
-      <a class="nav-item" href="index.html">🏠 首页</a>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
-      <div class="nav-group-items">
-      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
-      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
-      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
-      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
-      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
-      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
-      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
-      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
-      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
-      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
-      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
-      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
-      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
-      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
-      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
-      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
-      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
-      <div class="nav-group-items">
-      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
-      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
-      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
-      <a class="nav-item active" href="11-Transport-Performance.html">11 Transport性能</a>
-      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
-      <div class="nav-group-items">
-      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
-      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
-      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
-      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
-      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
-      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
-      <div class="nav-group-items">
-      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
-      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
-      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
-      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
-      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
-      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
-      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
-      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
-      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
-      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
-      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
-      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
-      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
-      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
-      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
-      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
-      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
-      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
-      </div>
-    </div>
-    <div class="nav-group open">
-      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
-      <div class="nav-group-items">
-      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
-      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
-      </div>
-    </div>
-
-    </nav>
-  </aside>
-  <main class="main">
-    <div class="breadcrumb">
-  <a href="index.html">🏠 首页</a>
-  <span class="sep">/</span>
-  <span>11 Transport性能</span>
+<aside class="sidebar">
+<div class="sidebar-header">
+<h1 class="logo">📚 Fast-DDS Notes</h1>
+<p class="subtitle">专业级 Fast-DDS 学习资料</p>
+<a class="home-link" href="index.html">🏠 返回首页</a>
 </div>
-    <h1 id="11">11 传输层与性能优化</h1>
+<input class="search-box" placeholder="🔍 搜索笔记..." type="text"/>
+<nav class="sidebar-nav">
+<div class="nav-group open">
+<div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+<div class="nav-group-items">
+<a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+<a class="nav-item" href="index.html">🏠 首页</a>
+</div>
+</div>
+<div class="nav-group open">
+<div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+<div class="nav-group-items">
+<a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+<a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+<a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+<a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+<a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+<a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+<a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+<a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+<a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+<a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+<a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+<a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+<a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+<a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+<a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+<a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+<a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+<a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+<a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+<a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+</div>
+</div>
+<div class="nav-group open">
+<div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+<div class="nav-group-items">
+<a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+<a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+<a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+<a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+<a class="nav-item active" href="11-Transport-Performance.html">11 Transport性能</a>
+<a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+</div>
+</div>
+<div class="nav-group open">
+<div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+<div class="nav-group-items">
+<a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+<a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+<a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+<a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+<a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+<a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+</div>
+</div>
+<div class="nav-group open">
+<div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+<div class="nav-group-items">
+<a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+<a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+<a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+<a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+<a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+<a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+<a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+<a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+<a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+<a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+<a class="nav-item" href="18-Serialization.html">18 序列化</a>
+<a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+<a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+<a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+<a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+<a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+<a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+<a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+</div>
+</div>
+<div class="nav-group open">
+<div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+<div class="nav-group-items">
+<a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+<a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+<a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+<a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+</div>
+</div>
+</nav>
+</aside>
+<main class="main">
+<div class="breadcrumb">
+<a href="index.html">🏠 首页</a>
+<span class="sep">/</span>
+<span>11 Transport性能</span>
+</div>
+<h1 id="11">11 - 11 传输层与性能优化</h1>
 <p><strong>记录时间</strong>: 2026-03-03<br/>
 <strong>学习时长</strong>: 约 1.5 小时<br/>
 <strong>前置知识</strong>: 01-10 基础笔记</p>
 <hr/>
-
 <div class="learning-goal">
-  <h3>🎯 学习目标</h3>
-  <ul>
-    <li>掌握 使用场景 的实践方法</li><li>掌握 配置 的实践方法</li><li>理解 实现原理 的核心原理</li>
-  </ul>
+<h3>🎯 学习目标</h3>
+<ul>
+<li>掌握 使用场景 的实践方法</li><li>掌握 配置 的实践方法</li><li>理解 实现原理 的核心原理</li>
+</ul>
 </div>
 <div class="prereq-box">
-  <h4>📋 前置知识</h4>
-  <p>DDS 基础概念、C++ 编程基础</p>
+<h4>📋 前置知识</h4>
+<p>DDS 基础概念、C++ 编程基础</p>
 </div>
 <h2 id="1">1. 传输层全景</h2>
-
 <div class="demo-container">
-  <div class="demo-title">🔔 流程演示</div>
-  <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
-  <defs>
-    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
-    </marker>
-  </defs>
-  
-  <!-- Stages -->
-  <rect x="20" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#7ee787" stroke-width="2"/>
-  <text x="70" y="90" text-anchor="middle" fill="#7ee787" font-size="12" font-weight="600">Publisher</text>
-  <text x="70" y="108" text-anchor="middle" fill="#8b949e" font-size="10">Application</text>
-  
-  <rect x="180" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
-  <text x="230" y="90" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">Writer</text>
-  <text x="230" y="108" text-anchor="middle" fill="#8b949e" font-size="10">RTPS Layer</text>
-  
-  <rect x="340" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#f0883e" stroke-width="2"/>
-  <text x="390" y="90" text-anchor="middle" fill="#f0883e" font-size="12" font-weight="600">Transport</text>
-  <text x="390" y="108" text-anchor="middle" fill="#8b949e" font-size="10">UDP/TCP/SHM</text>
-  
-  <rect x="500" y="60" width="80" height="80" rx="6" fill="#161b22" stroke="#f778ba" stroke-width="2"/>
-  <text x="540" y="90" text-anchor="middle" fill="#f778ba" font-size="12" font-weight="600">Network</text>
-  
-  <!-- Flow arrows -->
-  <path d="M 120 100 L 170 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
-  <path d="M 280 100 L 330 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
-  <path d="M 440 100 L 490 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
-  
-  <!-- Animated packet -->
-  <circle r="6" fill="#58a6ff">
-    <animateMotion path="M 120 100 L 170 100" dur="1.5s" repeatCount="indefinite"/>
-  </circle>
-  <circle r="6" fill="#58a6ff">
-    <animateMotion path="M 280 100 L 330 100" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
-  </circle>
-  <circle r="6" fill="#58a6ff">
-    <animateMotion path="M 440 100 L 490 100" dur="1.5s" begin="1s" repeatCount="indefinite"/>
-  </circle>
-  
-  <!-- Labels -->
-  <text x="145" y="130" text-anchor="middle" fill="#8b949e" font-size="10">write()</text>
-  <text x="305" y="130" text-anchor="middle" fill="#8b949e" font-size="10">serialize</text>
-  <text x="465" y="130" text-anchor="middle" fill="#8b949e" font-size="10">send()</text>
+<div class="demo-title">🔔 流程演示</div>
+<svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow2" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3">
+<path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path>
+</marker>
+</defs>
+<!-- Stages -->
+<rect fill="#161b22" height="80" rx="6" stroke="#7ee787" stroke-width="2" width="100" x="20" y="60"></rect>
+<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="70" y="90">Publisher</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="70" y="108">Application</text>
+<rect fill="#161b22" height="80" rx="6" stroke="#58a6ff" stroke-width="2" width="100" x="180" y="60"></rect>
+<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="230" y="90">Writer</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="230" y="108">RTPS Layer</text>
+<rect fill="#161b22" height="80" rx="6" stroke="#f0883e" stroke-width="2" width="100" x="340" y="60"></rect>
+<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="390" y="90">Transport</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="390" y="108">UDP/TCP/SHM</text>
+<rect fill="#161b22" height="80" rx="6" stroke="#f778ba" stroke-width="2" width="80" x="500" y="60"></rect>
+<text fill="#f778ba" font-size="12" font-weight="600" text-anchor="middle" x="540" y="90">Network</text>
+<!-- Flow arrows -->
+<path d="M 120 100 L 170 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
+<path d="M 280 100 L 330 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
+<path d="M 440 100 L 490 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
+<!-- Animated packet -->
+<circle fill="#58a6ff" r="6">
+<animatemotion dur="1.5s" path="M 120 100 L 170 100" repeatcount="indefinite"></animatemotion>
+</circle>
+<circle fill="#58a6ff" r="6">
+<animatemotion begin="0.5s" dur="1.5s" path="M 280 100 L 330 100" repeatcount="indefinite"></animatemotion>
+</circle>
+<circle fill="#58a6ff" r="6">
+<animatemotion begin="1s" dur="1.5s" path="M 440 100 L 490 100" repeatcount="indefinite"></animatemotion>
+</circle>
+<!-- Labels -->
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="145" y="130">write()</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="305" y="130">serialize</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="465" y="130">send()</text>
 </svg>
-  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
 </div>
 <h3 id="_1">三种传输方式对比</h3>
 <table>
@@ -610,17 +601,28 @@
 <li><a href="10-Listener-WaitSet.html">10 监听与回调</a></li>
 <li>Fast-DDS 官方文档: https://fast-dds.docs.eprosima.com/</li>
 </ul>
-    <div class="nav-footer">
+
+<div class="related-links">
+<h3>🔗 相关阅读</h3>
+<ul>
+<li><a href="16-Threading-Model.html">16 - Fast-DDS 线程模型详解</a></li>
+<li><a href="21-Thread-Model.html">21 - Fast-DDS 线程模型深度分析</a></li>
+<li><a href="22-Inter-Thread-Communication.html">22 - Fast-DDS 线程间通信机制深度解析</a></li>
+<li><a href="04-QoS-Implementation.html">04 - Fast-DDS QoS 策略实现详解</a></li>
+<li><a href="07-Performance-Optimization.html">07 - Fast-DDS 性能优化指南</a></li>
+</ul>
+</div>
+<div class="nav-footer">
 <a href="10-Listener-WaitSet.html">
-  <div class="label">← 上一篇</div>
-  <div class="title">10 Listener-WaitSet</div>
+<div class="label">← 上一篇</div>
+<div class="title">10 Listener-WaitSet</div>
 </a>
-<a href="12-DDS-Security.html" class="next">
-  <div class="label">下一篇 →</div>
-  <div class="title">12 Security进阶</div>
+<a class="next" href="12-DDS-Security.html">
+<div class="label">下一篇 →</div>
+<div class="title">12 Security进阶</div>
 </a>
 </div>
-  </main>
+</main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
 <script src="scripts.js"></script>

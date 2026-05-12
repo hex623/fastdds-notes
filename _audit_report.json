@@ -1,0 +1,227 @@
+{
+  "00-Core-Classes-Reference.html": [
+    "[层级] 标题跳级: Fast-DDS 核心类体系详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第35个代码块(36行)前缺少充分解释",
+    "[标题] 文件名编号(00)与标题不匹配: 'Fast-DDS 核心类体系详解'"
+  ],
+  "01-RTPS-Source-Analysis.html": [
+    "[层级] 标题跳级: Fast-DDS RTPS 源码分析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第3个代码块(32行)前缺少充分解释",
+    "[标题] 文件名编号(01)与标题不匹配: 'Fast-DDS RTPS 源码分析'"
+  ],
+  "01-RTPS-架构概览.html": [
+    "[层级] 标题跳级: 01 - RTPS 架构概览 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "02-DDS-Layer-Architecture.html": [
+    "[层级] 标题跳级: Fast-DDS DDS Layer 架构分析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第13个代码块(46行)前缺少充分解释",
+    "[标题] 文件名编号(02)与标题不匹配: 'Fast-DDS DDS Layer 架构分析'"
+  ],
+  "02-DDS-发现机制.html": [
+    "[层级] 标题跳级: 02 - DDS 发现机制 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "03-Discovery-Mechanism.html": [
+    "[层级] 标题跳级: Fast-DDS 发现机制 (Discovery) 详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第10个代码块(34行)前缺少充分解释",
+    "[标题] 文件名编号(03)与标题不匹配: 'Fast-DDS 发现机制 (Discovery) 详解'"
+  ],
+  "03-Discovery-Server.html": [
+    "[层级] 标题跳级: 03 - Discovery Server 详解 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "03A-Discovery-Server-Detail.html": [
+    "[层级] 标题跳级: Fast-DDS Discovery Server 深入解析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第15个代码块(37行)前缺少充分解释",
+    "[标题] 文件名编号(03)与标题不匹配: 'Fast-DDS Discovery Server 深入解析'"
+  ],
+  "03B-Discovery-Server-Redundancy.html": [
+    "[层级] 标题跳级: Fast-DDS Discovery Server 双 Se (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(03)与标题不匹配: 'Fast-DDS Discovery Server 双 Server 冗余架构原'"
+  ],
+  "03B-Topic-详解.html": [
+    "[层级] 标题跳级: Fast-DDS Topic 详解 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(03)与标题不匹配: 'Fast-DDS Topic 详解'"
+  ],
+  "04-QoS-Implementation.html": [
+    "[层级] 标题跳级: Fast-DDS QoS 策略实现详解 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(04)与标题不匹配: 'Fast-DDS QoS 策略实现详解'"
+  ],
+  "04-消息传递机制.html": [
+    "[层级] 标题跳级: 04 - 消息传递机制 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "05-Proxy-代理机制.html": [
+    "[层级] 标题跳级: 05 - Proxy 代理机制 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "05-Transport-Layer.html": [
+    "[层级] 标题跳级: Fast-DDS 传输层 (Transport) 实现详解 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(05)与标题不匹配: 'Fast-DDS 传输层 (Transport) 实现详解'"
+  ],
+  "06-DDS到RTPS调用链.html": [
+    "[层级] 标题跳级: 06 - DDS 到 RTPS 完整调用链 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "06-Security-Module.html": [
+    "[层级] 标题跳级: Fast-DDS 安全模块 (Security) 分析 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(06)与标题不匹配: 'Fast-DDS 安全模块 (Security) 分析'"
+  ],
+  "07-Performance-Optimization.html": [
+    "[层级] 标题跳级: Fast-DDS 性能优化指南 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(07)与标题不匹配: 'Fast-DDS 性能优化指南'"
+  ],
+  "07-Topic-详解.html": [
+    "[层级] 标题跳级: 07 - Topic 详解 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "08-Debugging-Tools.html": [
+    "[层级] 标题跳级: Fast-DDS 调试技巧与工具指南 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(08)与标题不匹配: 'Fast-DDS 调试技巧与工具指南'"
+  ],
+  "08-Listener-与-WaitSet.html": [
+    "[层级] 标题跳级: 08 - Listener 与 WaitSet (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "09-Advanced-Topics.html": [
+    "[层级] 标题跳级: 09 进阶主题：可靠传输与发现协议深度解析 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "09-传输层与性能.html": [
+    "[层级] 标题跳级: 09 - 传输层与性能 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "10-DDS-Security.html": [
+    "[层级] 标题跳级: 10 - DDS-Security (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "10-Listener-WaitSet.html": [
+    "[层级] 标题跳级: 10 监听与回调机制（Listener/WaitSet） (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "11-Transport-Performance.html": [
+    "[层级] 标题跳级: 11 传输层与性能优化 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第2个代码块(49行)前缺少充分解释"
+  ],
+  "12-DDS-Security.html": [
+    "[层级] 标题跳级: 12 DDS-Security 安全模块 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第5个代码块(50行)前缺少充分解释"
+  ],
+  "13-Example-01-HelloWorld.html": [
+    "[学习] 缺少学习目标卡片",
+    "[学习] 缺少前置知识提示",
+    "[标题] 文件名编号(13)与标题不匹配: 'Example 01: Hello World - 入门必读'"
+  ],
+  "13-Example-02-RTPS.html": [
+    "[学习] 缺少学习目标卡片",
+    "[学习] 缺少前置知识提示",
+    "[标题] 文件名编号(13)与标题不匹配: 'Example 02: RTPS - 底层 API 实战'"
+  ],
+  "13-Example-03-DiscoveryServer.html": [
+    "[学习] 缺少学习目标卡片",
+    "[学习] 缺少前置知识提示",
+    "[标题] 文件名编号(13)与标题不匹配: 'Example 03: Discovery Server - 集中式发现'"
+  ],
+  "13-Example-04-13-QuickRef.html": [
+    "[学习] 缺少学习目标卡片",
+    "[学习] 缺少前置知识提示"
+  ],
+  "13-Examples-Index.html": [
+    "[学习] 缺少学习目标卡片",
+    "[学习] 缺少前置知识提示"
+  ],
+  "13-Logging-System.html": [
+    "[学习] 缺少学习目标卡片",
+    "[学习] 缺少前置知识提示",
+    "[标题] 文件名编号(13)与标题不匹配: '第6周：调试与调优实战 - 日志系统详解'"
+  ],
+  "14-Callback-Mechanism-Deep-Dive.html": [
+    "[层级] 标题跳级: DDS 回调机制深度解析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第20个代码块(33行)前缺少充分解释",
+    "[标题] 文件名编号(14)与标题不匹配: 'DDS 回调机制深度解析'"
+  ],
+  "14-Flow-Control.html": [
+    "[层级] 标题跳级: Fast-DDS 流量控制（Flow Control）详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第10个代码块(37行)前缺少充分解释",
+    "[标题] 文件名编号(14)与标题不匹配: 'Fast-DDS 流量控制（Flow Control）详解'"
+  ],
+  "14-Memory-Fragmentation.html": [
+    "[层级] 标题跳级: Fast-DDS 内存管理与分片传输详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第1个代码块(31行)前缺少充分解释",
+    "[标题] 文件名编号(14)与标题不匹配: 'Fast-DDS 内存管理与分片传输详解'"
+  ],
+  "14-SequenceNumber-Reliable-Transmission.html": [
+    "[层级] 标题跳级: Fast-DDS 序列号管理与可靠传输机制深度解析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第11个代码块(46行)前缺少充分解释",
+    "[标题] 文件名编号(14)与标题不匹配: 'Fast-DDS 序列号管理与可靠传输机制深度解析'"
+  ],
+  "15-Data-Transmission-Flow.html": [
+    "[层级] 标题跳级: Fast-DDS 数据收发完整流程详解 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(15)与标题不匹配: 'Fast-DDS 数据收发完整流程详解'"
+  ],
+  "15-Timer-System.html": [
+    "[层级] 标题跳级: Fast-DDS 定时器系统详解 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(15)与标题不匹配: 'Fast-DDS 定时器系统详解'"
+  ],
+  "16-Threading-Model.html": [
+    "[层级] 标题跳级: Fast-DDS 线程模型详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第3个代码块(37行)前缺少充分解释",
+    "[标题] 文件名编号(16)与标题不匹配: 'Fast-DDS 线程模型详解'"
+  ],
+  "17-Instance-Management.html": [
+    "[层级] 标题跳级: DDS Instance Management（实例管理）详 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(17)与标题不匹配: 'DDS Instance Management（实例管理）详解'"
+  ],
+  "17-ROS2-Integration.html": [
+    "[层级] 标题跳级: DDS 与 ROS2 集成实战指南 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第1个代码块(45行)前缺少充分解释",
+    "[标题] 文件名编号(17)与标题不匹配: 'DDS 与 ROS2 集成实战指南'"
+  ],
+  "18-Interview-Questions.html": [
+    "[层级] 标题跳级: Fast-DDS 面试题大全 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(18)与标题不匹配: 'Fast-DDS 面试题大全'"
+  ],
+  "18-Serialization.html": [
+    "[层级] 标题跳级: Fast-DDS 序列化机制详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第1个代码块(45行)前缺少充分解释",
+    "[标题] 文件名编号(18)与标题不匹配: 'Fast-DDS 序列化机制详解'"
+  ],
+  "19-RTPS-Message-Format.html": [
+    "[层级] 标题跳级: RTPS 协议消息格式详解 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第2个代码块(35行)前缺少充分解释",
+    "[标题] 文件名编号(19)与标题不匹配: 'RTPS 协议消息格式详解'"
+  ],
+  "20-Stateless-vs-Stateful-Writer.html": [
+    "[层级] 标题跳级: Fast-DDS Stateless vs Stateful (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第3个代码块(35行)前缺少充分解释",
+    "[标题] 文件名编号(20)与标题不匹配: 'Fast-DDS Stateless vs Stateful Writer 详解'"
+  ],
+  "21-Thread-Model-Detailed.html": [
+    "[层级] 标题跳级: Fast-DDS 线程模型源码级深度解析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第1个代码块(91行)前缺少充分解释",
+    "[标题] 文件名编号(21)与标题不匹配: 'Fast-DDS 线程模型源码级深度解析'"
+  ],
+  "21-Thread-Model.html": [
+    "[层级] 标题跳级: Fast-DDS 线程模型深度分析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第1个代码块(47行)前缺少充分解释",
+    "[标题] 文件名编号(21)与标题不匹配: 'Fast-DDS 线程模型深度分析'"
+  ],
+  "22-Inter-Thread-Communication.html": [
+    "[层级] 标题跳级: Fast-DDS 线程间通信机制深度解析 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第1个代码块(36行)前缺少充分解释",
+    "[标题] 文件名编号(22)与标题不匹配: 'Fast-DDS 线程间通信机制深度解析'"
+  ],
+  "23-Message-Transmission-Flow.html": [
+    "[层级] 标题跳级: DDS 消息传输完整流程：从应用到应用 (h1) -> 🎯 学习目标 (h3)",
+    "[代码] 第2个代码块(84行)前缺少充分解释",
+    "[标题] 文件名编号(23)与标题不匹配: 'DDS 消息传输完整流程：从应用到应用'"
+  ],
+  "24-Wireshark-Analysis.html": [
+    "[层级] 标题跳级: Wireshark 分析 DDS 报文实战指南 (h1) -> 🎯 学习目标 (h3)",
+    "[标题] 文件名编号(24)与标题不匹配: 'Wireshark 分析 DDS 报文实战指南'"
+  ],
+  "A0-阅读指南.html": [
+    "[层级] 标题跳级: 📖 阅读指南 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "A1-代码修正记录.html": [
+    "[层级] 标题跳级: A1 - 代码修正记录 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "A2-核心类速查表.html": [
+    "[层级] 标题跳级: A2 - 核心类速查表 (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "CODE_CORRECTIONS.html": [
+    "[层级] 标题跳级: 代码更正说明 (2026-03-12) (h1) -> 🎯 学习目标 (h3)"
+  ],
+  "ORGANIZED-INDEX.html": [
+    "[层级] 标题跳级: Fast-DDS 学习笔记归档索引 (h1) -> 🎯 学习目标 (h3)"
+  ]
+}
