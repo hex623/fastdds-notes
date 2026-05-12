@@ -123,7 +123,51 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能配置日志级别和输出目标</li><li style="margin:6px 0;">理解 LogModule 和 Category 的组织方式</li><li style="margin:6px 0;">掌握日志过滤和格式化选项</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">学习目标</span></div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能配置日志级别和输出目标</li><li style="margin:6px 0;">理解 LogModule 和 Category 的组织方式</li><li style="margin:6px 0;">掌握日志过滤和格式化选项</li></ul></div><div class="demo-container">
+<div class="demo-title">📜 DDS 日志系统架构</div>
+<svg class="svg-animate" viewbox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3">
+<path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
+<!-- Sources -->
+<rect fill="#161b22" height="70" rx="8" stroke="#30363d" stroke-width="2" width="160" x="30" y="30"></rect>
+<text fill="#c9d1d9" font-size="12" font-weight="600" text-anchor="middle" x="110" y="55">Log Sources</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="110" y="73">RTPS / DDS / Transport</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="110" y="88">User Code</text>
+<!-- Log Queue -->
+<path d="M 190 65 L 230 65" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-width="1.5"></path>
+<rect fill="#1a2332" height="70" rx="8" stroke="#58a6ff" stroke-width="2" width="140" x="240" y="30"></rect>
+<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="310" y="55">Log Queue</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="310" y="73">Thread-safe</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="310" y="88">Async Consumer</text>
+<!-- Outputs -->
+<path d="M 380 65 L 420 65" fill="none" marker-end="url(#arrow)" stroke="#7ee787" stroke-width="1.5"></path>
+<rect fill="#1a2332" height="70" rx="8" stroke="#7ee787" stroke-width="2" width="140" x="430" y="30"></rect>
+<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="500" y="55">Log Outputs</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="500" y="73">Stdout / File</text>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="500" y="88">Callback</text>
+<!-- Animated flow -->
+<path d="M 30 120 Q 300 120 570 120" fill="none" stroke="#58a6ff" stroke-dasharray="8,4" stroke-width="2">
+<animate attributename="stroke-dashoffset" dur="2s" from="0" repeatcount="indefinite" to="-12"></animate>
+</path>
+<!-- Level filters -->
+<rect fill="#0d1117" height="30" rx="4" stroke="#da3633" stroke-width="1" width="80" x="60" y="160"></rect>
+<text fill="#da3633" font-size="10" text-anchor="middle" x="100" y="180">ERROR</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#f0883e" stroke-width="1" width="80" x="160" y="160"></rect>
+<text fill="#f0883e" font-size="10" text-anchor="middle" x="200" y="180">WARN</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#58a6ff" stroke-width="1" width="80" x="260" y="160"></rect>
+<text fill="#58a6ff" font-size="10" text-anchor="middle" x="300" y="180">INFO</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#8b949e" stroke-width="1" width="80" x="360" y="160"></rect>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="400" y="180">DEBUG</text>
+<rect fill="#0d1117" height="30" rx="4" stroke="#30363d" stroke-width="1" width="100" x="460" y="160"></rect>
+<text fill="#8b949e" font-size="10" text-anchor="middle" x="510" y="180">Category Filter</text>
+<circle cx="310" cy="210" fill="none" r="10" stroke="#58a6ff" stroke-width="2">
+<animate attributename="r" dur="1.5s" repeatcount="indefinite" values="8;14;8"></animate>
+<animate attributename="opacity" dur="1.5s" repeatcount="indefinite" values="0.8;0.2;0.8"></animate>
+</circle>
+<text fill="#58a6ff" font-size="10" text-anchor="middle" x="310" y="228">Async consumer thread processing</text>
+</svg>
+<div class="demo-caption">多源日志 → 线程安全队列 → 异步消费 → 多级过滤输出</div>
+</div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">学习目标</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">1. Fast-DDS 日志系统架构</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">2. 日志配置方法</span></div>
 <div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">3. 日志格式解析</span></div>

@@ -163,7 +163,10 @@
 <!-- Performance Note -->
 <rect fill="#0d1117" height="40" rx="6" stroke="#30363d" stroke-width="1" width="300" x="280" y="170"></rect>
 <text fill="#8b949e" font-size="10" text-anchor="middle" x="430" y="195">O(1) 分配 | 预分配避免碎片 | 可配置增长策略</text>
-</svg>
+<circle cx="580" cy="20" fill="none" r="8" stroke="#58a6ff" stroke-width="2">
+<animate attributename="r" dur="2s" repeatcount="indefinite" values="6;12;6"></animate>
+<animate attributename="opacity" dur="2s" repeatcount="indefinite" values="0.8;0.2;0.8"></animate>
+</circle></svg>
 <div class="demo-caption">Writer从Pool申请CacheChange → 写入数据 → 存入HistoryCache → 使用完毕后归还Pool</div>
 </div>
 <ol>

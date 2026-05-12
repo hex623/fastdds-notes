@@ -161,7 +161,10 @@
 <animate attributename="width" dur="3s" repeatcount="indefinite" values="50;180;50"></animate>
 </rect>
 <text fill="#c9d1d9" font-size="9" text-anchor="middle" x="300" y="227">令牌桶填充速率 → 决定发送窗口大小</text>
-</svg>
+<circle cx="580" cy="20" fill="none" r="8" stroke="#58a6ff" stroke-width="2">
+<animate attributename="r" dur="2s" repeatcount="indefinite" values="6;12;6"></animate>
+<animate attributename="opacity" dur="2s" repeatcount="indefinite" values="0.8;0.2;0.8"></animate>
+</circle></svg>
 <div class="demo-caption">DataWriter → FlowController(令牌桶限速) → 按控制速率发送到Transport</div>
 </div>
 <ol>
