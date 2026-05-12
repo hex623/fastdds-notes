@@ -1,0 +1,226 @@
+{
+  "total_files": 55,
+  "output_dir": "/root/.openclaw/workspace/fastdds-notes-html",
+  "files": [
+    {
+      "source": "00-Core-Classes-Reference.md",
+      "output": "00-Core-Classes-Reference.html"
+    },
+    {
+      "source": "01-RTPS-Source-Analysis.md",
+      "output": "01-RTPS-Source-Analysis.html"
+    },
+    {
+      "source": "01-RTPS-架构概览.md",
+      "output": "01-RTPS-架构概览.html"
+    },
+    {
+      "source": "02-DDS-Layer-Architecture.md",
+      "output": "02-DDS-Layer-Architecture.html"
+    },
+    {
+      "source": "02-DDS-发现机制.md",
+      "output": "02-DDS-发现机制.html"
+    },
+    {
+      "source": "03-Discovery-Mechanism.md",
+      "output": "03-Discovery-Mechanism.html"
+    },
+    {
+      "source": "03-Discovery-Server.md",
+      "output": "03-Discovery-Server.html"
+    },
+    {
+      "source": "03A-Discovery-Server-Detail.md",
+      "output": "03A-Discovery-Server-Detail.html"
+    },
+    {
+      "source": "03B-Discovery-Server-Redundancy.md",
+      "output": "03B-Discovery-Server-Redundancy.html"
+    },
+    {
+      "source": "03B-Topic-详解.md",
+      "output": "03B-Topic-详解.html"
+    },
+    {
+      "source": "04-QoS-Implementation.md",
+      "output": "04-QoS-Implementation.html"
+    },
+    {
+      "source": "04-消息传递机制.md",
+      "output": "04-消息传递机制.html"
+    },
+    {
+      "source": "05-Proxy-代理机制.md",
+      "output": "05-Proxy-代理机制.html"
+    },
+    {
+      "source": "05-Transport-Layer.md",
+      "output": "05-Transport-Layer.html"
+    },
+    {
+      "source": "06-DDS到RTPS调用链.md",
+      "output": "06-DDS到RTPS调用链.html"
+    },
+    {
+      "source": "06-Security-Module.md",
+      "output": "06-Security-Module.html"
+    },
+    {
+      "source": "07-Performance-Optimization.md",
+      "output": "07-Performance-Optimization.html"
+    },
+    {
+      "source": "07-Topic-详解.md",
+      "output": "07-Topic-详解.html"
+    },
+    {
+      "source": "08-Debugging-Tools.md",
+      "output": "08-Debugging-Tools.html"
+    },
+    {
+      "source": "08-Listener-与-WaitSet.md",
+      "output": "08-Listener-与-WaitSet.html"
+    },
+    {
+      "source": "09-Advanced-Topics.md",
+      "output": "09-Advanced-Topics.html"
+    },
+    {
+      "source": "09-传输层与性能.md",
+      "output": "09-传输层与性能.html"
+    },
+    {
+      "source": "10-DDS-Security.md",
+      "output": "10-DDS-Security.html"
+    },
+    {
+      "source": "10-Listener-WaitSet.md",
+      "output": "10-Listener-WaitSet.html"
+    },
+    {
+      "source": "11-Transport-Performance.md",
+      "output": "11-Transport-Performance.html"
+    },
+    {
+      "source": "12-DDS-Security.md",
+      "output": "12-DDS-Security.html"
+    },
+    {
+      "source": "13-Example-01-HelloWorld.md",
+      "output": "13-Example-01-HelloWorld.html"
+    },
+    {
+      "source": "13-Example-02-RTPS.md",
+      "output": "13-Example-02-RTPS.html"
+    },
+    {
+      "source": "13-Example-03-DiscoveryServer.md",
+      "output": "13-Example-03-DiscoveryServer.html"
+    },
+    {
+      "source": "13-Example-04-13-QuickRef.md",
+      "output": "13-Example-04-13-QuickRef.html"
+    },
+    {
+      "source": "13-Examples-Index.md",
+      "output": "13-Examples-Index.html"
+    },
+    {
+      "source": "13-Logging-System.md",
+      "output": "13-Logging-System.html"
+    },
+    {
+      "source": "14-Callback-Mechanism-Deep-Dive.md",
+      "output": "14-Callback-Mechanism-Deep-Dive.html"
+    },
+    {
+      "source": "14-Flow-Control.md",
+      "output": "14-Flow-Control.html"
+    },
+    {
+      "source": "14-Memory-Fragmentation.md",
+      "output": "14-Memory-Fragmentation.html"
+    },
+    {
+      "source": "14-SequenceNumber-Reliable-Transmission.md",
+      "output": "14-SequenceNumber-Reliable-Transmission.html"
+    },
+    {
+      "source": "15-Data-Transmission-Flow.md",
+      "output": "15-Data-Transmission-Flow.html"
+    },
+    {
+      "source": "15-Timer-System.md",
+      "output": "15-Timer-System.html"
+    },
+    {
+      "source": "16-Threading-Model.md",
+      "output": "16-Threading-Model.html"
+    },
+    {
+      "source": "17-Instance-Management.md",
+      "output": "17-Instance-Management.html"
+    },
+    {
+      "source": "17-ROS2-Integration.md",
+      "output": "17-ROS2-Integration.html"
+    },
+    {
+      "source": "18-Interview-Questions.md",
+      "output": "18-Interview-Questions.html"
+    },
+    {
+      "source": "18-Serialization.md",
+      "output": "18-Serialization.html"
+    },
+    {
+      "source": "19-RTPS-Message-Format.md",
+      "output": "19-RTPS-Message-Format.html"
+    },
+    {
+      "source": "20-Stateless-vs-Stateful-Writer.md",
+      "output": "20-Stateless-vs-Stateful-Writer.html"
+    },
+    {
+      "source": "21-Thread-Model.md",
+      "output": "21-Thread-Model.html"
+    },
+    {
+      "source": "21-Thread-Model-Detailed.md",
+      "output": "21-Thread-Model-Detailed.html"
+    },
+    {
+      "source": "22-Inter-Thread-Communication.md",
+      "output": "22-Inter-Thread-Communication.html"
+    },
+    {
+      "source": "23-Message-Transmission-Flow.md",
+      "output": "23-Message-Transmission-Flow.html"
+    },
+    {
+      "source": "24-Wireshark-Analysis.md",
+      "output": "24-Wireshark-Analysis.html"
+    },
+    {
+      "source": "CODE_CORRECTIONS.md",
+      "output": "CODE_CORRECTIONS.html"
+    },
+    {
+      "source": "ORGANIZED-INDEX.md",
+      "output": "ORGANIZED-INDEX.html"
+    },
+    {
+      "source": "README.md",
+      "output": "README.html"
+    },
+    {
+      "source": "A1-代码修正记录.md",
+      "output": "A1-代码修正记录.html"
+    },
+    {
+      "source": "A2-核心类速查表.md",
+      "output": "A2-核心类速查表.html"
+    }
+  ]
+}

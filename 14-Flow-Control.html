@@ -3,245 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast-DDS 流量控制（Flow Control）详解 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>14 流量控制 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item active" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item active" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 14-Flow-Control</div>
-        <h1 id="fast-dds-flow-control">Fast-DDS 流量控制（Flow Control）详解</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>14 流量控制</span>
+</div>
+    <h1 id="fast-dds-flow-control">Fast-DDS 流量控制（Flow Control）详解</h1>
 <blockquote>
 <p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
 1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
 2. <strong>简化示例</strong>：为教学目的简化，省略了锁、异常处理等细节</p>
-<p><strong>重要更正</strong>：文中使用的 <code>AsyncWriterThread</code> 是<strong>概念性命名</strong>，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code></p>
+<p>**—</p>
 </blockquote>
-<hr/>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>理解 2. 核心概念与架构 的核心原理</li><li>理解 2.1 整体架构图 的核心原理</li><li>理解 4.3 流控器架构 的核心原理</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>DDS 基础、RTPS 消息格式</p>
+</div>
 <h2 id="_1">目录</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Stages -->
+  <rect x="20" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#7ee787" stroke-width="2"/>
+  <text x="70" y="90" text-anchor="middle" fill="#7ee787" font-size="12" font-weight="600">Publisher</text>
+  <text x="70" y="108" text-anchor="middle" fill="#8b949e" font-size="10">Application</text>
+  
+  <rect x="180" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+  <text x="230" y="90" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">Writer</text>
+  <text x="230" y="108" text-anchor="middle" fill="#8b949e" font-size="10">RTPS Layer</text>
+  
+  <rect x="340" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#f0883e" stroke-width="2"/>
+  <text x="390" y="90" text-anchor="middle" fill="#f0883e" font-size="12" font-weight="600">Transport</text>
+  <text x="390" y="108" text-anchor="middle" fill="#8b949e" font-size="10">UDP/TCP/SHM</text>
+  
+  <rect x="500" y="60" width="80" height="80" rx="6" fill="#161b22" stroke="#f778ba" stroke-width="2"/>
+  <text x="540" y="90" text-anchor="middle" fill="#f778ba" font-size="12" font-weight="600">Network</text>
+  
+  <!-- Flow arrows -->
+  <path d="M 120 100 L 170 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
+  <path d="M 280 100 L 330 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
+  <path d="M 440 100 L 490 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
+  
+  <!-- Animated packet -->
+  <circle r="6" fill="#58a6ff">
+    <animateMotion path="M 120 100 L 170 100" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="6" fill="#58a6ff">
+    <animateMotion path="M 280 100 L 330 100" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="6" fill="#58a6ff">
+    <animateMotion path="M 440 100 L 490 100" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Labels -->
+  <text x="145" y="130" text-anchor="middle" fill="#8b949e" font-size="10">write()</text>
+  <text x="305" y="130" text-anchor="middle" fill="#8b949e" font-size="10">serialize</text>
+  <text x="465" y="130" text-anchor="middle" fill="#8b949e" font-size="10">send()</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <ol>
 <li><a href="#1-流量控制概述">流量控制概述</a></li>
 <li><a href="#2-核心概念与架构">核心概念与架构</a></li>
@@ -257,7 +194,7 @@ a:hover { text-decoration: underline; }
 <h2 id="1">1. 流量控制概述</h2>
 <h3 id="11">1.1 为什么需要流量控制？</h3>
 <p>在 DDS/RTPS 系统中，流量控制解决以下核心问题：</p>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │                      流量控制要解决的问题                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
@@ -310,7 +247,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="2">2. 核心概念与架构</h2>
 <h3 id="21">2.1 整体架构图</h3>
-<div class="codehilite"><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
 <span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Application</span><span class="p">[</span><span class="s">"应用程序层"</span><span class="p">]</span>
 <span class="w">        </span><span class="n">App</span><span class="p">[</span><span class="s">"用户代码"</span><span class="p">]</span>
 <span class="w">    </span><span class="kd">end</span>
@@ -349,7 +286,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="n">WM</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="o">-&gt;|</span><span class="err">同步保护</span><span class="o">|</span><span class="w"> </span><span class="n">DW</span>
 </code></pre></div>
 <h3 id="22">2.2 关键类关系</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 核心类层次结构</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 核心类层次结构</span>
 
 <span class="n">DataWriter</span>
 <span class="err">├──</span><span class="w"> </span><span class="n">PublisherModeQosPolicy</span><span class="w">    </span><span class="c1">// 发布模式配置 (SYNC/ASYNC)</span>
@@ -368,7 +305,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="3-publishmode">3. PublishMode（发布模式）</h2>
 <h3 id="31">3.1 两种发布模式</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/dds/core/policy/QosPolicies.hpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// include/fastdds/dds/core/policy/QosPolicies.hpp</span>
 
 <span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">PublishModeQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint8_t</span>
 <span class="p">{</span>
@@ -385,7 +322,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <h3 id="32-synchronous">3.2 同步模式（SYNCHRONOUS）</h3>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
 │                    同步模式数据流                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
@@ -420,7 +357,7 @@ a:hover { text-decoration: underline; }
 - ❌ 阻塞用户线程<br/>
 - ❌ 突发流量可能导致发送阻塞</p>
 <h3 id="33-asynchronous">3.3 异步模式（ASYNCHRONOUS）</h3>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────┐
 │                         异步模式数据流                                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
@@ -505,7 +442,7 @@ a:hover { text-decoration: underline; }
 1. <strong>速率限制</strong>：控制数据发送速率<br/>
 2. <strong>优先级调度</strong>：多 Writer 间的公平调度<br/>
 3. <strong>流量整形</strong>：平滑突发流量</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/flowcontrol/FlowController.hpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// include/fastdds/rtps/flowcontrol/FlowController.hpp</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">FlowController</span>
 <span class="p">{</span>
@@ -531,7 +468,7 @@ a:hover { text-decoration: underline; }
 </code></pre></div>
 <h3 id="42-flowcontroller">4.2 FlowController 类型</h3>
 <p>Fast-DDS 内置三种流控器：</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 默认流控器 - 无限制</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 默认流控器 - 无限制</span>
 <span class="k">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">FASTDDS_FLOW_CONTROLLER_DEFAULT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerDefault"</span><span class="p">;</span>
 
 <span class="c1">// 推荐流控器 - 基于令牌的速率限制</span>
@@ -541,7 +478,7 @@ a:hover { text-decoration: underline; }
 <span class="k">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">FASTDDS_FLOW_CONTROLLER_RESERVED_BANDWIDTH</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerReservedBandwidth"</span><span class="p">;</span>
 </code></pre></div>
 <h3 id="43">4.3 流控器架构</h3>
-<div class="codehilite"><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
 <span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Writers</span><span class="p">[</span><span class="s">"多个 DataWriter"</span><span class="p">]</span>
 <span class="w">        </span><span class="n">W1</span><span class="p">[</span><span class="s">"Writer 1&lt;br/&gt;优先级: HIGH"</span><span class="p">]</span>
 <span class="w">        </span><span class="n">W2</span><span class="p">[</span><span class="s">"Writer 2&lt;br/&gt;优先级: NORMAL"</span><span class="p">]</span>
@@ -570,7 +507,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="n">Scheduler</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">分配带宽</span><span class="o">|</span><span class="w"> </span><span class="n">BestEffort</span>
 </code></pre></div>
 <h3 id="44">4.4 令牌桶算法</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 令牌桶算法原理</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 令牌桶算法原理</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">TokenBucket</span>
 <span class="p">{</span>
@@ -609,7 +546,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <p><strong>工作流程</strong>：</p>
-<div class="codehilite"><pre><span></span><code>初始状态: 桶满 (max_tokens = 1000)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>初始状态: 桶满 (max_tokens = 1000)
 
 Writer 请求发送 100 bytes:
     │
@@ -641,7 +578,7 @@ Writer 请求发送 100 bytes:
 <hr/>
 <h2 id="5-flowcontrollerasyncpublishmode">5. FlowControllerAsyncPublishMode（异步写入线程）</h2>
 <h3 id="51">5.1 线程模型</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">FlowControllerAsyncPublishMode</span>
 <span class="p">{</span>
@@ -674,7 +611,7 @@ Writer 请求发送 100 bytes:
 <span class="p">};</span>
 </code></pre></div>
 <h3 id="52">5.2 主循环流程</h3>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │                   FlowControllerAsyncPublishMode::run()                       │
 └─────────────────────────────────────────────────────────────────┘
                            │
@@ -716,7 +653,7 @@ Writer 请求发送 100 bytes:
            └──────────────────────┘
 </code></pre></div>
 <h3 id="53">5.3 唤醒机制</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 何时唤醒 FlowControllerAsyncPublishMode？</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 何时唤醒 FlowControllerAsyncPublishMode？</span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">FlowControllerAsyncPublishMode::wake_up</span><span class="p">()</span>
 <span class="p">{</span>
@@ -733,7 +670,7 @@ Writer 请求发送 100 bytes:
 <hr/>
 <h2 id="6">6. 源码解析</h2>
 <h3 id="61-datawriter">6.1 DataWriter 写入流程</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
 
 <span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">DataWriterImpl::write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
 <span class="p">{</span>
@@ -758,7 +695,7 @@ Writer 请求发送 100 bytes:
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="62-flowcontroller">6.2 FlowController 调度实现</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">FlowControllerImpl</span>
 <span class="p">{</span>
@@ -796,7 +733,7 @@ Writer 请求发送 100 bytes:
 <span class="p">};</span>
 </code></pre></div>
 <h3 id="63-flowcontrollerasyncpublishmode">6.3 FlowControllerAsyncPublishMode 主循环</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">FlowControllerAsyncPublishMode::run</span><span class="p">()</span>
 <span class="p">{</span>
@@ -834,7 +771,7 @@ Writer 请求发送 100 bytes:
 <hr/>
 <h2 id="7">7. 配置与调优</h2>
 <h3 id="71-publishmode">7.1 配置 PublishMode</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/qos/DataWriterQos.hpp&gt;</span>
 
@@ -868,7 +805,7 @@ Writer 请求发送 100 bytes:
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="72-flowcontroller">7.2 配置 FlowController</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/attributes/PropertyPolicyQos.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/attributes/PropertyPolicyQos.hpp&gt;</span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">configure_flow_controller</span><span class="p">()</span>
 <span class="p">{</span>
@@ -937,7 +874,7 @@ Writer 请求发送 100 bytes:
 </tbody>
 </table>
 <p><strong>计算示例</strong>：</p>
-<div class="codehilite"><pre><span></span><code>目标: 限制发送速率为 1 MB/s
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>目标: 限制发送速率为 1 MB/s
 
 计算:
     period_ms = 100ms = 0.1s
@@ -948,7 +885,7 @@ Writer 请求发送 100 bytes:
     period_ms = 100
 </code></pre></div>
 <h3 id="74-writer">7.4 多 Writer 优先级配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 为不同重要性的数据配置不同优先级</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 为不同重要性的数据配置不同优先级</span>
 
 <span class="c1">// 关键数据 - 高优先级</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">critical_qos</span><span class="p">;</span>
@@ -968,7 +905,7 @@ Writer 请求发送 100 bytes:
 <hr/>
 <h2 id="8">8. 实战示例</h2>
 <h3 id="81-1">8.1 示例1: 视频流流量控制</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 发送 1080p 视频流，限制带宽不超过 4Mbps</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 场景: 发送 1080p 视频流，限制带宽不超过 4Mbps</span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">setup_video_stream_writer</span><span class="p">()</span>
 <span class="p">{</span>
@@ -1000,7 +937,7 @@ Writer 请求发送 100 bytes:
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="82-2">8.2 示例2: 多优先级消息系统</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 控制系统，包含告警、状态、日志三种消息</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 场景: 控制系统，包含告警、状态、日志三种消息</span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">setup_control_system</span><span class="p">()</span>
 <span class="p">{</span>
@@ -1045,7 +982,7 @@ Writer 请求发送 100 bytes:
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="83-3">8.3 示例3: 突发流量整形</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 传感器周期性批量上报，需要平滑流量</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 场景: 传感器周期性批量上报，需要平滑流量</span>
 
 <span class="kt">void</span><span class="w"> </span><span class="nf">setup_sensor_writer</span><span class="p">()</span>
 <span class="p">{</span>
@@ -1078,7 +1015,7 @@ Writer 请求发送 100 bytes:
 <h2 id="9">9. 常见问题</h2>
 <h3 id="q1-write">Q1: 异步模式下，write() 会阻塞吗？</h3>
 <p><strong>答</strong>: 可能阻塞，取决于配置：</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// max_blocking_time 参数控制最大阻塞时间</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// max_blocking_time 参数控制最大阻塞时间</span>
 <span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span>
 <span class="w">    </span><span class="n">WriteParams</span><span class="o">&amp;</span><span class="w"> </span><span class="n">params</span><span class="p">,</span>
 <span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">duration</span><span class="o">&amp;</span><span class="w"> </span><span class="n">max_blocking_time</span><span class="p">);</span>
@@ -1121,7 +1058,7 @@ Writer 请求发送 100 bytes:
 </tbody>
 </table>
 <h3 id="q3">Q3: 如何监控流控效果？</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 通过 Listener 监控</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 通过 Listener 监控</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">MyWriterListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -1163,7 +1100,7 @@ Writer 请求发送 100 bytes:
 <p>或者通过自定义流控器实现动态调整逻辑。</p>
 <h3 id="q5-datawriter-flowcontroller">Q5: 多个 DataWriter 共享同一个 FlowController 吗？</h3>
 <p><strong>答</strong>: 取决于配置：</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 默认情况下，每个 Writer 使用自己的流控器实例</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 默认情况下，每个 Writer 使用自己的流控器实例</span>
 <span class="c1">// 同名流控器会共享同一个控制器</span>
 
 <span class="c1">// Writer 1 和 Writer 2 共享流控器</span>
@@ -1175,7 +1112,7 @@ Writer 请求发送 100 bytes:
 </code></pre></div>
 <hr/>
 <h2 id="_2">总结</h2>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │                      流量控制要点回顾                            │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
@@ -1202,42 +1139,28 @@ Writer 请求发送 100 bytes:
 <hr/>
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 Fast-DDS 2.14.x 版本源码分析</em></p>
-    </main>
+<div class="checklist">
+  <h3>✅ 学习检查清单</h3>
+  <ul>
+    <li>理解了核心概念和原理</li>
+    <li>能够解释关键流程和机制</li>
+    <li>可以在实际项目中应用</li>
+    <li>能够排查常见问题</li>
+  </ul>
+</div>
+    <div class="nav-footer">
+<a href="14-Callback-Mechanism-Deep-Dive.html">
+  <div class="label">← 上一篇</div>
+  <div class="title">14 回调机制</div>
+</a>
+<a href="14-Memory-Fragmentation.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">14 内存管理</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>

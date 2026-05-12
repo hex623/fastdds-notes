@@ -3,242 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast-DDS 核心类体系详解 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>00 核心类体系 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item active" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item active" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 00-Core-Classes-Reference</div>
-        <h1 id="fast-dds">Fast-DDS 核心类体系详解</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>00 核心类体系</span>
+</div>
+    <h1 id="fast-dds">Fast-DDS 核心类体系详解</h1>
 <p><strong>创建时间</strong>: 2026-03-10<br/>
 <strong>源码版本</strong>: Fast-DDS 3.5.0<br/>
 <strong>作者</strong>: 旭旭助手</p>
 <hr/>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>理解 一、架构总览 的核心原理</li><li>掌握 八、代码示例 的实践方法</li><li>掌握 8.1 完整的发布者-订阅者示例 的实践方法</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>C++ 基础、DDS 基本概念</p>
+</div>
 <h2 id="_1">目录</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Participant A -->
+  <rect x="50" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="120" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant A</text>
+  <rect x="70" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="120" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="70" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="120" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="120" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite"/>
+  <text x="120" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- Participant B -->
+  <rect x="410" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="480" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant B</text>
+  <rect x="430" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="480" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="430" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="480" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="480" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite; animation-delay: 1s"/>
+  <text x="480" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- SPDP Multicast -->
+  <ellipse cx="300" cy="120" rx="80" ry="40" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6">
+    <animate attributeName="rx" values="60;100;60" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="ry" values="30;50;30" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <text x="300" y="125" text-anchor="middle" fill="#58a6ff" font-size="12">SPDP Multicast</text>
+  
+  <!-- Data Flow -->
+  <path d="M 190 98 Q 300 98 420 153" fill="none" stroke="#7ee787" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="85" text-anchor="middle" fill="#7ee787" font-size="11">Data</text>
+  
+  <path d="M 430 153 Q 300 153 190 98" fill="none" stroke="#f0883e" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="170" text-anchor="middle" fill="#f0883e" font-size="11">ACKNACK</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <ol>
 <li><a href="#一架构总览">架构总览</a></li>
 <li><a href="#二dds-layer-核心类">DDS Layer 核心类</a></li>
@@ -253,7 +193,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="_2">一、架构总览</h2>
 <p>Fast-DDS 采用分层架构设计，主要分为三个层次：</p>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
 │                           Application Layer                                  │
 │                     (用户应用程序代码)                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -330,7 +270,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_3">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DomainParticipantFactory</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DomainParticipantFactory</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="c1">// 参与者列表映射: domain_id -&gt; vector&lt;DomainParticipantImpl*&gt;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">DomainId_t</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">DomainParticipantImpl</span><span class="o">*&gt;&gt;</span><span class="w"> </span><span class="n">participants_</span><span class="p">;</span>
@@ -385,7 +325,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_5">使用示例</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 1. 获取工厂单例</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 1. 获取工厂单例</span>
 <span class="n">DomainParticipantFactory</span><span class="o">*</span><span class="w"> </span><span class="n">factory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">();</span>
 
 <span class="c1">// 2. 设置工厂 QoS (可选)</span>
@@ -427,7 +367,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_6">类层次关系</h4>
-<div class="codehilite"><pre><span></span><code>DomainParticipant (User Object - 用户直接操作)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>DomainParticipant (User Object - 用户直接操作)
 └── DomainParticipantImpl (Implementation - 实际实现)
     ├── RTPSParticipant* rtps_participant_  (指向 RTPS 层)
     ├── std::map&lt;Publisher*, PublisherImpl*&gt; publishers_  (Publisher 列表)
@@ -436,7 +376,7 @@ a:hover { text-decoration: underline; }
     └── BuiltinProtocols builtin_protocols_ (内置发现协议)
 </code></pre></div>
 <h4 id="_7">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DomainParticipant</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DomainParticipant</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">DomainParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 实现类指针 (Pimpl 模式)</span>
 <span class="w">    </span><span class="n">DomainId_t</span><span class="w"> </span><span class="n">domain_id_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 所属 Domain ID</span>
@@ -545,7 +485,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_9">使用示例</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 Publisher</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 创建 Publisher</span>
 <span class="n">PublisherQos</span><span class="w"> </span><span class="n">pub_qos</span><span class="p">;</span>
 <span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span>
 <span class="w">    </span><span class="n">pub_qos</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">,</span><span class="w"> </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">none</span><span class="p">()</span>
@@ -589,7 +529,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_10">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Publisher</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Publisher</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">PublisherImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 实现类指针</span>
 <span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 所属 DomainParticipant</span>
@@ -667,7 +607,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_12">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Subscriber</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Subscriber</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">SubscriberImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                   </span><span class="c1">// 实现类指针</span>
 <span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 所属 DomainParticipant</span>
@@ -745,7 +685,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_14">类层次关系</h4>
-<div class="codehilite"><pre><span></span><code><span class="nx">DataWriter</span><span class="w"> </span><span class="p">(</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">用户</span><span class="w"> </span><span class="nx">API</span><span class="p">)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">DataWriter</span><span class="w"> </span><span class="p">(</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">用户</span><span class="w"> </span><span class="nx">API</span><span class="p">)</span>
 <span class="err">└──</span><span class="w"> </span><span class="nx">DataWriterImpl</span><span class="w"> </span><span class="p">(</span><span class="nx">Implementation</span><span class="p">)</span>
 <span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="nx">writer_</span><span class="w">              </span><span class="p">(</span><span class="nx">底层</span><span class="w"> </span><span class="nx">RTPSWriter</span><span class="p">)</span>
 <span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">TypeSupport</span><span class="w"> </span><span class="nx">type_support_</span><span class="w">        </span><span class="p">(</span><span class="nx">数据类型支持</span><span class="p">)</span>
@@ -756,7 +696,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="nx">history_</span><span class="w">          </span><span class="p">(</span><span class="nx">发送历史缓存</span><span class="p">)</span>
 </code></pre></div>
 <h4 id="_15">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">DataWriterImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 实现类指针</span>
 <span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 所属 Publisher</span>
@@ -862,7 +802,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_17">使用示例</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 DataWriter</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 创建 DataWriter</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">;</span>
 <span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
 <span class="w">    </span><span class="n">topic</span><span class="p">,</span>
@@ -904,7 +844,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_18">类层次关系</h4>
-<div class="codehilite"><pre><span></span><code><span class="nx">DataReader</span><span class="w"> </span><span class="p">(</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">用户</span><span class="w"> </span><span class="nx">API</span><span class="p">)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">DataReader</span><span class="w"> </span><span class="p">(</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">用户</span><span class="w"> </span><span class="nx">API</span><span class="p">)</span>
 <span class="err">└──</span><span class="w"> </span><span class="nx">DataReaderImpl</span><span class="w"> </span><span class="p">(</span><span class="nx">Implementation</span><span class="p">)</span>
 <span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">RTPSReader</span><span class="o">*</span><span class="w"> </span><span class="nx">reader_</span><span class="w">              </span><span class="p">(</span><span class="nx">底层</span><span class="w"> </span><span class="nx">RTPSReader</span><span class="p">)</span>
 <span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">TypeSupport</span><span class="w"> </span><span class="nx">type_support_</span><span class="w">        </span><span class="p">(</span><span class="nx">数据类型支持</span><span class="p">)</span>
@@ -915,7 +855,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">ReaderHistory</span><span class="o">*</span><span class="w"> </span><span class="nx">history_</span><span class="w">          </span><span class="p">(</span><span class="nx">接收历史缓存</span><span class="p">)</span>
 </code></pre></div>
 <h4 id="_19">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">DataReaderImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 实现类指针</span>
 <span class="w">    </span><span class="n">Subscriber</span><span class="o">*</span><span class="w"> </span><span class="n">subscriber_</span><span class="p">;</span><span class="w">                </span><span class="c1">// 所属 Subscriber</span>
@@ -1037,7 +977,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_21">使用示例</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 DataReader</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 创建 DataReader</span>
 <span class="n">DataReaderQos</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">;</span>
 <span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span>
 <span class="w">    </span><span class="n">topic</span><span class="p">,</span>
@@ -1080,7 +1020,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_22">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Topic</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TopicDescription</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Topic</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TopicDescription</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">TopicImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                        </span><span class="c1">// 实现类指针</span>
 <span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 所属 DomainParticipant</span>
@@ -1215,7 +1155,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_25">核心组件架构</h4>
-<div class="codehilite"><pre><span></span><code><span class="nx">RTPSParticipant</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">RTPSParticipant</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">GuidPrefix_t</span><span class="w"> </span><span class="nx">m_guidPrefix</span><span class="w">                    </span><span class="c1">// GUID 前缀</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="nx">mp_impl</span><span class="w">                 </span><span class="c1">// 实现类 (Pimpl)</span>
 <span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">std</span><span class="o">::</span><span class="nx">vector</span><span class="p">&lt;</span><span class="nx">RTPSWriter</span><span class="o">*</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">m_writers</span><span class="w">       </span><span class="c1">// Writer 列表</span>
@@ -1339,7 +1279,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_27">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Endpoint</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Endpoint</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">;</span><span class="w">      </span><span class="c1">// 所属参与者实现</span>
 <span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">m_guid</span><span class="p">;</span><span class="w">                          </span><span class="c1">// 全局唯一标识符</span>
@@ -1399,7 +1339,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_29">继承层次</h4>
-<div class="codehilite"><pre><span></span><code>Endpoint (基类)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Endpoint (基类)
 └── RTPSWriter (抽象基类)
     ├── StatefulWriter (有状态，追踪每个 Reader 的状态)
     │   └── 维护 ReaderProxy 列表
@@ -1408,7 +1348,7 @@ a:hover { text-decoration: underline; }
         └── 支持 Best-Effort 传输
 </code></pre></div>
 <h4 id="_30">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RTPSWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RTPSWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">mp_history</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 发送历史缓存</span>
 <span class="w">    </span><span class="n">FlowController</span><span class="o">*</span><span class="w"> </span><span class="n">mp_flowController</span><span class="p">;</span><span class="w">            </span><span class="c1">// 流控器</span>
@@ -1528,7 +1468,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_32">继承层次</h4>
-<div class="codehilite"><pre><span></span><code>Endpoint (基类)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Endpoint (基类)
 └── RTPSReader (抽象基类)
     ├── StatefulReader (有状态，追踪每个 Writer 的状态)
     │   └── 维护 WriterProxy 列表
@@ -1537,7 +1477,7 @@ a:hover { text-decoration: underline; }
         └── 不发送反馈
 </code></pre></div>
 <h4 id="_33">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RTPSReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RTPSReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">ReaderHistory</span><span class="o">*</span><span class="w"> </span><span class="n">mp_history</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 接收历史缓存</span>
 <span class="w">    </span><span class="n">ReaderListener</span><span class="o">*</span><span class="w"> </span><span class="n">mp_listener</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 监听器回调</span>
@@ -1649,7 +1589,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_36">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">CacheChange_t</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">CacheChange_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ChangeKind_t</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 变更类型 (ALIVE, NOT_ALIVE_DISPOSED, etc.)</span>
 <span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">writerGUID</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 写入者 GUID</span>
 <span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">instanceHandle</span><span class="p">;</span><span class="w">      </span><span class="c1">// 实例句柄</span>
@@ -1666,7 +1606,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <h4 id="changekind_t">ChangeKind_t 枚举</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">ChangeKind_t</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">ChangeKind_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                            </span><span class="c1">// 正常数据</span>
 <span class="w">    </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">,</span><span class="w">              </span><span class="c1">// 实例被删除</span>
 <span class="w">    </span><span class="n">NOT_ALIVE_UNREGISTERED</span><span class="p">,</span><span class="w">          </span><span class="c1">// 实例被注销</span>
@@ -1694,7 +1634,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_37">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WriterHistory</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WriterHistory</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">mp_writer</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 关联的 Writer</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_changes</span><span class="p">;</span><span class="w">    </span><span class="c1">// 缓存变更列表</span>
@@ -1754,7 +1694,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_39">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ReaderHistory</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ReaderHistory</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">RTPSReader</span><span class="o">*</span><span class="w"> </span><span class="n">mp_reader</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 关联的 Reader</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_changes</span><span class="p">;</span><span class="w">    </span><span class="c1">// 缓存变更列表</span>
@@ -1817,7 +1757,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_41">结构定义</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GUID_t</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GUID_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">GuidPrefix_t</span><span class="w"> </span><span class="n">guidPrefix</span><span class="p">;</span><span class="w">      </span><span class="c1">// 12 字节前缀 (标识 Participant)</span>
 <span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">entityId</span><span class="p">;</span><span class="w">          </span><span class="c1">// 4 字节实体 ID (标识 Writer/Reader)</span>
 <span class="p">};</span>
@@ -1833,7 +1773,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <h4 id="entityid">内置 EntityId</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// Participant</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Participant</span>
 <span class="cp">#define ENTITYID_PARTICIPANT 0x000001c1</span>
 
 <span class="c1">// Writers (内置)</span>
@@ -1870,13 +1810,13 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_43">继承层次</h4>
-<div class="codehilite"><pre><span></span><code><span class="nx">PDP</span><span class="w"> </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">PDP</span><span class="w"> </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">PDPSimple</span><span class="w">          </span><span class="c1">// 标准 Simple PDP 实现</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">PDPServer</span><span class="w">          </span><span class="c1">// Discovery Server 服务器模式</span>
 <span class="err">└──</span><span class="w"> </span><span class="nx">PDPClient</span><span class="w">          </span><span class="c1">// Discovery Server 客户端模式</span>
 </code></pre></div>
 <h4 id="_44">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PDP</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PDP</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">;</span><span class="w">          </span><span class="c1">// 所属参与者</span>
 <span class="w">    </span><span class="n">EDP</span><span class="o">*</span><span class="w"> </span><span class="n">mp_EDP</span><span class="p">;</span><span class="w">                                      </span><span class="c1">// 端点发现协议</span>
@@ -1942,12 +1882,12 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_46">继承层次</h4>
-<div class="codehilite"><pre><span></span><code><span class="nx">EDP</span><span class="w"> </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">EDP</span><span class="w"> </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span>
 <span class="err">├──</span><span class="w"> </span><span class="nx">EDPSimple</span><span class="w">    </span><span class="c1">// 动态发现</span>
 <span class="err">└──</span><span class="w"> </span><span class="nx">EDPStatic</span><span class="w">    </span><span class="c1">// 静态配置 (通过 XML)</span>
 </code></pre></div>
 <h4 id="_47">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDP</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDP</span><span class="w"> </span><span class="p">{</span>
 <span class="k">protected</span><span class="o">:</span>
 <span class="w">    </span><span class="n">PDP</span><span class="o">*</span><span class="w"> </span><span class="n">mp_PDP</span><span class="p">;</span><span class="w">                                      </span><span class="c1">// 关联的 PDP</span>
 <span class="w">    </span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">;</span><span class="w">          </span><span class="c1">// 所属参与者</span>
@@ -2012,7 +1952,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_50">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">Locator_t</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">Locator_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 传输类型 (LOCATOR_KIND_UDPv4, etc.)</span>
 <span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">port</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 端口号</span>
 <span class="w">    </span><span class="n">octet</span><span class="w"> </span><span class="n">address</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span><span class="w">                </span><span class="c1">// IP 地址 (IPv4/IPv6)</span>
@@ -2047,7 +1987,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_51">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SequenceNumber_t</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SequenceNumber_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">high</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 高位</span>
 <span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">low</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 低位</span>
 <span class="p">};</span>
@@ -2076,7 +2016,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h4 id="_52">核心成员变量</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SerializedPayload_t</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SerializedPayload_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">encapsulation</span><span class="p">;</span><span class="w">           </span><span class="c1">// 封装格式 (CDR, PL_CDR, etc.)</span>
 <span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">length</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 数据长度</span>
 <span class="w">    </span><span class="n">octet</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">;</span><span class="w">                      </span><span class="c1">// 数据指针</span>
@@ -2087,7 +2027,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="_53">七、类关系图</h2>
 <h3 id="71-dds-layer">7.1 DDS Layer 完整类图</h3>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
 │                           DDS Layer                                          │
 │                                                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
@@ -2125,7 +2065,7 @@ a:hover { text-decoration: underline; }
                                      ▼
 </code></pre></div>
 <h3 id="72-rtps-layer">7.2 RTPS Layer 完整类图</h3>
-<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
 <span class="err">│</span><span class="w">                           </span><span class="nx">RTPS</span><span class="w"> </span><span class="nx">Layer</span><span class="w">                                         </span><span class="err">│</span>
 <span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
 <span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
@@ -2176,7 +2116,7 @@ a:hover { text-decoration: underline; }
 <span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
 </code></pre></div>
 <h3 id="73-dds-rtps">7.3 DDS 与 RTPS 映射关系</h3>
-<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
 <span class="err">│</span><span class="w">                    </span><span class="n">DDS</span><span class="w"> </span><span class="n">Layer</span><span class="w">  </span><span class="err">←→</span><span class="w">  </span><span class="n">RTPS</span><span class="w"> </span><span class="n">Layer</span><span class="w"> </span><span class="err">映射</span><span class="w">                           </span><span class="err">│</span>
 <span class="err">├─────────────────────────────────────────────────────────────────────────────┤</span>
 <span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
@@ -2215,7 +2155,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="_54">八、代码示例</h2>
 <h3 id="81-">8.1 完整的发布者-订阅者示例</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== Publisher.cpp ====================</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ==================== Publisher.cpp ====================</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
@@ -2279,7 +2219,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== Subscriber.cpp ====================</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ==================== Subscriber.cpp ====================</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/Subscriber.hpp&gt;</span>
@@ -2412,42 +2352,25 @@ a:hover { text-decoration: underline; }
 <p><em>文档版本: 1.0<br/>
 最后更新: 2026-03-10<br/>
 作者: 旭旭助手</em></p>
-    </main>
+<div class="checklist">
+  <h3>✅ 学习检查清单</h3>
+  <ul>
+    <li>理解了核心概念和原理</li>
+    <li>能够解释关键流程和机制</li>
+    <li>可以在实际项目中应用</li>
+    <li>能够排查常见问题</li>
+  </ul>
+</div>
+    <div class="nav-footer">
+
+<a href="01-RTPS-Source-Analysis.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">01 RTPS源码分析</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>

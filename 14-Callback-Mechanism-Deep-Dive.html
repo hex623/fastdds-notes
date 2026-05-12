@@ -3,242 +3,180 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDS 回调机制深度解析 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>14 回调机制 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item active" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item active" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 14-Callback-Mechanism-Deep-Dive</div>
-        <h1 id="dds">DDS 回调机制深度解析</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>14 回调机制</span>
+</div>
+    <h1 id="dds">DDS 回调机制深度解析</h1>
 <p><strong>记录时间</strong>: 2026-03-24<br/>
 <strong>学习主题</strong>: Listener/WaitSet 回调机制的底层原理与高级用法<br/>
 <strong>前置知识</strong>: 10-Listener-WaitSet.md</p>
 <hr/>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>理解 1. 回调机制全景 的核心原理</li><li>理解 2. 底层实现原理 的核心原理</li><li>理解 2.1 回调触发流程图 的核心原理</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>DDS 基础、RTPS 消息格式</p>
+</div>
 <h2 id="_1">目录</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Stages -->
+  <rect x="20" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#7ee787" stroke-width="2"/>
+  <text x="70" y="90" text-anchor="middle" fill="#7ee787" font-size="12" font-weight="600">Publisher</text>
+  <text x="70" y="108" text-anchor="middle" fill="#8b949e" font-size="10">Application</text>
+  
+  <rect x="180" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+  <text x="230" y="90" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">Writer</text>
+  <text x="230" y="108" text-anchor="middle" fill="#8b949e" font-size="10">RTPS Layer</text>
+  
+  <rect x="340" y="60" width="100" height="80" rx="6" fill="#161b22" stroke="#f0883e" stroke-width="2"/>
+  <text x="390" y="90" text-anchor="middle" fill="#f0883e" font-size="12" font-weight="600">Transport</text>
+  <text x="390" y="108" text-anchor="middle" fill="#8b949e" font-size="10">UDP/TCP/SHM</text>
+  
+  <rect x="500" y="60" width="80" height="80" rx="6" fill="#161b22" stroke="#f778ba" stroke-width="2"/>
+  <text x="540" y="90" text-anchor="middle" fill="#f778ba" font-size="12" font-weight="600">Network</text>
+  
+  <!-- Flow arrows -->
+  <path d="M 120 100 L 170 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
+  <path d="M 280 100 L 330 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
+  <path d="M 440 100 L 490 100" fill="none" stroke="#c9d1d9" stroke-width="2" marker-end="url(#arrow2)"/>
+  
+  <!-- Animated packet -->
+  <circle r="6" fill="#58a6ff">
+    <animateMotion path="M 120 100 L 170 100" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="6" fill="#58a6ff">
+    <animateMotion path="M 280 100 L 330 100" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle r="6" fill="#58a6ff">
+    <animateMotion path="M 440 100 L 490 100" dur="1.5s" begin="1s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Labels -->
+  <text x="145" y="130" text-anchor="middle" fill="#8b949e" font-size="10">write()</text>
+  <text x="305" y="130" text-anchor="middle" fill="#8b949e" font-size="10">serialize</text>
+  <text x="465" y="130" text-anchor="middle" fill="#8b949e" font-size="10">send()</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <ol>
 <li><a href="#1-回调机制全景">回调机制全景</a></li>
 <li><a href="#2-底层实现原理">底层实现原理</a></li>
@@ -251,7 +189,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="1">1. 回调机制全景</h2>
 <h3 id="11">1.1 三种异步通知模式对比</h3>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │                    数据到达通知机制                              │
 ├─────────────┬─────────────────┬─────────────────────────────────┤
 │   Listener  │    WaitSet      │         轮询 (Polling)          │
@@ -343,7 +281,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="2">2. 底层实现原理</h2>
 <h3 id="21">2.1 回调触发流程图</h3>
-<div class="codehilite"><pre><span></span><code><span class="err">网络层接收数据</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">网络层接收数据</span>
 <span class="w">       </span><span class="err">↓</span>
 <span class="n">RTPS</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="err">处理</span><span class="w"> </span><span class="kt">DATA</span><span class="w"> </span><span class="err">子消息</span>
 <span class="w">       </span><span class="err">↓</span>
@@ -363,7 +301,7 @@ a:hover { text-decoration: underline; }
 </code></pre></div>
 <h3 id="22">2.2 关键代码路径</h3>
 <h4 id="_2">接收线程到回调的调用链</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 1. 接收线程入口 (UDP/TCP/SHM 传输层)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 1. 接收线程入口 (UDP/TCP/SHM 传输层)</span>
 <span class="n">UDPChannel</span><span class="o">::</span><span class="n">receive</span><span class="p">()</span>
 <span class="w">    </span><span class="err">↓</span>
 <span class="c1">// 2. RTPS 消息处理</span>
@@ -386,7 +324,7 @@ a:hover { text-decoration: underline; }
 - 如果回调耗时，会<strong>阻塞后续数据接收</strong><br/>
 - 这也是为什么回调中不能做耗时操作</p>
 <h3 id="23-statusmask">2.3 StatusMask 机制</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// StatusMask 使用位掩码控制回调触发</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// StatusMask 使用位掩码控制回调触发</span>
 <span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">StatusMask</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">NONE</span><span class="w">                            </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0000</span><span class="p">,</span>
 <span class="w">    </span><span class="n">DATA_AVAILABLE</span><span class="w">                  </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0001</span><span class="p">,</span><span class="w">  </span><span class="c1">// 1 &lt;&lt; 0</span>
@@ -404,7 +342,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <p><strong>使用示例</strong>：</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 只监听数据到达和匹配变化</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 只监听数据到达和匹配变化</span>
 <span class="n">StatusMask</span><span class="w"> </span><span class="n">mask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">data_available</span><span class="p">()</span><span class="w"> </span><span class="o">|</span><span class="w"> </span>
 <span class="w">                  </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">subscription_matched</span><span class="p">();</span>
 
@@ -412,7 +350,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">listener</span><span class="p">,</span><span class="w"> </span><span class="n">mask</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="24-rtps">2.4 回调与 RTPS 协议的交互</h3>
-<div class="codehilite"><pre><span></span><code>Writer 发送 DATA(SN=1)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Writer 发送 DATA(SN=1)
        ↓
 网络传输
        ↓
@@ -436,7 +374,7 @@ Writer 收到确认
 <hr/>
 <h2 id="3">3. 线程安全与性能优化</h2>
 <h3 id="31">3.1 回调执行的线程模型</h3>
-<div class="codehilite"><pre><span></span><code>接收线程池 (Receive Thread Pool)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>接收线程池 (Receive Thread Pool)
 ├─ Thread 1: UDP Port 7400 ──→ on_data_available()
 ├─ Thread 2: UDP Port 7401 ──→ on_data_available()
 ├─ Thread 3: TCP Connection ──→ on_data_available()
@@ -486,7 +424,7 @@ Writer 收到确认
 </table>
 <h3 id="33">3.3 高性能回调模式</h3>
 <h4 id="1_1">模式1：无锁队列 + 工作线程</h4>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;boost/lockfree/spsc_queue.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;boost/lockfree/spsc_queue.hpp&gt;</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">HighPerformanceListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -546,7 +484,7 @@ Writer 收到确认
 <span class="p">};</span>
 </code></pre></div>
 <h4 id="2_1">模式2：线程池 + 任务队列</h4>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;thread_pool.hpp&gt;</span><span class="c1">  // 第三方线程池</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;thread_pool.hpp&gt;</span><span class="c1">  // 第三方线程池</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ThreadPoolListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
@@ -581,7 +519,7 @@ Writer 收到确认
 <span class="p">};</span>
 </code></pre></div>
 <h4 id="3ringbuffer">模式3：RingBuffer + 忙等待（超低延迟）</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">Capacity</span><span class="o">&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">Capacity</span><span class="o">&gt;</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">RingBuffer</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">static_assert</span><span class="p">((</span><span class="n">Capacity</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">Capacity</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">))</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">"Capacity must be power of 2"</span><span class="p">);</span>
 
@@ -699,7 +637,7 @@ Writer 收到确认
 <hr/>
 <h2 id="4">4. 高级回调技巧</h2>
 <h3 id="41-reader-listener">4.1 多 Reader 共享同一个 Listener</h3>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SharedListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SharedListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_data_available</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="c1">// 通过 reader 指针区分来源</span>
@@ -730,7 +668,7 @@ Writer 收到确认
 <span class="n">shared_listener</span><span class="p">.</span><span class="n">set_readers</span><span class="p">(</span><span class="n">temp_reader</span><span class="p">,</span><span class="w"> </span><span class="n">press_reader</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="42-lambda">4.2 Lambda 表达式与闭包</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 使用 Lambda 创建轻量级 Listener</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 使用 Lambda 创建轻量级 Listener</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">LambdaListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="n">Callback</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
@@ -758,7 +696,7 @@ Writer 收到确认
 <span class="p">});</span>
 </code></pre></div>
 <h3 id="43">4.3 状态变化链式处理</h3>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LifecycleListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LifecycleListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="c1">// 匹配状态变化</span>
 <span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_subscription_matched</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">,</span>
@@ -804,7 +742,7 @@ Writer 收到确认
 <span class="p">};</span>
 </code></pre></div>
 <h3 id="44">4.4 动态启用/禁用回调</h3>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ToggleableListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ToggleableListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">enabled_</span><span class="p">{</span><span class="nb">true</span><span class="p">};</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="kt">size_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">processed_count_</span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
@@ -846,7 +784,7 @@ Writer 收到确认
 <hr/>
 <h2 id="5-waitset">5. WaitSet 底层原理</h2>
 <h3 id="51-waitset">5.1 WaitSet 架构图</h3>
-<div class="codehilite"><pre><span></span><code>┌────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌────────────────────────────────────────────────────────────┐
 │<span class="w">                        </span><span class="nv">WaitSet</span><span class="w">                              </span>│
 ├────────────────────────────────────────────────────────────┤
 │<span class="w">  </span>┌─────────────┐<span class="w">  </span>┌─────────────┐<span class="w">  </span>┌─────────────┐<span class="w">        </span>│
@@ -870,7 +808,7 @@ Writer 收到确认
 </code></pre></div>
 <h3 id="52-condition">5.2 Condition 类型详解</h3>
 <h4 id="readcondition">ReadCondition</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// ReadCondition 监控 DataReader 的样本状态</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ReadCondition 监控 DataReader 的样本状态</span>
 <span class="c1">// 可以指定 sample_states、view_states、instance_states</span>
 
 <span class="c1">// 示例：只监听新数据（NOT_READ）</span>
@@ -931,7 +869,7 @@ Writer 收到确认
 </tbody>
 </table>
 <h4 id="querycondition">QueryCondition</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// QueryCondition = ReadCondition + 内容过滤</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// QueryCondition = ReadCondition + 内容过滤</span>
 <span class="c1">// 使用 SQL-like 语法过滤数据</span>
 
 <span class="c1">// 只接收 id &gt; 100 且 status == "active" 的数据</span>
@@ -948,7 +886,7 @@ Writer 收到确认
 <span class="n">waitset</span><span class="p">.</span><span class="n">attach_condition</span><span class="p">(</span><span class="n">query_condition</span><span class="p">);</span>
 </code></pre></div>
 <h4 id="guardcondition">GuardCondition</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// GuardCondition 用于外部事件触发</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// GuardCondition 用于外部事件触发</span>
 <span class="c1">// 比如：用户输入、信号、其他线程通知</span>
 
 <span class="n">GuardCondition</span><span class="o">*</span><span class="w"> </span><span class="n">guard_condition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_guardcondition</span><span class="p">();</span>
@@ -961,7 +899,7 @@ Writer 收到确认
 </code></pre></div>
 <h3 id="53-waitset">5.3 WaitSet 使用模式</h3>
 <h4 id="1_2">模式1：单条件等待</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 简单场景：只等待数据</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 简单场景：只等待数据</span>
 <span class="n">WaitSet</span><span class="w"> </span><span class="n">waitset</span><span class="p">;</span>
 <span class="n">ReadCondition</span><span class="o">*</span><span class="w"> </span><span class="n">condition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">create_readcondition</span><span class="p">(</span>
 <span class="w">    </span><span class="n">SampleStateMask</span><span class="o">::</span><span class="n">not_read</span><span class="p">(),</span>
@@ -990,7 +928,7 @@ Writer 收到确认
 <span class="p">}</span>
 </code></pre></div>
 <h4 id="2_2">模式2：多条件组合等待</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 同时监控多个 Reader 和退出信号</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 同时监控多个 Reader 和退出信号</span>
 <span class="n">WaitSet</span><span class="w"> </span><span class="n">waitset</span><span class="p">;</span>
 
 <span class="c1">// 监控温度 Reader</span>
@@ -1025,7 +963,7 @@ Writer 收到确认
 <span class="p">}</span>
 </code></pre></div>
 <h4 id="3_1">模式3：超时处理模式</h4>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TimeoutHandler</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TimeoutHandler</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">WaitSet</span><span class="w"> </span><span class="n">waitset_</span><span class="p">;</span>
 <span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader_</span><span class="p">;</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">time_point</span><span class="w"> </span><span class="n">last_data_time_</span><span class="p">;</span>
@@ -1070,7 +1008,7 @@ Writer 收到确认
 <hr/>
 <h2 id="6-vs">6. 回调 vs 轮询选型指南</h2>
 <h3 id="61">6.1 决策树</h3>
-<div class="codehilite"><pre><span></span><code>是否需要实时响应？
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>是否需要实时响应？
 ├── 是 → 实时性要求高吗？
 │       ├── 极高（&lt;1ms）→ Listener + 无锁队列
 │       ├── 高（&lt;10ms）→ Listener + 线程池
@@ -1132,7 +1070,7 @@ Writer 收到确认
 </tbody>
 </table>
 <h3 id="63">6.3 混合模式</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 结合 Listener 和 WaitSet 的优点</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 结合 Listener 和 WaitSet 的优点</span>
 <span class="c1">// 主路径用 Listener，备用路径用 WaitSet 监控</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">HybridReceiver</span><span class="w"> </span><span class="p">{</span>
@@ -1193,7 +1131,7 @@ Writer 收到确认
 <hr/>
 <h2 id="7">7. 实战代码模式</h2>
 <h3 id="71">7.1 完整的可靠接收模式</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/Subscriber.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/DataReader.hpp&gt;</span>
@@ -1266,7 +1204,7 @@ Writer 收到确认
 <span class="c1">// 实现...</span>
 </code></pre></div>
 <h3 id="72">7.2 快速启动模板</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// header: dds_receiver.hpp</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// header: dds_receiver.hpp</span>
 <span class="cp">#pragma once</span>
 
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/dds.hpp&gt;</span>
@@ -1336,42 +1274,19 @@ Writer 收到确认
 <p><em>记录时间: 2026-03-24</em><br/>
 <em>模块: DDS 回调机制深度解析</em><br/>
 <em>关联笔记: 10-Listener-WaitSet.md</em></p>
-    </main>
+    <div class="nav-footer">
+<a href="13-Logging-System.html">
+  <div class="label">← 上一篇</div>
+  <div class="title">13.x 日志系统</div>
+</a>
+<a href="14-Flow-Control.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">14 流量控制</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>

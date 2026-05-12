@@ -3,238 +3,178 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast-DDS QoS 策略实现详解 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>04 QoS实现 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item active" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item active" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 04-QoS-Implementation</div>
-        <h1 id="fast-dds-qos">Fast-DDS QoS 策略实现详解</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>04 QoS实现</span>
+</div>
+    <h1 id="fast-dds-qos">Fast-DDS QoS 策略实现详解</h1>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>理解 1. QoS 架构设计概述 的核心原理</li><li>理解 1.1 整体架构图 的核心原理</li><li>理解 4. QoS 兼容性检查机制 的核心原理</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>DDS QoS 基础、RTPS 消息格式</p>
+</div>
 <h2 id="_1">目录</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Participant A -->
+  <rect x="50" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="120" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant A</text>
+  <rect x="70" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="120" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="70" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="120" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="120" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite"/>
+  <text x="120" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- Participant B -->
+  <rect x="410" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="480" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant B</text>
+  <rect x="430" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="480" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="430" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="480" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="480" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite; animation-delay: 1s"/>
+  <text x="480" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- SPDP Multicast -->
+  <ellipse cx="300" cy="120" rx="80" ry="40" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6">
+    <animate attributeName="rx" values="60;100;60" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="ry" values="30;50;30" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <text x="300" y="125" text-anchor="middle" fill="#58a6ff" font-size="12">SPDP Multicast</text>
+  
+  <!-- Data Flow -->
+  <path d="M 190 98 Q 300 98 420 153" fill="none" stroke="#7ee787" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="85" text-anchor="middle" fill="#7ee787" font-size="11">Data</text>
+  
+  <path d="M 430 153 Q 300 153 190 98" fill="none" stroke="#f0883e" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="170" text-anchor="middle" fill="#f0883e" font-size="11">ACKNACK</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <ol>
 <li><a href="#1-qos-架构设计概述">QoS 架构设计概述</a></li>
 <li><a href="#2-核心组件详解">核心组件详解</a></li>
@@ -252,7 +192,7 @@ a:hover { text-decoration: underline; }
 <li><strong>可扩展性</strong>：支持标准 DDS QoS 和厂商扩展 QoS</li>
 </ul>
 <h3 id="11">1.1 整体架构图</h3>
-<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │                        QoS 架构层次                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  应用层 QoS  │  DataWriterQos / DataReaderQos / TopicQos        │
@@ -295,7 +235,7 @@ a:hover { text-decoration: underline; }
 <h2 id="2">2. 核心组件详解</h2>
 <h3 id="21-qospolicy-">2.1 QosPolicy - 策略基类</h3>
 <p>所有 QoS 策略都继承自 <code>QosPolicy</code> 基类，定义位于 <code>include/fastdds/dds/core/policy/QosPolicies.hpp</code>：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">QosPolicy</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">QosPolicy</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="c1">//! 标记 QoS 是否被修改过</span>
@@ -327,7 +267,7 @@ a:hover { text-decoration: underline; }
 - <code>clear()</code>：纯虚函数，子类必须实现重置逻辑</p>
 <h3 id="22-policymask-">2.2 PolicyMask - 策略掩码</h3>
 <p><code>PolicyMask</code> 用于高效表示一组 QoS 策略的状态，基于 <code>std::bitset</code> 实现：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">QosPolicyId_t</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint32_t</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">QosPolicyId_t</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint32_t</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="n">INVALID_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
 <span class="w">    </span><span class="n">USERDATA_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
@@ -348,7 +288,7 @@ a:hover { text-decoration: underline; }
 - 批量操作多个策略</p>
 <h3 id="23-parameterlist-">2.3 ParameterList - 参数列表</h3>
 <p><code>ParameterList</code> 负责 QoS 参数的序列化和反序列化，是 RTPS 协议实现的关键：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ParameterList</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ParameterList</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="c1">//! 将封装头写入 CDR 消息</span>
@@ -413,7 +353,7 @@ a:hover { text-decoration: underline; }
 </table>
 <h3 id="24-parameter_t-">2.4 Parameter_t - 参数基类</h3>
 <p>所有参数的基类，定义了 PID 和长度：</p>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Parameter_t</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Parameter_t</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="n">ParameterId_t</span><span class="w"> </span><span class="n">Pid</span><span class="p">;</span><span class="w">    </span><span class="c1">// 参数标识符</span>
@@ -431,7 +371,7 @@ a:hover { text-decoration: underline; }
 <h3 id="31-reliabilityqospolicy">3.1 ReliabilityQosPolicy（可靠性策略）</h3>
 <p><strong>定义位置</strong>：<code>include/fastdds/dds/core/policy/QosPolicies.hpp</code></p>
 <p><strong>作用</strong>：控制数据传输的可靠性级别。</p>
-<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ReliabilityQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ReliabilityQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">//! 尽力而为 - 不保证数据到达</span>
 <span class="w">    </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x01</span><span class="p">,</span>
@@ -490,7 +430,7 @@ a:hover { text-decoration: underline; }
 - 必须满足：Writer 提供的可靠性 ≥ Reader 要求的可靠性</p>
 <h3 id="32-durabilityqospolicy">3.2 DurabilityQosPolicy（持久性策略）</h3>
 <p><strong>作用</strong>：控制数据在写入者生命周期结束后的保留行为。</p>
-<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">DurabilityQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">DurabilityQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">//! 数据不保留</span>
 <span class="w">    </span><span class="n">VOLATILE_DURABILITY_QOS</span><span class="p">,</span>
@@ -515,7 +455,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <p><strong>持久性级别排序</strong>：</p>
-<div class="codehilite"><pre><span></span><code>VOLATILE &lt; TRANSIENT_LOCAL &lt; TRANSIENT &lt; PERSISTENT
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>VOLATILE &lt; TRANSIENT_LOCAL &lt; TRANSIENT &lt; PERSISTENT
 </code></pre></div>
 <p><strong>使用场景</strong>：</p>
 <table>
@@ -549,7 +489,7 @@ a:hover { text-decoration: underline; }
 - Writer(VOLATILE) + Reader(TRANSIENT_LOCAL) = <strong>不兼容</strong></p>
 <h3 id="33-historyqospolicy">3.3 HistoryQosPolicy（历史策略）</h3>
 <p><strong>作用</strong>：控制实例数据的缓存行为。</p>
-<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">HistoryQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">HistoryQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">//! 只保留最近的 N 个样本</span>
 <span class="w">    </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">,</span>
@@ -569,7 +509,7 @@ a:hover { text-decoration: underline; }
 - DataReader：KEEP_LAST，depth = 1<br/>
 - DataWriter：KEEP_LAST，depth = 1</p>
 <p><strong>与 ResourceLimits 的关系</strong>：</p>
-<div class="codehilite"><pre><span></span><code>总样本数 ≤ max_samples
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>总样本数 ≤ max_samples
 单个实例样本数 ≤ max_samples_per_instance
 实例数 ≤ max_instances
 
@@ -577,7 +517,7 @@ a:hover { text-decoration: underline; }
 </code></pre></div>
 <h3 id="34-deadlineqospolicy">3.4 DeadlineQosPolicy（截止期限策略）</h3>
 <p><strong>作用</strong>：定义数据更新的最大允许间隔。</p>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeadlineQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeadlineQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="c1">//! 数据更新的最大允许间隔</span>
@@ -596,7 +536,7 @@ a:hover { text-decoration: underline; }
 - 否则配置不一致</p>
 <h3 id="35-lifespanqospolicy">3.5 LifespanQosPolicy（生命周期策略）</h3>
 <p><strong>作用</strong>：定义数据样本的有效期。</p>
-<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LifespanQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LifespanQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="c1">//! 数据有效期</span>
@@ -613,7 +553,7 @@ a:hover { text-decoration: underline; }
 - 周期性状态报告</p>
 <h3 id="36-livelinessqospolicy">3.6 LivelinessQosPolicy（活跃性策略）</h3>
 <p><strong>作用</strong>：检测通信实体是否仍然活跃。</p>
-<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">LivelinessQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">LivelinessQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">//! 自动维护活跃性</span>
 <span class="w">    </span><span class="n">AUTOMATIC_LIVELINESS_QOS</span><span class="p">,</span>
@@ -634,7 +574,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <p><strong>活跃性级别排序</strong>：</p>
-<div class="codehilite"><pre><span></span><code>AUTOMATIC &lt; MANUAL_BY_PARTICIPANT &lt; MANUAL_BY_TOPIC
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>AUTOMATIC &lt; MANUAL_BY_PARTICIPANT &lt; MANUAL_BY_TOPIC
 </code></pre></div>
 <p><strong>兼容性规则</strong>：<br/>
 1. Writer.kind ≥ Reader.kind<br/>
@@ -666,7 +606,7 @@ a:hover { text-decoration: underline; }
 <h2 id="4-qos">4. QoS 兼容性检查机制</h2>
 <h3 id="41">4.1 匹配流程</h3>
 <p>QoS 兼容性检查在端点发现阶段（EDP）执行：</p>
-<div class="codehilite"><pre><span></span><code>WriterProxyData ←→ ReaderProxyData
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>WriterProxyData ←→ ReaderProxyData
         ↓              ↓
     valid_matching()
         ↓
@@ -676,7 +616,7 @@ a:hover { text-decoration: underline; }
 </code></pre></div>
 <h3 id="42">4.2 兼容性检查实现</h3>
 <p>核心代码位于 <code>src/cpp/rtps/builtin/discovery/endpoint/EDP.cpp</code>：</p>
-<div class="codehilite"><pre><span></span><code><span class="kt">bool</span><span class="w"> </span><span class="nf">EDP::valid_matching</span><span class="p">(</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="kt">bool</span><span class="w"> </span><span class="nf">EDP::valid_matching</span><span class="p">(</span>
 <span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">WriterProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">wdata</span><span class="p">,</span>
 <span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">ReaderProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">rdata</span><span class="p">,</span>
 <span class="w">    </span><span class="n">MatchingFailureMask</span><span class="o">&amp;</span><span class="w"> </span><span class="n">reason</span><span class="p">,</span>
@@ -737,7 +677,7 @@ a:hover { text-decoration: underline; }
 </code></pre></div>
 <h3 id="43">4.3 不兼容通知机制</h3>
 <p>当检测到 QoS 不兼容时，会触发以下通知：</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// Reader 侧</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Reader 侧</span>
 <span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">no_match_reason</span><span class="p">.</span><span class="n">test</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">incompatible_qos</span><span class="p">)</span><span class="w"> </span>
 <span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_listener</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span>
 <span class="p">{</span>
@@ -798,7 +738,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="5">5. 代码示例</h2>
 <h3 id="51-reliability-qos">5.1 配置 Reliability QoS</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/qos/DataWriterQos.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/qos/DataReaderQos.hpp&gt;</span>
 
@@ -824,7 +764,7 @@ a:hover { text-decoration: underline; }
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="52-durability-qos">5.2 配置 Durability QoS</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 配置 TRANSIENT_LOCAL 持久性（适用于状态主题）</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 配置 TRANSIENT_LOCAL 持久性（适用于状态主题）</span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">configure_transient_local_qos</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">wqos</span><span class="p">,</span><span class="w"> </span><span class="n">DataReaderQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rqos</span><span class="p">)</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">// Writer 配置</span>
@@ -847,7 +787,7 @@ a:hover { text-decoration: underline; }
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="53-deadline-qos">5.3 配置 Deadline QoS</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 配置 1 秒截止期限</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 配置 1 秒截止期限</span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">configure_deadline_qos</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">wqos</span><span class="p">,</span><span class="w"> </span><span class="n">DataReaderQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rqos</span><span class="p">)</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">// Writer：承诺每秒至少更新一次</span>
@@ -871,7 +811,7 @@ a:hover { text-decoration: underline; }
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="54-liveliness-qos">5.4 配置 Liveliness QoS</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 配置手动活跃性</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 配置手动活跃性</span>
 <span class="kt">void</span><span class="w"> </span><span class="nf">configure_manual_liveliness</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos</span><span class="p">)</span>
 <span class="p">{</span>
 <span class="w">    </span><span class="c1">// 使用 MANUAL_BY_TOPIC 模式</span>
@@ -891,7 +831,7 @@ a:hover { text-decoration: underline; }
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="55-publishersubscriber-qos">5.5 完整的 Publisher/Subscriber QoS 配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/topic/Topic.hpp&gt;</span>
@@ -945,7 +885,7 @@ a:hover { text-decoration: underline; }
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="56-qos">5.6 处理不兼容 QoS 通知</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/core/status/IncompatibleQosStatus.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/core/status/IncompatibleQosStatus.hpp&gt;</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">MyWriterListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span>
 <span class="p">{</span>
@@ -974,7 +914,7 @@ a:hover { text-decoration: underline; }
 <h2 id="6">6. 最佳实践</h2>
 <h3 id="61-qos">6.1 场景化 QoS 配置指南</h3>
 <h4 id="1">场景 1：实时视频流</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：低延迟、可容忍丢包</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 要求：低延迟、可容忍丢包</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">video_qos</span><span class="p">;</span>
 
 <span class="c1">// 尽力而为传输</span>
@@ -991,7 +931,7 @@ a:hover { text-decoration: underline; }
 <span class="n">video_qos</span><span class="p">.</span><span class="n">lifespan</span><span class="p">().</span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">50000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 50ms</span>
 </code></pre></div>
 <h4 id="2_1">场景 2：机器人控制命令</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：高可靠、必须送达</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 要求：高可靠、必须送达</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">command_qos</span><span class="p">;</span>
 
 <span class="c1">// 可靠传输</span>
@@ -1008,7 +948,7 @@ a:hover { text-decoration: underline; }
 <span class="n">command_qos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
 </code></pre></div>
 <h4 id="3">场景 3：系统状态同步</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：状态一致性、历史可查</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 要求：状态一致性、历史可查</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">state_qos</span><span class="p">;</span>
 
 <span class="c1">// 可靠传输</span>
@@ -1026,7 +966,7 @@ a:hover { text-decoration: underline; }
 <span class="n">state_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples_per_instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
 </code></pre></div>
 <h4 id="4">场景 4：传感器数据采集</h4>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：高吞吐、可容忍部分丢失</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 要求：高吞吐、可容忍部分丢失</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">sensor_qos</span><span class="p">;</span>
 
 <span class="c1">// 尽力而为传输</span>
@@ -1160,42 +1100,19 @@ a:hover { text-decoration: underline; }
 <p><em>文档版本：V1.0</em><br/>
 <em>最后更新：2026-03-02</em><br/>
 <em>基于 Fast-DDS 版本：3.x</em></p>
-    </main>
+    <div class="nav-footer">
+<a href="03B-Topic-详解.html">
+  <div class="label">← 上一篇</div>
+  <div class="title">03B Topic详解</div>
+</a>
+<a href="04-消息传递机制.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">04 消息传递机制</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>

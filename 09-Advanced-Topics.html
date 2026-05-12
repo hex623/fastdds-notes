@@ -3,242 +3,182 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>09 进阶主题：可靠传输与发现协议深度解析 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>09 进阶主题 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item active" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item active" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 09-Advanced-Topics</div>
-        <h1 id="09">09 进阶主题：可靠传输与发现协议深度解析</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>09 进阶主题</span>
+</div>
+    <h1 id="09">09 进阶主题：可靠传输与发现协议深度解析</h1>
 <p><strong>记录时间</strong>: 2026-03-03<br/>
 <strong>学习时长</strong>: 约 3 小时<br/>
 <strong>前置知识</strong>: 01-08 基础笔记</p>
 <hr/>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>掌握 1.4 位图示例 的实践方法</li><li>理解 1.5 完整交互流程 的核心原理</li><li>理解 1.6 关键机制 的核心原理</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>网络协议基础、DDS 传输层概念</p>
+</div>
 <h2 id="1-acknack-heartbeat">1. ACKNACK 与 HEARTBEAT 协议交互</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Participant A -->
+  <rect x="50" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="120" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant A</text>
+  <rect x="70" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="120" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="70" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="120" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="120" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite"/>
+  <text x="120" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- Participant B -->
+  <rect x="410" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="480" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant B</text>
+  <rect x="430" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="480" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="430" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="480" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="480" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite; animation-delay: 1s"/>
+  <text x="480" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- SPDP Multicast -->
+  <ellipse cx="300" cy="120" rx="80" ry="40" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6">
+    <animate attributeName="rx" values="60;100;60" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="ry" values="30;50;30" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <text x="300" y="125" text-anchor="middle" fill="#58a6ff" font-size="12">SPDP Multicast</text>
+  
+  <!-- Data Flow -->
+  <path d="M 190 98 Q 300 98 420 153" fill="none" stroke="#7ee787" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="85" text-anchor="middle" fill="#7ee787" font-size="11">Data</text>
+  
+  <path d="M 430 153 Q 300 153 190 98" fill="none" stroke="#f0883e" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="170" text-anchor="middle" fill="#f0883e" font-size="11">ACKNACK</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <h3 id="11">1.1 核心概念</h3>
 <table>
 <thead>
@@ -265,7 +205,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h3 id="12-heartbeat">1.2 HEARTBEAT 消息结构</h3>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">HeartbeatSubmessage</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">HeartbeatSubmessage</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span><span class="w">               </span><span class="c1">// 发送者 Writer ID</span>
 <span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span><span class="w">               </span><span class="c1">// 目标 Reader ID</span>
 
@@ -281,7 +221,7 @@ a:hover { text-decoration: underline; }
 - 发送数据后立即发送（提醒确认）<br/>
 - 新 Reader 匹配时立即发送</p>
 <h3 id="13-acknack">1.3 ACKNACK 消息结构</h3>
-<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">AckNackSubmessage</span><span class="w"> </span><span class="p">{</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">AckNackSubmessage</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span><span class="w">               </span><span class="c1">// 发送者 Reader ID</span>
 <span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span><span class="w">               </span><span class="c1">// 目标 Writer ID</span>
 
@@ -294,7 +234,7 @@ a:hover { text-decoration: underline; }
 <span class="p">};</span>
 </code></pre></div>
 <h3 id="14">1.4 位图示例</h3>
-<div class="codehilite"><pre><span></span><code>Reader 收到 HEARTBEAT: "我有 Seq#10-20"
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Reader 收到 HEARTBEAT: "我有 Seq#10-20"
 Reader 实际状态：
   收到: #10, #11, #12, #15, #16, #20
   缺失: #13, #14, #17, #18, #19
@@ -308,7 +248,7 @@ ACKNACK:
            └─────────── #20 收到 (1)
 </code></pre></div>
 <h3 id="15">1.5 完整交互流程</h3>
-<div class="codehilite"><pre><span></span><code>场景 A：正常传输
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>场景 A：正常传输
 ─────────────────────────
 Writer                  Reader
   │                       │
@@ -370,7 +310,7 @@ Writer                  Reader
 <p><strong>问题</strong>: Writer 如何管理多个匹配的 Reader？如何跟踪每个 Reader 的接收状态？</p>
 <p><strong>解决方案</strong>: 为每个匹配的远端端点创建一个 <strong>Proxy</strong>（代理），维护其状态。</p>
 <h3 id="22-readerproxywriter">2.2 ReaderProxy（Writer 端）</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// Writer 为每个匹配的 Reader 维护一个 ReaderProxy</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Writer 为每个匹配的 Reader 维护一个 ReaderProxy</span>
 <span class="k">struct</span><span class="w"> </span><span class="nc">ReaderProxy</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="c1">// 身份</span>
 <span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">remoteReaderGuid</span><span class="p">;</span><span class="w">           </span><span class="c1">// 远端 Reader 的唯一 ID</span>
@@ -394,7 +334,7 @@ Writer                  Reader
 - 管理重传队列<br/>
 - 处理 NACK 请求</p>
 <h3 id="23-writerproxyreader">2.3 WriterProxy（Reader 端）</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// Reader 为每个匹配的 Writer 维护一个 WriterProxy</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Reader 为每个匹配的 Writer 维护一个 WriterProxy</span>
 <span class="k">struct</span><span class="w"> </span><span class="nc">WriterProxy</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="c1">// 身份</span>
 <span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">remoteWriterGuid</span><span class="p">;</span><span class="w">           </span><span class="c1">// 远端 Writer 的唯一 ID</span>
@@ -416,7 +356,7 @@ Writer                  Reader
 - 检测丢包（missing_changes）<br/>
 - 发送 ACKNACK</p>
 <h3 id="24">2.4 交互示例</h3>
-<div class="codehilite"><pre><span></span><code>Writer (有 ReaderProxy)          Reader (有 WriterProxy)
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Writer (有 ReaderProxy)          Reader (有 WriterProxy)
         │                                │
         │── DATA(Seq#5) ────────────────►│
         │   outstanding[5]=UNSENT        │ 收到 #5
@@ -434,7 +374,7 @@ Writer                  Reader
 <hr/>
 <h2 id="3-dds-rtps">3. DDS → RTPS 完整调用链</h2>
 <h3 id="31">3.1 发送流程</h3>
-<div class="codehilite"><pre><span></span><code><span class="err">应用层调用</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">应用层调用</span>
 <span class="w">    </span><span class="err">│</span>
 <span class="w">    </span><span class="err">▼</span>
 <span class="n">DataWriter</span><span class="p">::</span><span class="n">write</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
@@ -476,7 +416,7 @@ Writer                  Reader
 <span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="err">网络发送</span>
 </code></pre></div>
 <h3 id="32">3.2 接收流程</h3>
-<div class="codehilite"><pre><span></span><code><span class="n">Transport</span><span class="w"> </span><span class="n">Layer</span><span class="w"> </span><span class="err">接收数据</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">Transport</span><span class="w"> </span><span class="n">Layer</span><span class="w"> </span><span class="err">接收数据</span>
 <span class="w">    </span><span class="err">│</span>
 <span class="w">    </span><span class="err">▼</span>
 <span class="n">RTPSParticipantImpl</span><span class="p">::</span><span class="n">receive_message</span><span class="p">()</span>
@@ -610,7 +550,7 @@ Writer                  Reader
 </tbody>
 </table>
 <h3 id="42">4.2 匹配流程</h3>
-<div class="codehilite"><pre><span></span><code><span class="nx">Simple</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="p">(</span><span class="nx">去中心化</span><span class="p">):</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">Simple</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="p">(</span><span class="nx">去中心化</span><span class="p">):</span>
 <span class="err">────────────────────────────</span>
 <span class="nx">Writer</span><span class="w"> </span><span class="nx">创建</span>
 <span class="w">    </span><span class="err">│</span>
@@ -633,7 +573,7 @@ Writer                  Reader
 <span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">建立连接</span>
 </code></pre></div>
 <h3 id="43">4.3 数据结构</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// Writer 宣告信息</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Writer 宣告信息</span>
 <span class="k">struct</span><span class="w"> </span><span class="nc">WriterProxyData</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">guid</span><span class="p">;</span><span class="w">                       </span><span class="c1">// Writer GUID</span>
 <span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">participantGuid</span><span class="p">;</span><span class="w">            </span><span class="c1">// 所属 Participant</span>
@@ -700,7 +640,7 @@ Writer                  Reader
 </tbody>
 </table>
 <h3 id="52-client">5.2 Client 配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// Participant 作为 Discovery Server Client</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Participant 作为 Discovery Server Client</span>
 <span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
 
 <span class="c1">// 设置为 CLIENT</span>
@@ -722,7 +662,7 @@ Writer                  Reader
 <span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">m_DiscoveryServers</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">server2</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="53-server">5.3 Server 端匹配</h3>
-<div class="codehilite"><pre><span></span><code>集中式匹配:
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>集中式匹配:
 ─────────────────────────
 Client A (Writer)         Server                    Client B (Reader)
     │                        │                           │
@@ -770,7 +710,7 @@ Client A (Writer)         Server                    Client B (Reader)
 - 标记为”待验证”，等待 Client 重新宣告确认<br/>
 - 清理未重新宣告的条目（崩溃节点）<br/>
 - 实现秒级恢复</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 持久化配置</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 持久化配置</span>
 <span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">persistence</span><span class="p">.</span><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 <span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">persistence</span><span class="p">.</span><span class="n">filename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
 <span class="w">    </span><span class="s">"/var/lib/fastdds/server-db.json"</span><span class="p">;</span>
@@ -858,42 +798,28 @@ Client A (Writer)         Server                    Client B (Reader)
 <li><a href="03-Discovery-Mechanism.html">03 发现机制</a></li>
 <li>Fast-DDS 官方文档: https://fast-dds.docs.eprosima.com/</li>
 </ul>
-    </main>
+<div class="checklist">
+  <h3>✅ 学习检查清单</h3>
+  <ul>
+    <li>理解了核心概念和原理</li>
+    <li>能够解释关键流程和机制</li>
+    <li>可以在实际项目中应用</li>
+    <li>能够排查常见问题</li>
+  </ul>
+</div>
+    <div class="nav-footer">
+<a href="08-Listener-与-WaitSet.html">
+  <div class="label">← 上一篇</div>
+  <div class="title">08 Listener与WaitSet</div>
+</a>
+<a href="09-传输层与性能.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">09 传输层与性能</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>

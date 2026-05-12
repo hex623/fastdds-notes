@@ -3,243 +3,183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fast-DDS 调试技巧与工具指南 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>08 调试工具 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item active" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item active" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 08-Debugging-Tools</div>
-        <h1 id="fast-dds">Fast-DDS 调试技巧与工具指南</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>08 调试工具</span>
+</div>
+    <h1 id="fast-dds">Fast-DDS 调试技巧与工具指南</h1>
 <p>本文档汇总了 Fast-DDS 开发中常用的调试方法、工具和最佳实践，帮助开发者快速定位和解决通信问题。</p>
 <hr/>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>掌握 1.1 LogConsumer 配置 的实践方法</li><li>掌握 4. Fast-DDS Monitor 使用 的实践方法</li><li>掌握 4.2 启动和配置 的实践方法</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>DDS 异步编程、回调函数基础</p>
+</div>
 <h2 id="1">1. 日志系统</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Participant A -->
+  <rect x="50" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="120" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant A</text>
+  <rect x="70" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="120" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="70" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="120" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="120" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite"/>
+  <text x="120" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- Participant B -->
+  <rect x="410" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="480" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant B</text>
+  <rect x="430" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="480" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="430" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="480" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="480" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite; animation-delay: 1s"/>
+  <text x="480" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- SPDP Multicast -->
+  <ellipse cx="300" cy="120" rx="80" ry="40" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6">
+    <animate attributeName="rx" values="60;100;60" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="ry" values="30;50;30" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <text x="300" y="125" text-anchor="middle" fill="#58a6ff" font-size="12">SPDP Multicast</text>
+  
+  <!-- Data Flow -->
+  <path d="M 190 98 Q 300 98 420 153" fill="none" stroke="#7ee787" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="85" text-anchor="middle" fill="#7ee787" font-size="11">Data</text>
+  
+  <path d="M 430 153 Q 300 153 190 98" fill="none" stroke="#f0883e" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="170" text-anchor="middle" fill="#f0883e" font-size="11">ACKNACK</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <h3 id="11-logconsumer">1.1 LogConsumer 配置</h3>
 <p>Fast-DDS 使用可扩展的日志系统，支持多种 LogConsumer 实现：</p>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/log/Log.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/log/Log.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/log/StdoutConsumer.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/log/FileConsumer.hpp&gt;</span>
 
@@ -287,7 +227,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <p><strong>代码设置方式：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 设置全局日志级别</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 设置全局日志级别</span>
 <span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Log</span><span class="o">::</span><span class="n">SetVerbosity</span><span class="p">(</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Log</span><span class="o">::</span><span class="n">Kind</span><span class="o">::</span><span class="n">Debug</span><span class="p">);</span>
 
 <span class="c1">// 设置特定类别日志级别</span>
@@ -295,7 +235,7 @@ a:hover { text-decoration: underline; }
 <span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Log</span><span class="o">::</span><span class="n">SetVerbosity</span><span class="p">(</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Log</span><span class="o">::</span><span class="n">Kind</span><span class="o">::</span><span class="n">Info</span><span class="p">);</span>
 </code></pre></div>
 <p><strong>XML 配置方式：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="nt">&lt;log&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nt">&lt;log&gt;</span>
 <span class="w">    </span><span class="nt">&lt;use_default&gt;</span>FALSE<span class="nt">&lt;/use_default&gt;</span>
 <span class="w">    </span><span class="nt">&lt;consumer&gt;</span>
 <span class="w">        </span><span class="nt">&lt;class&gt;</span>StdoutConsumer<span class="nt">&lt;/class&gt;</span>
@@ -314,14 +254,14 @@ a:hover { text-decoration: underline; }
 <span class="nt">&lt;/log&gt;</span>
 </code></pre></div>
 <p><strong>环境变量方式：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 设置日志级别</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 设置日志级别</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTDDS_DEFAULT_LOG_LEVEL</span><span class="o">=</span>Debug
 
 <span class="c1"># 设置类别过滤</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTDDS_LOG_FILTER</span><span class="o">=</span><span class="s2">"(RTPS|DISCOVERY)"</span>
 </code></pre></div>
 <h3 id="13">1.3 自定义日志宏</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 基础日志宏</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 基础日志宏</span>
 <span class="n">logError</span><span class="p">(</span><span class="n">CATEGORY</span><span class="p">,</span><span class="w"> </span><span class="s">"Error message: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">error_code</span><span class="p">);</span>
 <span class="n">logWarning</span><span class="p">(</span><span class="n">CATEGORY</span><span class="p">,</span><span class="w"> </span><span class="s">"Warning message"</span><span class="p">);</span>
 <span class="n">logInfo</span><span class="p">(</span><span class="n">CATEGORY</span><span class="p">,</span><span class="w"> </span><span class="s">"Info message"</span><span class="p">);</span>
@@ -334,7 +274,7 @@ a:hover { text-decoration: underline; }
 <hr/>
 <h2 id="2">2. 调试宏和编译选项</h2>
 <h3 id="21-cmake">2.1 CMake 调试选项</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Debug 模式编译</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># Debug 模式编译</span>
 cmake<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Debug<span class="w"> </span>..
 
 <span class="c1"># 启用详细输出</span>
@@ -376,7 +316,7 @@ cmake<span class="w"> </span>-DTHIRDPARTY_Asio<span class="o">=</span>ON<span cl
 </tbody>
 </table>
 <h3 id="23">2.3 运行时断言和检查</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 启用断言检查</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 启用断言检查</span>
 <span class="n">cmake</span><span class="w"> </span><span class="o">-</span><span class="n">DCMAKE_BUILD_TYPE</span><span class="o">=</span><span class="n">Debug</span><span class="w"> </span><span class="o">-</span><span class="n">DCMAKE_CXX_FLAGS</span><span class="o">=</span><span class="s">"-D_GLIBCXX_DEBUG"</span>
 
 <span class="c1">// 地址 sanitizer（检测内存问题）</span>
@@ -386,7 +326,7 @@ cmake<span class="w"> </span>-DTHIRDPARTY_Asio<span class="o">=</span>ON<span cl
 <span class="k">export</span><span class="w"> </span><span class="n">ASAN_OPTIONS</span><span class="o">=</span><span class="n">detect_leaks</span><span class="o">=</span><span class="mi">1</span>
 </code></pre></div>
 <h3 id="24">2.4 数据一致性检查宏</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 在代码中添加调试断点</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 在代码中添加调试断点</span>
 <span class="cp">#define DDS_DEBUG_BREAK() do { \</span>
 <span class="cp">    if (std::getenv("FASTDDS_DEBUG")) { \</span>
 <span class="cp">        __builtin_trap(); \</span>
@@ -400,7 +340,7 @@ cmake<span class="w"> </span>-DTHIRDPARTY_Asio<span class="o">=</span>ON<span cl
 <hr/>
 <h2 id="3-wireshark-ddsrtps">3. Wireshark 分析 DDS/RTPS 包</h2>
 <h3 id="31">3.1 环境准备</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># macOS 安装 Wireshark</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># macOS 安装 Wireshark</span>
 brew<span class="w"> </span>install<span class="w"> </span>--cask<span class="w"> </span>wireshark
 
 <span class="c1"># Ubuntu 安装</span>
@@ -410,7 +350,7 @@ sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w
 sudo<span class="w"> </span>chmod<span class="w"> </span>+x<span class="w"> </span>/dev/bpf*
 </code></pre></div>
 <h3 id="32-ddsrtps">3.2 捕获 DDS/RTPS 流量</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 查找网络接口</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 查找网络接口</span>
 ifconfig
 
 <span class="c1"># 捕获 RTPS 流量（默认端口 7400-7410）</span>
@@ -420,7 +360,7 @@ sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </
 <span class="c1"># 显示过滤器: rtps || udp.port == 7400</span>
 </code></pre></div>
 <h3 id="33-wireshark">3.3 Wireshark 显示过滤器</h3>
-<div class="codehilite"><pre><span></span><code><span class="gh">#</span> 基础 RTPS 过滤
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="gh">#</span> 基础 RTPS 过滤
 rtps
 
 <span class="gh">#</span> 特定实体过滤
@@ -506,7 +446,7 @@ rtps.submessageId == 0x16  # DATA_FRAG 子消息
 <hr/>
 <h2 id="4-fast-dds-monitor">4. Fast-DDS Monitor 使用</h2>
 <h3 id="41">4.1 安装</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Ubuntu</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># Ubuntu</span>
 <span class="nb">echo</span><span class="w"> </span><span class="s2">"deb [arch=amd64 signed-by=/usr/share/keyrings/fastdds-archive-keyring.gpg] \</span>
 <span class="s2">    http://repo.fast-dds.com/ubuntu </span><span class="k">$(</span>lsb_release<span class="w"> </span>-cs<span class="k">)</span><span class="s2"> main"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/sources.list.d/fastdds.list
@@ -522,14 +462,14 @@ make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</s
 sudo<span class="w"> </span>make<span class="w"> </span>install
 </code></pre></div>
 <h3 id="42">4.2 启动和配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 启动 Monitor</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 启动 Monitor</span>
 fastdds_monitor
 
 <span class="c1"># 指定统计后端端口</span>
 fastdds_monitor<span class="w"> </span>--domain<span class="w"> </span><span class="m">0</span><span class="w"> </span>--port<span class="w"> </span><span class="m">11811</span>
 </code></pre></div>
 <h3 id="43">4.3 代码中启用统计</h3>
-<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/statistics/IListeners.hpp&gt;</span>
 
 <span class="c1">// 启用统计 Topic</span>
@@ -564,7 +504,7 @@ fastdds_monitor<span class="w"> </span>--domain<span class="w"> </span><span cla
 <span class="k">auto</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">pqos</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="44-xml">4.4 XML 配置启用统计</h3>
-<div class="codehilite"><pre><span></span><code><span class="nt">&lt;participant</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"statistics_enabled"</span><span class="nt">&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nt">&lt;participant</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"statistics_enabled"</span><span class="nt">&gt;</span>
 <span class="w">    </span><span class="nt">&lt;rtps&gt;</span>
 <span class="w">        </span><span class="nt">&lt;propertiesPolicy&gt;</span>
 <span class="w">            </span><span class="nt">&lt;properties&gt;</span>
@@ -613,7 +553,7 @@ fastdds_monitor<span class="w"> </span>--domain<span class="w"> </span><span cla
 <h3 id="51">5.1 连接失败问题</h3>
 <h4 id="participant">症状：发现阶段超时，Participant 无法互相发现</h4>
 <p><strong>检查清单：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 检查网络连通性</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 检查网络连通性</span>
 ping<span class="w"> </span>&lt;target_ip&gt;
 nc<span class="w"> </span>-zv<span class="w"> </span>&lt;target_ip&gt;<span class="w"> </span><span class="m">7410</span><span class="w">  </span><span class="c1"># RTPS 默认端口</span>
 
@@ -625,7 +565,7 @@ sudo<span class="w"> </span>ufw<span class="w"> </span>status
 <span class="c1"># 在 XML 中指定网络接口</span>
 </code></pre></div>
 <p><strong>XML 配置指定接口：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="nt">&lt;transport_descriptors&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nt">&lt;transport_descriptors&gt;</span>
 <span class="w">    </span><span class="nt">&lt;transport_descriptor&gt;</span>
 <span class="w">        </span><span class="nt">&lt;transport_id&gt;</span>udp_transport<span class="nt">&lt;/transport_id&gt;</span>
 <span class="w">        </span><span class="nt">&lt;type&gt;</span>UDPv4<span class="nt">&lt;/type&gt;</span>
@@ -636,7 +576,7 @@ sudo<span class="w"> </span>ufw<span class="w"> </span>status
 <span class="nt">&lt;/transport_descriptors&gt;</span>
 </code></pre></div>
 <p><strong>日志分析：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 启用发现模块详细日志</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 启用发现模块详细日志</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTDDS_DEFAULT_LOG_LEVEL</span><span class="o">=</span>Debug
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTDDS_LOG_FILTER</span><span class="o">=</span><span class="s2">"(DISCOVERY|RTPS)"</span>
 
@@ -650,7 +590,7 @@ grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">"endpoint
 <ol>
 <li><strong>History QoS 深度不足：</strong></li>
 </ol>
-<div class="codehilite"><pre><span></span><code><span class="nt">&lt;topic&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nt">&lt;topic&gt;</span>
 <span class="w">    </span><span class="nt">&lt;historyQos&gt;</span>
 <span class="w">        </span><span class="nt">&lt;kind&gt;</span>KEEP_LAST<span class="nt">&lt;/kind&gt;</span>
 <span class="w">        </span><span class="nt">&lt;depth&gt;</span>10<span class="nt">&lt;/depth&gt;</span><span class="w">  </span><span class="cm">&lt;!-- 增加深度 --&gt;</span>
@@ -660,7 +600,7 @@ grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">"endpoint
 <ol start="2">
 <li><strong>Reliability 设置不匹配：</strong></li>
 </ol>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 确保发布者和订阅者都使用可靠模式</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 确保发布者和订阅者都使用可靠模式</span>
 <span class="n">DataWriterQos</span><span class="w"> </span><span class="n">wqos</span><span class="p">;</span>
 <span class="n">wqos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
 
@@ -670,20 +610,20 @@ grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">"endpoint
 <ol start="3">
 <li><strong>资源限制不足：</strong></li>
 </ol>
-<div class="codehilite"><pre><span></span><code><span class="nt">&lt;resourceLimitsQos&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nt">&lt;resourceLimitsQos&gt;</span>
 <span class="w">    </span><span class="nt">&lt;max_samples&gt;</span>100<span class="nt">&lt;/max_samples&gt;</span>
 <span class="w">    </span><span class="nt">&lt;max_instances&gt;</span>10<span class="nt">&lt;/max_instances&gt;</span>
 <span class="w">    </span><span class="nt">&lt;max_samples_per_instance&gt;</span>10<span class="nt">&lt;/max_samples_per_instance&gt;</span>
 <span class="nt">&lt;/resourceLimitsQos&gt;</span>
 </code></pre></div>
 <p><strong>使用统计 Topic 监控丢失：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// 监控 RTPS 丢失</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 监控 RTPS 丢失</span>
 <span class="n">pqos</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
 <span class="w">    </span><span class="s">"fastdds.statistics"</span><span class="p">,</span><span class="w"> </span><span class="s">"RTPS_LOST_TOPIC;"</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="53">5.3 性能问题诊断</h3>
 <p><strong>诊断脚本示例：</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="ch">#!/bin/bash</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="ch">#!/bin/bash</span>
 <span class="c1"># performance_check.sh</span>
 
 <span class="nb">echo</span><span class="w"> </span><span class="s2">"=== Fast-DDS 性能诊断 ==="</span>
@@ -710,12 +650,12 @@ ipcs<span class="w"> </span>-m<span class="w"> </span><span class="p">|</span><s
 <hr/>
 <h2 id="6-dds_rtps_pcap_analyzer">6. 工具推荐：DDS_RTPS_PCAP_Analyzer</h2>
 <h3 id="61">6.1 安装</h3>
-<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/eProsima/dds-rtps-analyzer.git
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/eProsima/dds-rtps-analyzer.git
 <span class="nb">cd</span><span class="w"> </span>dds-rtps-analyzer
 pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements.txt
 </code></pre></div>
 <h3 id="62">6.2 基本使用</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 分析 PCAP 文件</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 分析 PCAP 文件</span>
 python3<span class="w"> </span>dds_analyzer.py<span class="w"> </span>-i<span class="w"> </span>capture.pcap
 
 <span class="c1"># 生成详细报告</span>
@@ -759,7 +699,7 @@ python3<span class="w"> </span>dds_analyzer.py<span class="w"> </span>-i<span cl
 </tbody>
 </table>
 <h3 id="64">6.4 输出示例</h3>
-<div class="codehilite"><pre><span></span><code>$<span class="w"> </span>python3<span class="w"> </span>dds_analyzer.py<span class="w"> </span>-i<span class="w"> </span>test.pcap<span class="w"> </span>--summary
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>$<span class="w"> </span>python3<span class="w"> </span>dds_analyzer.py<span class="w"> </span>-i<span class="w"> </span>test.pcap<span class="w"> </span>--summary
 
 <span class="o">===</span><span class="w"> </span>DDS/RTPS<span class="w"> </span><span class="nv">分析摘要</span><span class="w"> </span><span class="o">===</span>
 捕获文件:<span class="w"> </span>test.pcap
@@ -794,7 +734,7 @@ RTPS<span class="w"> </span>消息:<span class="w"> </span><span class="m">12</s
 <li><strong>性能基线</strong> - 建立正常运行的性能基线</li>
 </ol>
 <h3 id="73">7.3 问题报告模板</h3>
-<div class="codehilite"><pre><span></span><code><span class="gu">## 问题描述</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="gu">## 问题描述</span>
 <span class="k">-</span><span class="w"> </span>Fast-DDS 版本:
 <span class="k">-</span><span class="w"> </span>操作系统:
 <span class="k">-</span><span class="w"> </span>网络环境:
@@ -807,7 +747,7 @@ RTPS<span class="w"> </span>消息:<span class="w"> </span><span class="m">12</s
 <span class="gu">## 日志输出</span>
 </code></pre></div>
 <p>[粘贴相关日志]</p>
-<div class="codehilite"><pre><span></span><code>## Wireshark 捕获
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>## Wireshark 捕获
 [如可能，附上网卡捕获文件]
 
 ## 配置文件
@@ -826,42 +766,19 @@ RTPS<span class="w"> </span>消息:<span class="w"> </span><span class="m">12</s
 <hr/>
 <p><em>文档版本: 1.0</em><br/>
 <em>最后更新: 2026-03-02</em></p>
-    </main>
+    <div class="nav-footer">
+<a href="07-Topic-详解.html">
+  <div class="label">← 上一篇</div>
+  <div class="title">07 Topic详解</div>
+</a>
+<a href="08-Listener-与-WaitSet.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">08 Listener与WaitSet</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>

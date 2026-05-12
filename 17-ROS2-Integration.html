@@ -3,243 +3,183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DDS 与 ROS2 集成实战指南 | Fast-DDS 学习笔记</title>
-<style>
-:root {
-    --bg: #0d1117;
-    --fg: #c9d1d9;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent2: #7ee787;
-    --panel: #161b22;
-    --border: #30363d;
-    --code-bg: #161b22;
-    --hover: #1f242c;
-}
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body {
-    margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    line-height: 1.7; font-size: 15px;
-}
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* Layout */
-.container { display: flex; min-height: 100vh; }
-.sidebar {
-    width: 300px; flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    position: fixed; top: 0; left: 0; bottom: 0;
-    overflow-y: auto; z-index: 100;
-}
-.sidebar-header {
-    padding: 20px; border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; background: var(--panel);
-    z-index: 10;
-}
-.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
-.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
-.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
-.sidebar-nav { padding: 10px 0; }
-
-/* Nav tree */
-.nav-group { margin-bottom: 2px; }
-.nav-group-title {
-    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
-    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
-    display: flex; justify-content: space-between; align-items: center;
-    user-select: none;
-}
-.nav-group-title:hover { background: var(--hover); }
-.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
-.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
-.nav-group-items { display: none; }
-.nav-group.open > .nav-group-items { display: block; }
-.nav-item {
-    display: block; padding: 6px 20px 6px 32px;
-    font-size: 13px; color: var(--fg);
-    border-left: 2px solid transparent;
-    transition: background .15s, border-color .15s;
-}
-.nav-item:hover { background: var(--hover); }
-.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
-
-/* Main content */
-.main {
-    margin-left: 300px; flex: 1;
-    max-width: 900px; padding: 40px 50px;
-}
-.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
-.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
-.main h3 { font-size: 20px; margin-top: 30px; }
-.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
-.main p { margin: 12px 0; }
-.main ul, .main ol { padding-left: 24px; }
-.main li { margin: 4px 0; }
-.main blockquote {
-    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
-    background: var(--panel); color: var(--muted);
-}
-.main code {
-    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-    font-size: 13px;
-}
-.main pre {
-    background: var(--code-bg); padding: 16px; border-radius: 8px;
-    overflow-x: auto; border: 1px solid var(--border);
-}
-.main pre code { background: none; padding: 0; }
-.main table {
-    width: 100%; border-collapse: collapse; margin: 16px 0;
-}
-.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
-.main th { background: var(--panel); text-align: left; }
-.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-.main img { max-width: 100%; border-radius: 6px; }
-.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
-
-/* Breadcrumb */
-.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.breadcrumb a { color: var(--muted); }
-.breadcrumb a:hover { color: var(--accent); }
-
-/* Back-to-top */
-.back-to-top {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--panel); border: 1px solid var(--border);
-    padding: 10px 14px; border-radius: 8px; cursor: pointer;
-    font-size: 13px; opacity: 0; transition: opacity .3s;
-    z-index: 200; color: var(--fg);
-}
-.back-to-top.visible { opacity: 1; }
-
-/* Search */
-.search-box {
-    width: calc(100% - 40px); margin: 10px 20px;
-    padding: 8px 12px; background: var(--bg);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--fg); font-size: 13px;
-}
-.search-box:focus { outline: none; border-color: var(--accent); }
-
-/* Mobile */
-@media (max-width: 768px) {
-    .sidebar { width: 100%; position: relative; height: auto; }
-    .main { margin-left: 0; padding: 20px; }
-}
-
-/* CodeHilite */
-.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
-.codehilite pre { background: none; padding: 0; border: none; }
-</style>
+<title>17 ROS2集成 | Fast-DDS 学习笔记</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Fast-DDS Notes</h1>
-            <p class="subtitle">Fast-DDS 学习笔记</p>
-            <a class="home" href="index.html">🏠 返回首页</a>
-        </div>
-        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
-        <nav class="sidebar-nav">
-        <div class="nav-group open">
-            <div class="nav-group-title">快速参考 <span>4</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
-            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
-            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
-            <a class="nav-item" href="index.html">README</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">理论基础 <span>21</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
-            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
-            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
-            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
-            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
-            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
-            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
-            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
-            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
-            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
-            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
-            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
-            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
-            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
-            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
-            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
-            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
-            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
-            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
-            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
-            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">进阶深入 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
-            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
-            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
-            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
-            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
-            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">实战示例 <span>6</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
-            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
-            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
-            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
-            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
-            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
-            </div>
-        </div>
-        <div class="nav-group open">
-            <div class="nav-group-title">专题深入 <span>18</span></div>
-            <div class="nav-group-items">
-            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
-            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
-            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
-            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
-            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
-            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
-            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
-            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
-            <a class="nav-item active" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
-            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
-            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
-            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
-            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
-            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
-            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
-            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
-            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
-            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
-            </div>
-        </div>
+<div class="page-wrapper">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="logo">📚 Fast-DDS Notes</h1>
+      <p class="subtitle">专业级 Fast-DDS 学习资料</p>
+      <a class="home-link" href="index.html">🏠 返回首页</a>
+    </div>
+    <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+    <nav class="sidebar-nav">
+    <div class="nav-group open">
+      <div class="nav-group-title">📖 必读<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A0-阅读指南.html">📖 阅读指南</a>
+      <a class="nav-item" href="index.html">🏠 首页</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🏗️ 基础架构<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="00-Core-Classes-Reference.html">00 核心类体系</a>
+      <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a>
+      <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS架构概览</a>
+      <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS层架构</a>
+      <a class="nav-item" href="02-DDS-发现机制.html">02 DDS发现机制</a>
+      <a class="nav-item" href="03-Discovery-Mechanism.html">03 发现机制</a>
+      <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+      <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Server详解</a>
+      <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Server冗余</a>
+      <a class="nav-item" href="03B-Topic-详解.html">03B Topic详解</a>
+      <a class="nav-item" href="04-QoS-Implementation.html">04 QoS实现</a>
+      <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+      <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy代理</a>
+      <a class="nav-item" href="05-Transport-Layer.html">05 传输层</a>
+      <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+      <a class="nav-item" href="06-Security-Module.html">06 安全模块</a>
+      <a class="nav-item" href="07-Performance-Optimization.html">07 性能优化</a>
+      <a class="nav-item" href="07-Topic-详解.html">07 Topic详解</a>
+      <a class="nav-item" href="08-Debugging-Tools.html">08 调试工具</a>
+      <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener与WaitSet</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🔧 进阶深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="09-Advanced-Topics.html">09 进阶主题</a>
+      <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+      <a class="nav-item" href="10-DDS-Security.html">10 DDS-Security</a>
+      <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener-WaitSet</a>
+      <a class="nav-item" href="11-Transport-Performance.html">11 Transport性能</a>
+      <a class="nav-item" href="12-DDS-Security.html">12 Security进阶</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📋 实战示例<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="13-Example-01-HelloWorld.html">13.1 HelloWorld</a>
+      <a class="nav-item" href="13-Example-02-RTPS.html">13.2 RTPS示例</a>
+      <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13.3 DiscoveryServer</a>
+      <a class="nav-item" href="13-Example-04-13-QuickRef.html">13.4-13 其他示例</a>
+      <a class="nav-item" href="13-Examples-Index.html">13 示例总览</a>
+      <a class="nav-item" href="13-Logging-System.html">13.x 日志系统</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">🚀 专题深入<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 回调机制</a>
+      <a class="nav-item" href="14-Flow-Control.html">14 流量控制</a>
+      <a class="nav-item" href="14-Memory-Fragmentation.html">14 内存管理</a>
+      <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 序列号与可靠传输</a>
+      <a class="nav-item" href="15-Data-Transmission-Flow.html">15 数据收发流程</a>
+      <a class="nav-item" href="15-Timer-System.html">15 定时器系统</a>
+      <a class="nav-item" href="16-Threading-Model.html">16 线程模型</a>
+      <a class="nav-item" href="17-Instance-Management.html">17 Instance管理</a>
+      <a class="nav-item active" href="17-ROS2-Integration.html">17 ROS2集成</a>
+      <a class="nav-item" href="18-Interview-Questions.html">18 面试题</a>
+      <a class="nav-item" href="18-Serialization.html">18 序列化</a>
+      <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS消息格式</a>
+      <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful</a>
+      <a class="nav-item" href="21-Thread-Model-Detailed.html">21 线程模型源码</a>
+      <a class="nav-item" href="21-Thread-Model.html">21 线程模型分析</a>
+      <a class="nav-item" href="22-Inter-Thread-Communication.html">22 线程间通信</a>
+      <a class="nav-item" href="23-Message-Transmission-Flow.html">23 消息传输流程</a>
+      <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark分析</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title">📎 附录<span class="toggle-icon">▸</span></div>
+      <div class="nav-group-items">
+      <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+      <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+      <a class="nav-item" href="CODE_CORRECTIONS.html">A3 英文修正记录</a>
+      <a class="nav-item" href="ORGANIZED-INDEX.html">A4 归档索引</a>
+      </div>
+    </div>
 
-        </nav>
-    </aside>
-    <main class="main">
-        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 17-ROS2-Integration</div>
-        <h1 id="dds-ros2">DDS 与 ROS2 集成实战指南</h1>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="breadcrumb">
+  <a href="index.html">🏠 首页</a>
+  <span class="sep">/</span>
+  <span>17 ROS2集成</span>
+</div>
+    <h1 id="dds-ros2">DDS 与 ROS2 集成实战指南</h1>
 <p><strong>创建时间</strong>: 2026-03-13<br/>
 <strong>ROS2 版本</strong>: Jazzy Jalisco (LTS)<br/>
 <strong>DDS 实现</strong>: Fast-DDS 3.x / CycloneDDS<br/>
 <strong>作者</strong>: 旭旭助手</p>
 <hr/>
+
+<div class="learning-goal">
+  <h3>🎯 学习目标</h3>
+  <ul>
+    <li>理解 一、ROS2 架构概述 的核心原理</li><li>理解 1.2 ROS2 架构层次 的核心原理</li><li>理解 2.1 RMW 架构设计 的核心原理</li>
+  </ul>
+</div>
+<div class="prereq-box">
+  <h4>📋 前置知识</h4>
+  <p>DDS Key 概念、实例管理基础</p>
+</div>
 <h2 id="_1">目录</h2>
+
+<div class="demo-container">
+  <div class="demo-title">🔔 流程演示</div>
+  <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" class="svg-animate">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  
+  <!-- Participant A -->
+  <rect x="50" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="120" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant A</text>
+  <rect x="70" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="120" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="70" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="120" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="120" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite"/>
+  <text x="120" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- Participant B -->
+  <rect x="410" y="40" width="140" height="200" rx="8" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+  <text x="480" y="65" text-anchor="middle" fill="#7ee787" font-size="14" font-weight="600">Participant B</text>
+  <rect x="430" y="80" width="100" height="36" rx="4" fill="#0d1117" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="480" y="103" text-anchor="middle" fill="#c9d1d9" font-size="12">Writer</text>
+  <rect x="430" y="130" width="100" height="36" rx="4" fill="#0d1117" stroke="#f0883e" stroke-width="1.5"/>
+  <text x="480" y="153" text-anchor="middle" fill="#c9d1d9" font-size="12">Reader</text>
+  <circle cx="480" cy="200" r="20" fill="#0d1117" stroke="#58a6ff" stroke-width="2" class="node" style="animation: pulse 2s ease-in-out infinite; animation-delay: 1s"/>
+  <text x="480" y="206" text-anchor="middle" fill="#58a6ff" font-size="10">SEDP</text>
+  
+  <!-- SPDP Multicast -->
+  <ellipse cx="300" cy="120" rx="80" ry="40" fill="none" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6">
+    <animate attributeName="rx" values="60;100;60" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="ry" values="30;50;30" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.2;0.6" dur="3s" repeatCount="indefinite"/>
+  </ellipse>
+  <text x="300" y="125" text-anchor="middle" fill="#58a6ff" font-size="12">SPDP Multicast</text>
+  
+  <!-- Data Flow -->
+  <path d="M 190 98 Q 300 98 420 153" fill="none" stroke="#7ee787" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="85" text-anchor="middle" fill="#7ee787" font-size="11">Data</text>
+  
+  <path d="M 430 153 Q 300 153 190 98" fill="none" stroke="#f0883e" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="8,4">
+    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <text x="300" y="170" text-anchor="middle" fill="#f0883e" font-size="11">ACKNACK</text>
+</svg>
+  <div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+</div>
 <ol>
 <li><a href="#一ros2-架构概述">ROS2 架构概述</a></li>
 <li><a href="#二rmw-中间件抽象层">RMW 中间件抽象层</a></li>
@@ -295,7 +235,7 @@ a:hover { text-decoration: underline; }
 </tbody>
 </table>
 <h3 id="12-ros2">1.2 ROS2 架构层次</h3>
-<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────┐</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────┐</span>
 <span class="err">│</span><span class="w">                         </span><span class="nx">Application</span><span class="w"> </span><span class="nx">Layer</span><span class="w">                                </span><span class="err">│</span>
 <span class="err">│</span><span class="w">  </span><span class="err">┌──────────────┐</span><span class="w">  </span><span class="err">┌──────────────┐</span><span class="w">  </span><span class="err">┌──────────────┐</span><span class="w">                  </span><span class="err">│</span>
 <span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">ROS2</span><span class="w"> </span><span class="nx">Node</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">ROS2</span><span class="w"> </span><span class="nx">Node</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">ROS2</span><span class="w"> </span><span class="nx">Node</span><span class="w">  </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
@@ -392,7 +332,7 @@ a:hover { text-decoration: underline; }
 <h2 id="rmw">二、RMW 中间件抽象层</h2>
 <h3 id="21-rmw">2.1 RMW 架构设计</h3>
 <p>RMW (ROS Middleware Interface) 是 ROS2 的中间件抽象层，允许运行时切换不同的 DDS 实现。</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// RMW 接口定义 (rmw/include/rmw/rmw.h)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// RMW 接口定义 (rmw/include/rmw/rmw.h)</span>
 
 <span class="c1">// 初始化</span>
 <span class="n">rmw_ret_t</span><span class="w"> </span><span class="nf">rmw_init</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">rmw_init_options_t</span><span class="o">*</span><span class="w"> </span><span class="n">options</span><span class="p">,</span><span class="w"> </span><span class="n">rmw_context_t</span><span class="o">*</span><span class="w"> </span><span class="n">context</span><span class="p">);</span>
@@ -425,7 +365,7 @@ a:hover { text-decoration: underline; }
 <span class="w">    </span><span class="kt">bool</span><span class="o">*</span><span class="w"> </span><span class="n">taken</span><span class="p">);</span>
 </code></pre></div>
 <h3 id="22-dds">2.2 运行时 DDS 切换</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 查看可用的 RMW 实现</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 查看可用的 RMW 实现</span>
 ros2<span class="w"> </span>run<span class="w"> </span>rmw_implementation<span class="w"> </span>rmw_implementation_info
 
 <span class="c1"># 切换 DDS 实现（环境变量）</span>
@@ -511,7 +451,7 @@ ros2<span class="w"> </span>run<span class="w"> </span>demo_nodes_cpp<span class
 - 需要 DDS-Security 的安全应用<br/>
 - 大型多机器人系统 (Discovery Server)</p>
 <p><strong>安装</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># ROS2 已内置，如需独立安装</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># ROS2 已内置，如需独立安装</span>
 sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>ros-<span class="nv">$ROS_DISTRO</span>-rmw-fastrtps-cpp
 </code></pre></div>
 <h3 id="32-cyclonedds-eclipse">3.2 CycloneDDS (Eclipse)</h3>
@@ -525,10 +465,10 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 - 硬实时应用<br/>
 - 高性能计算</p>
 <p><strong>安装</strong>:</p>
-<div class="codehilite"><pre><span></span><code>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>ros-<span class="nv">$ROS_DISTRO</span>-rmw-cyclonedds-cpp
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>ros-<span class="nv">$ROS_DISTRO</span>-rmw-cyclonedds-cpp
 </code></pre></div>
 <p><strong>性能对比</strong>:</p>
-<div class="codehilite"><pre><span></span><code>测试场景: 1KB 消息，1000Hz，单节点发布/订阅
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>测试场景: 1KB 消息，1000Hz，单节点发布/订阅
 
 ┌──────────────────┬────────────┬────────────┬────────────┐
 │      指标         │ Fast-DDS   │ CycloneDDS │ RTI Connext│
@@ -540,7 +480,7 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 └──────────────────┴────────────┴────────────┴────────────┘
 </code></pre></div>
 <h3 id="33">3.3 选择决策树</h3>
-<div class="codehilite"><pre><span></span><code>                    ┌─────────────────┐
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>                    ┌─────────────────┐
                     │  选择 DDS 实现   │
                     └────────┬────────┘
                              │
@@ -565,7 +505,7 @@ sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> <
 <hr/>
 <h2 id="fast-dds-ros2">四、Fast-DDS 与 ROS2 集成</h2>
 <h3 id="41-fast-dds-ros2">4.1 Fast-DDS 在 ROS2 中的配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 设置 RMW 实现</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 设置 RMW 实现</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">RMW_IMPLEMENTATION</span><span class="o">=</span>rmw_fastrtps_cpp
 
 <span class="c1"># 2. 设置 Domain ID (0-101，默认 0)</span>
@@ -581,7 +521,7 @@ ros2<span class="w"> </span>doctor<span class="w"> </span>--report<span class="w
 </code></pre></div>
 <h3 id="42-qos">4.2 QoS 配置映射</h3>
 <p>ROS2 QoS Profile → Fast-DDS QoS:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1">// ROS2 QoS Profile</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ROS2 QoS Profile</span>
 <span class="n">rclcpp</span><span class="o">::</span><span class="n">QoS</span><span class="w"> </span><span class="nf">qos</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w">  </span><span class="c1">// History depth = 10</span>
 <span class="n">qos</span><span class="p">.</span><span class="n">reliable</span><span class="p">();</span><span class="w">       </span><span class="c1">// RELIABLE_RELIABILITY_QOS</span>
 <span class="n">qos</span><span class="p">.</span><span class="n">durability_volatile</span><span class="p">();</span><span class="w">  </span><span class="c1">// VOLATILE_DURABILITY_QOS</span>
@@ -596,7 +536,7 @@ ros2<span class="w"> </span>doctor<span class="w"> </span>--report<span class="w
 <span class="c1">// - Liveliness: AUTOMATIC</span>
 </code></pre></div>
 <h3 id="43-ros2-node-with-fast-dds">4.3 代码示例：ROS2 Node with Fast-DDS</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1">// talker.cpp - ROS2 发布者</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// talker.cpp - ROS2 发布者</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;rclcpp/rclcpp.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;std_msgs/msg/string.hpp&gt;</span>
 
@@ -638,7 +578,7 @@ ros2<span class="w"> </span>doctor<span class="w"> </span>--report<span class="w
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<div class="codehilite"><pre><span></span><code><span class="c1">// listener.cpp - ROS2 订阅者</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// listener.cpp - ROS2 订阅者</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;rclcpp/rclcpp.hpp&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;std_msgs/msg/string.hpp&gt;</span>
 
@@ -670,7 +610,7 @@ ros2<span class="w"> </span>doctor<span class="w"> </span>--report<span class="w
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="44-cmakeliststxt">4.4 CMakeLists.txt 配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span><span class="w"> </span><span class="s">3.8</span><span class="p">)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span><span class="w"> </span><span class="s">3.8</span><span class="p">)</span>
 <span class="nb">project</span><span class="p">(</span><span class="s">fastdds_ros2_demo</span><span class="p">)</span>
 
 <span class="nb">if</span><span class="p">(</span><span class="s">CMAKE_COMPILER_IS_GNUCXX</span><span class="w"> </span><span class="s">OR</span><span class="w"> </span><span class="s">CMAKE_CXX_COMPILER_ID</span><span class="w"> </span><span class="s">MATCHES</span><span class="w"> </span><span class="s2">"Clang"</span><span class="p">)</span>
@@ -700,7 +640,7 @@ ros2<span class="w"> </span>doctor<span class="w"> </span>--report<span class="w
 <h2 id="_2">五、配置与调优</h2>
 <h3 id="51-fast-dds-xml">5.1 Fast-DDS XML 配置文件</h3>
 <p>ROS2 允许通过 XML 文件配置底层 DDS 参数：</p>
-<div class="codehilite"><pre><span></span><code><span class="cm">&lt;!-- fastdds_config.xml --&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cm">&lt;!-- fastdds_config.xml --&gt;</span>
 <span class="cp">&lt;?xml version="1.0" encoding="UTF-8" ?&gt;</span>
 <span class="nt">&lt;dds</span><span class="w"> </span><span class="na">xmlns=</span><span class="s">"http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles"</span><span class="nt">&gt;</span>
 <span class="w">    </span><span class="nt">&lt;profiles&gt;</span>
@@ -767,7 +707,7 @@ ros2<span class="w"> </span>doctor<span class="w"> </span>--report<span class="w
 <span class="nt">&lt;/dds&gt;</span>
 </code></pre></div>
 <h3 id="52-xml">5.2 使用 XML 配置</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 方式1: 环境变量</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 方式1: 环境变量</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTRTPS_DEFAULT_PROFILES_FILE</span><span class="o">=</span>/path/to/fastdds_config.xml
 
 <span class="c1"># 方式2: 代码中加载</span>
@@ -793,7 +733,7 @@ def<span class="w"> </span>generate_launch_description<span class="o">()</span>:
 <span class="w">    </span><span class="o">])</span>
 </code></pre></div>
 <h3 id="53-discovery-server">5.3 Discovery Server 配置 (大型系统)</h3>
-<div class="codehilite"><pre><span></span><code><span class="cm">&lt;!-- discovery_server_config.xml --&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cm">&lt;!-- discovery_server_config.xml --&gt;</span>
 <span class="nt">&lt;dds&gt;</span>
 <span class="w">    </span><span class="nt">&lt;profiles&gt;</span>
 <span class="w">        </span><span class="cm">&lt;!-- Server 配置 --&gt;</span>
@@ -839,7 +779,7 @@ def<span class="w"> </span>generate_launch_description<span class="o">()</span>:
 <span class="nt">&lt;/dds&gt;</span>
 </code></pre></div>
 <h3 id="54">5.4 共享内存传输 (同机优化)</h3>
-<div class="codehilite"><pre><span></span><code><span class="cm">&lt;!-- shm_config.xml --&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cm">&lt;!-- shm_config.xml --&gt;</span>
 <span class="nt">&lt;dds&gt;</span>
 <span class="w">    </span><span class="nt">&lt;profiles&gt;</span>
 <span class="w">        </span><span class="nt">&lt;participant</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"shm_profile"</span><span class="w"> </span><span class="na">is_default_profile=</span><span class="s">"true"</span><span class="nt">&gt;</span>
@@ -868,7 +808,7 @@ def<span class="w"> </span>generate_launch_description<span class="o">()</span>:
 <hr/>
 <h2 id="_3">六、调试与监控</h2>
 <h3 id="61-ros2">6.1 ROS2 调试工具</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 查看节点列表</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 查看节点列表</span>
 ros2<span class="w"> </span>node<span class="w"> </span>list
 
 <span class="c1"># 2. 查看话题列表</span>
@@ -898,7 +838,7 @@ ros2<span class="w"> </span>run<span class="w"> </span>rqt_graph<span class="w">
 ros2<span class="w"> </span>node<span class="w"> </span>info<span class="w"> </span>/talker
 </code></pre></div>
 <h3 id="62-fast-dds">6.2 Fast-DDS 调试工具</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 启用 Fast-DDS 日志</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 启用 Fast-DDS 日志</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTDDS_DEFAULT_PROFILES_FILE</span><span class="o">=</span>/path/to/log_config.xml
 
 <span class="c1"># log_config.xml:</span>
@@ -918,7 +858,7 @@ ros2<span class="w"> </span>run<span class="w"> </span>fastdds<span class="w"> <
 <span class="c1"># 可以看到 SPDP/SEDP/HEARTBEAT/DATA 等消息</span>
 </code></pre></div>
 <h3 id="63">6.3 性能监控</h3>
-<div class="codehilite"><pre><span></span><code><span class="ch">#!/usr/bin/env python3</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="ch">#!/usr/bin/env python3</span>
 <span class="sd">"""ROS2 DDS 性能监控工具"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">rclpy</span>
@@ -992,7 +932,7 @@ ros2<span class="w"> </span>run<span class="w"> </span>fastdds<span class="w"> <
 <h3 id="71">7.1 发现失败</h3>
 <p><strong>问题</strong>: 节点之间无法发现</p>
 <p><strong>排查步骤</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 检查 Domain ID</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 检查 Domain ID</span>
 ros2<span class="w"> </span>doctor<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>domain
 
 <span class="c1"># 2. 检查网络连通性</span>
@@ -1005,7 +945,7 @@ sudo<span class="w"> </span>iptables<span class="w"> </span>-L<span class="w"> <
 socat<span class="w"> </span>UDP4-RECVFROM:7400,ip-add-membership<span class="o">=</span><span class="m">239</span>.255.0.1:0.0.0.0<span class="w"> </span>-
 </code></pre></div>
 <p><strong>解决方案</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="cm">&lt;!-- 跨网段/云环境使用 Discovery Server --&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cm">&lt;!-- 跨网段/云环境使用 Discovery Server --&gt;</span>
 <span class="nt">&lt;discoveryConfig&gt;</span>
 <span class="w">    </span><span class="nt">&lt;discoveryProtocol&gt;</span>SERVER/CLIENT<span class="nt">&lt;/discoveryProtocol&gt;</span>
 <span class="w">    </span><span class="cm">&lt;!-- Server IP 配置 --&gt;</span>
@@ -1014,7 +954,7 @@ socat<span class="w"> </span>UDP4-RECVFROM:7400,ip-add-membership<span class="o"
 <h3 id="72-qos">7.2 QoS 不匹配</h3>
 <p><strong>问题</strong>: 发布者和订阅者无法匹配</p>
 <p><strong>诊断</strong>:</p>
-<div class="codehilite"><pre><span></span><code>ros2<span class="w"> </span>topic<span class="w"> </span>info<span class="w"> </span>/topic_name<span class="w"> </span>--verbose
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>ros2<span class="w"> </span>topic<span class="w"> </span>info<span class="w"> </span>/topic_name<span class="w"> </span>--verbose
 </code></pre></div>
 <p><strong>常见 QoS 不匹配</strong>:<br/>
 | 发布者 QoS | 订阅者 QoS | 兼容性 | 建议 |<br/>
@@ -1030,7 +970,7 @@ socat<span class="w"> </span>UDP4-RECVFROM:7400,ip-add-membership<span class="o"
 - 未清理的孤立 Reader/Writer<br/>
 - 共享内存段未释放</p>
 <p><strong>解决</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="cm">&lt;!-- 限制 History --&gt;</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cm">&lt;!-- 限制 History --&gt;</span>
 <span class="nt">&lt;history&gt;</span>
 <span class="w">    </span><span class="nt">&lt;kind&gt;</span>KEEP_LAST<span class="nt">&lt;/kind&gt;</span>
 <span class="w">    </span><span class="nt">&lt;depth&gt;</span>100<span class="nt">&lt;/depth&gt;</span>
@@ -1041,7 +981,7 @@ socat<span class="w"> </span>UDP4-RECVFROM:7400,ip-add-membership<span class="o"
 </code></pre></div>
 <h3 id="74">7.4 高延迟</h3>
 <p><strong>优化 checklist</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 使用共享内存 (同机)</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 使用共享内存 (同机)</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">RMW_IMPLEMENTATION</span><span class="o">=</span>rmw_fastrtps_cpp
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTRTPS_DEFAULT_PROFILES_FILE</span><span class="o">=</span>shm_config.xml
 
@@ -1105,7 +1045,7 @@ taskset<span class="w"> </span>-c<span class="w"> </span><span class="m">0</span
 </tbody>
 </table>
 <h3 id="82">8.2 迁移工具</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 安装 ros1_bridge</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 安装 ros1_bridge</span>
 sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>ros-<span class="nv">$ROS_DISTRO</span>-ros1-bridge
 
 <span class="c1"># 2. 启动桥接 (ROS1 &lt;-&gt; ROS2)</span>
@@ -1118,7 +1058,7 @@ ros2<span class="w"> </span>bag<span class="w"> </span>convert<span class="w"> <
 </code></pre></div>
 <h3 id="83">8.3 代码迁移示例</h3>
 <p><strong>ROS1</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">ros</span><span class="o">::</span><span class="n">init</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="s">"talker"</span><span class="p">);</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">ros</span><span class="o">::</span><span class="n">init</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="s">"talker"</span><span class="p">);</span>
 <span class="n">ros</span><span class="o">::</span><span class="n">NodeHandle</span><span class="w"> </span><span class="n">nh</span><span class="p">;</span>
 <span class="n">ros</span><span class="o">::</span><span class="n">Publisher</span><span class="w"> </span><span class="n">pub</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nh</span><span class="p">.</span><span class="n">advertise</span><span class="o">&lt;</span><span class="n">std_msgs</span><span class="o">::</span><span class="n">String</span><span class="o">&gt;</span><span class="p">(</span><span class="s">"chatter"</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 <span class="n">ros</span><span class="o">::</span><span class="n">Rate</span><span class="w"> </span><span class="nf">loop_rate</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
@@ -1132,7 +1072,7 @@ ros2<span class="w"> </span>bag<span class="w"> </span>convert<span class="w"> <
 <span class="p">}</span>
 </code></pre></div>
 <p><strong>ROS2</strong>:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">rclcpp</span><span class="o">::</span><span class="n">init</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span>
+<div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">rclcpp</span><span class="o">::</span><span class="n">init</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">);</span>
 <span class="k">auto</span><span class="w"> </span><span class="n">node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rclcpp</span><span class="o">::</span><span class="n">Node</span><span class="o">::</span><span class="n">make_shared</span><span class="p">(</span><span class="s">"talker"</span><span class="p">);</span>
 
 <span class="n">rclcpp</span><span class="o">::</span><span class="n">QoS</span><span class="w"> </span><span class="nf">qos</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
@@ -1172,42 +1112,28 @@ ros2<span class="w"> </span>bag<span class="w"> </span>convert<span class="w"> <
 <p><em>文档版本: 1.0</em><br/>
 <em>最后更新: 2026-03-13</em><br/>
 <em>关联笔记: 00-Core-Classes-Reference.md, 03A-Discovery-Server-Detail.md</em></p>
-    </main>
+<div class="checklist">
+  <h3>✅ 学习检查清单</h3>
+  <ul>
+    <li>理解了核心概念和原理</li>
+    <li>能够解释关键流程和机制</li>
+    <li>可以在实际项目中应用</li>
+    <li>能够排查常见问题</li>
+  </ul>
+</div>
+    <div class="nav-footer">
+<a href="17-Instance-Management.html">
+  <div class="label">← 上一篇</div>
+  <div class="title">17 Instance管理</div>
+</a>
+<a href="18-Interview-Questions.html" class="next">
+  <div class="label">下一篇 →</div>
+  <div class="title">18 面试题</div>
+</a>
+</div>
+  </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar group toggle
-    document.querySelectorAll('.nav-group-title').forEach(el => {
-        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
-    });
-    // Auto-open group containing active item
-    const active = document.querySelector('.nav-item.active');
-    if (active) {
-        let g = active.closest('.nav-group');
-        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
-    }
-    // Back to top
-    const btn = document.querySelector('.back-to-top');
-    window.addEventListener('scroll', () => {
-        btn.classList.toggle('visible', window.scrollY > 300);
-    });
-    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-    // Search filter
-    const search = document.querySelector('.search-box');
-    if (search) {
-        search.addEventListener('input', e => {
-            const q = e.target.value.toLowerCase();
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
-            });
-            document.querySelectorAll('.nav-group').forEach(g => {
-                const hasVisible = g.querySelector('.nav-item[style*="block"]');
-                g.style.display = hasVisible ? 'block' : 'none';
-            });
-        });
-    }
-});
-</script>
+<script src="scripts.js"></script>
 </body>
 </html>
