@@ -401,7 +401,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   border: 1px solid var(--border);
   border-radius: 12px; padding: 24px;
   margin: 28px 0;
-  position: relative; overflow: hidden;
+  position: relative; overflow: visible;
 }
 .demo-container .demo-title {
   margin: 0 0 16px; font-size: 15px;
@@ -414,6 +414,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 /* ── SVG Animations ─────────────────── */
+.svg-animate { width: 100%; height: auto; display: block; }
 .svg-animate .node { transition: all 0.5s ease; }
 .svg-animate .edge { stroke-dasharray: 8; animation: dash 1.5s linear infinite; }
 .svg-animate .packet {
