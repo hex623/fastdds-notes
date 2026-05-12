@@ -118,13 +118,11 @@
 <hr/>
 <div class="learning-goal">
 <h3>🎯 学习目标</h3>
-<ul>
-<li>理解 1.2 Fast-DDS 内存架构概览 的核心原理</li><li>理解 二、内存池机制 的核心原理</li><li>掌握 2.3 代码示例：配置内存池 的实践方法</li>
-</ul>
+<ul><li>理解 Fast-DDS 内存池的设计原理和分配策略</li><li>掌握 CacheChangePool 和 HistoryCache 的工作机制</li><li>了解内存碎片化的原因及优化方法</li></ul>
 </div>
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
-<p>DDS 基础、RTPS 消息格式</p>
+<p>内存管理基础、C++ 智能指针、DDS 数据流</p>
 </div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -951,7 +949,6 @@ Writer 收到 ACKNACK:
 <li>能够排查常见问题</li>
 </ul>
 </div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

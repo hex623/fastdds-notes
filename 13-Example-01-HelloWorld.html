@@ -130,21 +130,7 @@
 <p>Fast-DDS 基础、CMake 基础</p>
 </div>
 <h2 id="_1">🎯 学习目标</h2>
-<div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg class="svg-animate" viewbox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
-<defs><marker id="arrow-d" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3"><path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path></marker></defs>
-<rect fill="#21262d" height="60" rx="5" stroke="#58a6ff" stroke-width="2" width="120" x="20" y="70"></rect><text fill="#c9d1d9" font-size="14" text-anchor="middle" x="80" y="105">Application</text>
-<line marker-end="url(#arrow-d)" stroke="#58a6ff" stroke-width="2" x1="140" x2="220" y1="100" y2="100"></line>
-<rect fill="#21262d" height="60" rx="5" stroke="#7ee787" stroke-width="2" width="120" x="220" y="70"></rect><text fill="#c9d1d9" font-size="14" text-anchor="middle" x="280" y="105">Writer</text>
-<line marker-end="url(#arrow-d)" stroke="#58a6ff" stroke-width="2" x1="340" x2="420" y1="100" y2="100"></line>
-<rect fill="#21262d" height="60" rx="5" stroke="#f0883e" stroke-width="2" width="120" x="420" y="70"></rect><text fill="#c9d1d9" font-size="14" text-anchor="middle" x="480" y="105">Transport</text>
-<line marker-end="url(#arrow-d)" stroke="#58a6ff" stroke-width="2" x1="540" x2="620" y1="100" y2="100"></line>
-<rect fill="#21262d" height="60" rx="5" stroke="#d2a8ff" stroke-width="2" width="120" x="620" y="70"></rect><text fill="#c9d1d9" font-size="14" text-anchor="middle" x="680" y="105">Network</text>
-<text fill="#8b949e" font-size="12" text-anchor="middle" x="400" y="170">数据发送流程: App → Writer → Transport → Network</text>
-</svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
-</div>
+
 <ol>
 <li>理解 DDS 基础实体：DomainParticipant → Publisher/Subscriber → DataWriter/DataReader</li>
 <li>掌握两种订阅机制：Listener 回调 vs WaitSet 等待</li>
@@ -671,7 +657,6 @@ Message: 'Hello world' with index: '2' SENT
 </ol>
 <hr/>
 <p><em>下一个示例：<a href="13-Example-02-RTPS.html">RTPS 底层 API</a></em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
