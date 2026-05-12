@@ -126,47 +126,7 @@
 <p>DDS 基础概念、C++ 编程基础</p>
 </div>
 <h2 id="_1">修正背景</h2>
-<div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
-<svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
-<defs>
-<marker id="arrow2" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3">
-<path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path>
-</marker>
-</defs>
-<!-- Stages -->
-<rect fill="#161b22" height="80" rx="6" stroke="#7ee787" stroke-width="2" width="100" x="20" y="60"></rect>
-<text fill="#7ee787" font-size="12" font-weight="600" text-anchor="middle" x="70" y="90">Publisher</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="70" y="108">Application</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#58a6ff" stroke-width="2" width="100" x="180" y="60"></rect>
-<text fill="#58a6ff" font-size="12" font-weight="600" text-anchor="middle" x="230" y="90">Writer</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="230" y="108">RTPS Layer</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#f0883e" stroke-width="2" width="100" x="340" y="60"></rect>
-<text fill="#f0883e" font-size="12" font-weight="600" text-anchor="middle" x="390" y="90">Transport</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="390" y="108">UDP/TCP/SHM</text>
-<rect fill="#161b22" height="80" rx="6" stroke="#f778ba" stroke-width="2" width="80" x="500" y="60"></rect>
-<text fill="#f778ba" font-size="12" font-weight="600" text-anchor="middle" x="540" y="90">Network</text>
-<!-- Flow arrows -->
-<path d="M 120 100 L 170 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<path d="M 280 100 L 330 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<path d="M 440 100 L 490 100" fill="none" marker-end="url(#arrow2)" stroke="#c9d1d9" stroke-width="2"></path>
-<!-- Animated packet -->
-<circle fill="#58a6ff" r="6">
-<animatemotion dur="1.5s" path="M 120 100 L 170 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<circle fill="#58a6ff" r="6">
-<animatemotion begin="0.5s" dur="1.5s" path="M 280 100 L 330 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<circle fill="#58a6ff" r="6">
-<animatemotion begin="1s" dur="1.5s" path="M 440 100 L 490 100" repeatcount="indefinite"></animatemotion>
-</circle>
-<!-- Labels -->
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="145" y="130">write()</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="305" y="130">serialize</text>
-<text fill="#8b949e" font-size="10" text-anchor="middle" x="465" y="130">send()</text>
-</svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
-</div>
+
 <p>在翻译 Fast-DDS 教程时，为了教学清晰，使用了概念性类名。但实际源码中类名不同，需要修正以避免误导。</p>
 <hr/>
 <h2 id="_2">主要问题</h2>
@@ -309,7 +269,6 @@
 </ol>
 <hr/>
 <p><em>整理自 DDS_CODE_FIX_PLAN.md</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
