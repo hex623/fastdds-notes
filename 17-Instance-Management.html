@@ -121,7 +121,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS Key 概念、实例管理基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. Instance 概念与核心原理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. Instance 的生命周期</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. Key 的定义与作用</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 三种 State 详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 源码实现分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. Reader 端的 Instance 管理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 实战示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 最佳实践</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
@@ -256,7 +263,8 @@ Instance (目标B, key="B"):
 ├── Sample 2: {time=t2, x=305, y=405}
 └── ...
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">在 DDS 中，Instance 是由 Key 标识的一组相关数据样本的集合。它是 DDS 区别于普通 Pub/Sub 系统的核心概念。 代码示例┌─────────────────────────────────────────────────────────────────┐
+│                      DDS Instance 概念...</p></div>
 <h2 id="2-instance">2. Instance 的生命周期</h2>
 <h3 id="21">2.1 生命周期状态图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">graph</span><span class="w"> </span><span class="n">TB</span>
@@ -345,7 +353,14 @@ Instance (目标B, key="B"):
 <span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
 <span class="err">└─────────────────────────────────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例graph TB
+    subgraph Writer["Writer 端状态"]
+        direction TB
+        W_UNREG["UNREGISTERED<br/>未注册"]
+        W_ALIVE["ALIVE<br/>活跃"]
+        W_DISPOSE["DISPOSED<br/>已删除"]
+
+        W_UNREG --"wr...</p></div>
 <h2 id="3-key">3. Key 的定义与作用</h2>
 <h3 id="31-key">3.1 Key 的定义方式</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// === 方式1: IDL 中使用 @key 注解 ===</span>
@@ -471,7 +486,18 @@ Instance (目标B, key="B"):
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// === 方式1: IDL 中使用 @key 注解 ===
+// File: Target.idl
+
+struct TargetPosition {
+    @key string target_id;  // key 字段
+    double x;
+    double y;
+    double z;
+};
+
+// === 方式2: C++ 代码中使用 @key 宏 ===
+#i...</p></div>
 <h2 id="4-state">4. 三种 State 详解</h2>
 <p>DDS 定义了三种与 Instance 相关的状态，都在 <strong>SampleInfo</strong> 结构中：</p>
 <h3 id="41-samplestate">4.1 SampleState：样本读取状态</h3>
@@ -599,7 +625,14 @@ Time 2: 新的 Instance B 出现
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">valid_data</span><span class="p">;</span><span class="w">                     </span><span class="c1">// data 是否有效（metadata 样本时为 false）</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">DDS 定义了三种与 Instance 相关的状态，都在 SampleInfo 结构中： 代码示例// 表示某个样本是否被读取过
+
+enum SampleStateKind {
+    READ,       // 样本已经被 read/take 过
+    NOT_READ    // 样本未被读取（新数据）
+};
+ 代码示例Reader History:
+┌─────┬──────────┬─...</p></div>
 <h2 id="5">5. 源码实现分析</h2>
 <h3 id="51-writer-instance">5.1 Writer 端 Instance 管理</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
@@ -792,7 +825,15 @@ Time 2: 新的 Instance B 出现
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// src/cpp/fastdds/publisher/DataWriterImpl.cpp
+
+class DataWriterImpl
+{
+    // Instance 注册表: handle -&gt; Instance 状态
+    std::map<instancehandle_t, instancestate=""> instance_states_;
+
+public:
+    // 注...</instancehandle_t,></p></div>
 <h2 id="6-reader-instance">6. Reader 端的 Instance 管理</h2>
 <h3 id="61-readtake-instance-api">6.1 read/take 的 Instance 相关 API</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataReader</span><span class="w"> </span><span class="p">{</span>
@@ -950,7 +991,14 @@ Time 2: 新的 Instance B 出现
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class DataReader {
+public:
+    // === 按 Instance 读取 ===
+
+    // 读取特定 Instance 的样本
+    ReturnCode_t read_instance(
+        LoanableSequence<void*>&amp; data_values,
+        SampleInfoSeq&amp; sample_infos,...</void*></p></div>
 <h2 id="7">7. 实战示例</h2>
 <h3 id="71-1">7.1 示例1: 多目标追踪系统</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// IDL: Target.idl</span>
@@ -1219,7 +1267,17 @@ Time 2: 新的 Instance B 出现
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// IDL: Target.idl
+struct TargetPosition {
+    @key string target_id;
+    double x, y, z;
+    double vx, vy, vz;  // 速度
+};
+
+// === Writer 端：模拟多个目标 ===
+class TargetTracker
+{
+    DataWriter* writer_...</p></div>
 <h2 id="8">8. 最佳实践</h2>
 <h3 id="81-instance">8.1 何时使用 Instance？</h3>
 <table>
@@ -1399,7 +1457,18 @@ Time 2: 新的 Instance B 出现
 <span class="w">    </span><span class="c1">// 或者使用 reliable QoS + 持久化</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// ✅ 好的 Key 设计
+
+// 1. 稳定唯一
+struct GoodKey {
+    @key string uuid;  // UUID 不会变化
+    string name;       // 显示名称可以变
+};
+
+// 2. 复合 Key 用于多维度
+struct MultiKey {
+    @key string region;   // 地区
+    @key...</p></div>
 <h2 id="_2">总结</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
 <span class="err">│</span><span class="w">                   </span><span class="n">Instance</span><span class="w"> </span><span class="n">Management</span><span class="w"> </span><span class="n">核心</span><span class="w">                      </span><span class="err">│</span>
@@ -1430,15 +1499,6 @@ Time 2: 新的 Instance B 出现
 <hr/>
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 DDS 标准和 Fast-DDS 实现</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -1458,7 +1518,9 @@ Time 2: 新的 Instance B 出现
 <div class="label">下一篇 →</div>
 <div class="title">17 ROS2集成</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                   Instance Management 核心                      │
+├─────────────────────────────────────────────────────────────...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

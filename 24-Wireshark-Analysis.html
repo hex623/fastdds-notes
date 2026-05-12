@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能配置 Wireshark 捕获 DDS 流量</li><li style="margin:6px 0;">理解 RTPS 子消息在抓包中的呈现方式</li><li style="margin:6px 0;">掌握通过抓包排查通信故障的方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 准备工作</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 捕获 DDS 流量</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. Wireshark 显示过滤器</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. RTPS 报文结构分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 常见报文类型详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 实战案例分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 故障排查技巧</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 高级技巧</span></div></div>
 <div class="demo-container"><svg class="svg-animate" viewbox="0 0 600 160" xmlns="http://www.w3.org/2000/svg">
 <rect fill="#21262d" height="80" rx="5" stroke="#58a6ff" stroke-width="2" width="180" x="50" y="40"></rect>
 <text fill="#58a6ff" font-size="14" text-anchor="middle" x="140" y="70">Wireshark</text>
@@ -176,7 +183,15 @@ sudo<span class="w"> </span>wireshark
 sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </span>-G<span class="w"> </span>wireshark<span class="w"> </span><span class="nv">$USER</span>
 <span class="c1"># 然后重新登录</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例# macOS
+brew install --cask wireshark
+
+# Ubuntu/Debian
+sudo apt-get install wireshark
+
+# Windows
+# 下载安装包: https://www.wireshark.org/download.html
+ Wireshark 内置支持 RTPS 协议（DDS 的底层协议）： 代码示例# macOS/Li...</p></div>
 <h2 id="2-dds">2. 捕获 DDS 流量</h2>
 <h3 id="21-dds">2.1 确定 DDS 使用的端口</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>DDS 默认端口计算:
@@ -224,7 +239,15 @@ cpp/bin/HelloWorldExample<span class="w"> </span>subscriber
 </code></pre></div>
 <p><strong>步骤 4: 停止捕获</strong></p>
 <p>当收集到足够数据后，点击红色停止按钮。</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例DDS 默认端口计算:
+- Domain ID 0: 
+  - SPDP (发现): 7400 (用于 SPDP/SEDP 发现)
+  - SEDP (元数据): 7401 (用于元数据交换)
+  - User Data: 7410 (用于实际数据传输)
+  - 7411 (备用, P=1时使用)
+
+- Domain ID X, Participant Index P:
+  - SPDP...</p></div>
 <h2 id="3-wireshark">3. Wireshark 显示过滤器</h2>
 <p>捕获完成后，使用显示过滤器分析特定类型的报文：</p>
 <h3 id="31">3.1 基础过滤器</h3>
@@ -300,7 +323,16 @@ rtps &amp;&amp; rtps.sm.id == 0x15 &amp;&amp; rtps.sequence_number &gt; 5
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">捕获完成后，使用显示过滤器分析特定类型的报文： 代码示例# 只显示 RTPS 报文
+rtps
+
+# 显示特定 Domain 的报文 (Domain 0)
+rtps.domain_id == 0
+
+# 显示特定类型的报文
+rtps.sm.id == 0x15    # DATA 报文
+rtps.sm.id == 0x07    # HEARTBEAT 报文
+rtps.sm.id == 0x06...</p></div>
 <h2 id="4-rtps">4. RTPS 报文结构分析</h2>
 <h3 id="41-rtps">4.1 RTPS 报文整体结构</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">RTPS</span><span class="w"> </span><span class="n">Packet</span><span class="w"> </span><span class="p">(</span><span class="n">UDP</span><span class="w"> </span><span class="n">Payload</span><span class="p">)</span>
@@ -339,7 +371,12 @@ rtps &amp;&amp; rtps.sm.id == 0x15 &amp;&amp; rtps.sequence_number &gt; 5
 <span class="w">      </span><span class="err">├─</span><span class="w"> </span><span class="n">DATA</span><span class="w"> </span><span class="p">(</span><span class="n">Data</span><span class="p">)</span>
 <span class="w">      </span><span class="err">└─</span><span class="w"> </span><span class="n">HEARTBEAT</span><span class="w"> </span><span class="p">(</span><span class="n">Heartbeat</span><span class="p">)</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例RTPS Packet (UDP Payload)
+├─ RTPS Header (20 bytes)
+│  ├─ Magic: "RTPS" (4 bytes)
+│  ├─ Protocol Version: 2.2 (2 bytes)
+│  ├─ Vendor ID: eProsima (2 bytes)
+│  └─ GUID Prefix: Participant GUID (12...</p></div>
 <h2 id="5">5. 常见报文类型详解</h2>
 <h3 id="51-data-0x15">5.1 DATA 报文 (0x15)</h3>
 <p><strong>作用</strong>: 传输实际数据</p>
@@ -424,7 +461,12 @@ bitmap = 0x00000007 (二进制: 000...0111)
    ├─ Flags: 0x01 (Timestamp)
    └─ Timestamp: Mar 12, 2025 10:30:15.123456789 CST
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">作用: 传输实际数据 Wireshark 显示: 代码示例Real-Time Publish Subscribe Protocol
+└─ Submessage: DATA (0x15)
+   ├─ Flags: 0x05 (InlineQoS, Data)
+   ├─ Octets to next header: 100
+   ├─ Extra flags: 0x0000
+   ├─ Octets...</p></div>
 <h2 id="6">6. 实战案例分析</h2>
 <h3 id="61-1">6.1 案例 1: 正常数据传输</h3>
 <p><strong>场景</strong>: Publisher 发送 5 条消息</p>
@@ -502,7 +544,12 @@ Frame 302: SEDP 宣告 (DATA(r))
 
 Frame 303: 匹配完成，开始传输用户数据
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">场景: Publisher 发送 5 条消息 Wireshark 捕获: 代码示例Frame 100: DATA #1, Seq=1
+Frame 101: HEARTBEAT (First=1, Last=1)
+Frame 102: ACKNACK (bitmapBase=2, bitmap=0)
+
+Frame 103: DATA #2, Seq=2
+Frame 104: HEARTBEAT (F...</p></div>
 <h2 id="7">7. 故障排查技巧</h2>
 <h3 id="71">7.1 问题: 无法发现其他节点</h3>
 <p><strong>排查步骤</strong>:<br/>
@@ -530,7 +577,15 @@ Frame 303: 匹配完成，开始传输用户数据
 1. 查看 HEARTBEAT 中的 Last Seq Number<br/>
 2. 如果持续增加但 ACKNACK 没有确认，可能是 Reader 处理不过来<br/>
 3. 检查是否有 GAP 报文 (Writer 丢弃数据)</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">排查步骤:
+1. 检查捕获过滤器是否包含 7400 端口
+udp port 7400
+2. 检查是否有 SPDP 报文 (DATA 子消息，Writer ID 为内置值)
+3. 检查 Domain ID 是否一致
+4. 检查防火墙是否阻止了 7400 端口 排查步骤:
+1. 过滤 DATA 报文
+rtps.sm.id == 0x15
+2. 检查 Writer 和 Reader 的 Topic 名称...</p></div>
 <h2 id="8">8. 高级技巧</h2>
 <h3 id="81">8.1 导出特定报文</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>File → Export Specified Packets
@@ -564,7 +619,12 @@ tshark<span class="w"> </span>-r<span class="w"> </span>dds_capture.pcap<span cl
 <span class="c1"># 统计各类报文数量</span>
 tshark<span class="w"> </span>-r<span class="w"> </span>dds_capture.pcap<span class="w"> </span>-Y<span class="w"> </span>rtps<span class="w"> </span>-T<span class="w"> </span>fields<span class="w"> </span>-e<span class="w"> </span>rtps.sm.id<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例File → Export Specified Packets
+- 选择 "Selected packets only"
+- 选择 "Displayed packets only" (应用过滤器后)
+ 代码示例Statistics → IO Graph
+- 添加过滤器: rtps.sm.id == 0x15 (仅 DATA 报文)
+- Y Axis: Packets/s 或 Bytes/s...</p></div>
 <h2 id="9">9. 快速参考卡片</h2>
 <h3 id="_2">常用过滤器速查</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="gh">#</span> 基础
@@ -633,7 +693,11 @@ rtps.topic_name contains "Hello"        # 主题名称
 <div class="label">下一篇 →</div>
 <div class="title">📖 阅读指南</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例# 基础
+rtps                                    # 所有 RTPS
+rtps.domain_id == 0                     # Domain 0
+rtps.sm.id == 0x15                      # DATA
+rtps.sm.id == 0x07                      # H...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

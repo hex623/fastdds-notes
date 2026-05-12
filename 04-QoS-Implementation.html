@@ -119,7 +119,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发布订阅模型、网络传输基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能说出至少 5 种 QoS 策略及其作用</li><li style="margin:6px 0;">理解 Writer/Reader QoS 兼容性规则</li><li style="margin:6px 0;">掌握 QoS 变更的动态生效机制</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. QoS 架构设计概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 核心组件详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. 关键 QoS 策略详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. QoS 兼容性检查机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 代码示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 最佳实践</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">参考资料</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 180" xmlns="http://www.w3.org/2000/svg">
@@ -192,7 +198,8 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 的 QoS（Quality of Service，服务质量）系统是基于 DDS（Data Distribution Service）标准实现的，提供了丰富的策略来控制数据通信的行为。QoS 架构的核心设计目标是： 代码示例┌─────────────────────────────────────────────────────────────────┐
+│...</p></div>
 <h2 id="2">2. 核心组件详解</h2>
 <h3 id="21-qospolicy-">2.1 QosPolicy - 策略基类</h3>
 <p>所有 QoS 策略都继承自 <code>QosPolicy</code> 基类，定义位于 <code>include/fastdds/dds/core/policy/QosPolicies.hpp</code>：</p>
@@ -327,7 +334,14 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">所有 QoS 策略都继承自 QosPolicy 基类，定义位于 include/fastdds/dds/core/policy/QosPolicies.hpp： 代码示例class QosPolicy
+{
+public:
+    //! 标记 QoS 是否被修改过
+    bool hasChanged;
+
+    //! 构造函数
+    explicit QosPolicy(bool send...</p></div>
 <h2 id="3-qos">3. 关键 QoS 策略详解</h2>
 <h3 id="31-reliabilityqospolicy">3.1 ReliabilityQosPolicy（可靠性策略）</h3>
 <p><strong>定义位置</strong>：<code>include/fastdds/dds/core/policy/QosPolicies.hpp</code></p>
@@ -563,7 +577,10 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">定义位置：include/fastdds/dds/core/policy/QosPolicies.hpp 作用：控制数据传输的可靠性级别。 代码示例typedef enum ReliabilityQosPolicyKind : fastdds::rtps::octet
+{
+    //! 尽力而为 - 不保证数据到达
+    BEST_EFFORT_RELIABILITY_QOS = 0x01,...</p></div>
 <h2 id="4-qos">4. QoS 兼容性检查机制</h2>
 <h3 id="41">4.1 匹配流程</h3>
 <p>QoS 兼容性检查在端点发现阶段（EDP）执行：</p>
@@ -696,7 +713,14 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">QoS 兼容性检查在端点发现阶段（EDP）执行： 代码示例WriterProxyData ←→ ReaderProxyData
+        ↓              ↓
+    valid_matching()
+        ↓
+   检查各项 QoS 兼容性
+        ↓
+   生成 PolicyMask（标记不兼容项）
+ 核心代码位于 src/cpp/rtps/builtin/...</p></div>
 <h2 id="5">5. 代码示例</h2>
 <h3 id="51-reliability-qos">5.1 配置 Reliability QoS</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -871,7 +895,11 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds datawriterqos.hpp="" dds="" publisher="" qos="">
+#include <fastdds datareaderqos.hpp="" dds="" qos="" subscriber="">
+
+using namespace eprosima:...</fastdds></fastdds></fastdds></p></div>
 <h2 id="6">6. 最佳实践</h2>
 <h3 id="61-qos">6.1 场景化 QoS 配置指南</h3>
 <h4 id="1">场景 1：实时视频流</h4>
@@ -1048,7 +1076,17 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 要求：低延迟、可容忍丢包
+DataWriterQos video_qos;
+
+// 尽力而为传输
+video_qos.reliability().kind = BEST_EFFORT_RELIABILITY_QOS;
+
+// 不持久化
+video_qos.durability().kind = VOLATILE_DURABILITY_QOS;
+
+// 只保留最新帧
+video_qos...</p></div>
 <h2 id="_2">参考资料</h2>
 <ol>
 <li><strong>Fast-DDS 源码</strong>：<code>include/fastdds/dds/core/policy/QosPolicies.hpp</code></li>

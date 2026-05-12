@@ -127,7 +127,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">完整数据流概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">1. 数据发送端（Publisher 侧）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">2. 序列化机制（CDR 编码）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">3. HistoryCache（历史缓存）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">4. 数据接收端（Subscriber 侧）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">5. 底层传输机制（RTPS 协议栈）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">6. 关键流程总结</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">7. 实际源码验证</span></div></div>
 <h2 id="_1">完整数据流概述</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -162,7 +169,8 @@
     │                           │                          │                          │ ───────────────────────&gt; │
     │                           │                          │                          │                           │  11. take() 读取数据
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例应用层 A                    DDS 中间层                    网络层                    DDS 中间层                    应用层 B
+    │                           │                          │                          │...</p></div>
 <h2 id="1-publisher">1. 数据发送端（Publisher 侧）</h2>
 <h3 id="11-dds">1.1 创建 DDS 实体</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ========== HelloWorldPublisher.cpp (基于 Fast-DDS examples) ==========</span>
@@ -281,7 +289,11 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// ========== HelloWorldPublisher.cpp (基于 Fast-DDS examples) ==========
+
+#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fa...< p=""></fa...<></fastdds></fastdds></p></div>
 <h2 id="2-cdr">2. 序列化机制（CDR 编码）</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 自动生成文件: HelloWorldPubSubType.cpp (由 fastddsgen 生成)</span>
 <span class="c1">// CDR (Common Data Representation) 是 DDS 的标准序列化格式</span>
@@ -315,7 +327,11 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 自动生成文件: HelloWorldPubSubType.cpp (由 fastddsgen 生成)
+// CDR (Common Data Representation) 是 DDS 的标准序列化格式
+
+bool HelloWorldPubSubType::serialize(
+    void* data,                    // 输入：C++ 对象指针...</p></div>
 <h2 id="3-historycache">3. HistoryCache（历史缓存）</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 实际文件: src/cpp/rtps/history/WriterHistory.cpp</span>
 
@@ -341,7 +357,14 @@
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">changes_</span><span class="p">;</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 实际文件: src/cpp/rtps/history/WriterHistory.cpp
+
+class WriterHistory {
+    // WriterHistoryCache (WHC) - 发送端缓存
+    // 作用：存储已发送的数据，支持重传
+    std::vector<cachechange_t*> changes_;
+
+    // 当达到资源限制时，根据...</cachechange_t*></p></div>
 <h2 id="4-subscriber">4. 数据接收端（Subscriber 侧）</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ========== HelloWorldSubscriber.cpp (基于 Fast-DDS examples) ==========</span>
 
@@ -422,7 +445,11 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// ========== HelloWorldSubscriber.cpp (基于 Fast-DDS examples) ==========
+
+#include <fastdds dds="" subscriber="" subscriber.hpp="">
+#include <fastdds datareader.hpp="" dds="" subscriber="">
+#include <fastdds dds="" p="" su...<=""></fastdds></fastdds></fastdds></p></div>
 <h2 id="5-rtps">5. 底层传输机制（RTPS 协议栈）</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// RTPS 消息结构（简化示意）</span>
 <span class="c1">// 实际文件: src/cpp/rtps/messages/RTPSMessageGroup.hpp</span>
@@ -456,7 +483,12 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// RTPS 消息结构（简化示意）
+// 实际文件: src/cpp/rtps/messages/RTPSMessageGroup.hpp
+
+struct CacheChange_t {
+    SequenceNumber_t sequenceNumber;    // 序列号（用于排序和去重）
+    GUID_t writerGUID;                  // 写入...</p></div>
 <h2 id="6">6. 关键流程总结</h2>
 <table>
 <thead>
@@ -593,16 +625,6 @@ grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"FlowCont
 <p><strong>文章编写时间</strong>: 2026-03-12<br/>
 <strong>基于</strong>: Fast-DDS v2.14.x 源码<br/>
 <strong>作者</strong>: 旭旭助手 🐾</p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -622,7 +644,12 @@ grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"FlowCont
 <div class="label">下一篇 →</div>
 <div class="title">24 Wireshark分析</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">A: 支持可靠传输中的重传机制，以及 QoS 策略（如 KEEP_LAST）。 A: 标准格式、跨平台、紧凑二进制、支持版本演进。 A: 逻辑隔离不同应用组，相同 Domain ID 的 Participant 才能通信。 文章编写时间: 2026-03-12
+基于: Fast-DDS v2.14.x 源码
+作者: 旭旭助手 🐾 
+🔗 相关阅读
+
+04 - Fast-DDS QoS 策略实现详解...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

@@ -124,7 +124,11 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>C++ 基础、RTPS 协议基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能画出 RTPS 三层架构图（DDS/RTPS/Transport）</li><li style="margin:6px 0;">理解 DomainParticipant 作为通信入口的作用</li><li style="margin:6px 0;">掌握 Endpoint（Writer/Reader）的抽象设计意图</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">核心类结构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">关键文件位置</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">类关系详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">DDS → RTPS 层映射</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">关键设计模式</span></div></div>
 <h2 id="_1">核心类结构</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -159,7 +163,14 @@ Endpoint (基类)
     ├── ReaderHistory (缓存)
     └── ReaderListener (回调)
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例RTPSDomain (单例管理类)
+├── createParticipant() → RTPSParticipant
+├── createRTPSWriter() → RTPSWriter
+└── createRTPSReader() → RTPSReader
+
+RTPSParticipant
+├── 管理 Writers/Readers
+├── 内置协议 (BuiltinProtoc...</p></div>
 <h2 id="_2">关键文件位置</h2>
 <table>
 <thead>
@@ -312,7 +323,6 @@ Endpoint (基类)
 </table>
 <hr/>
 <p><em>整理自 2026-02-27 源码分析笔记</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

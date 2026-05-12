@@ -123,7 +123,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>C++ 面向对象、DDS 基本概念、Fast-DDS 源码环境</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. RTPS 架构总览</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 核心类详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. 核心数据结构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 关键设计模式</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 与 DDS 层的对应关系</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 源码阅读建议</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 总结</span></div></div>
 <h2 id="rtps">1. RTPS 架构总览</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -171,7 +177,10 @@ Endpoint (端点基类)
     ├── ReaderListener (回调监听)
     └── 匹配多个 RTPSWriter
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">RTPS (Real-Time Publish Subscribe) 是 DDS 的底层实现协议，遵循 OMG DDSI-RTPS 标准。Fast-DDS 的 RTPS 层提供了： 代码示例RTPSDomain (单例管理类)
+├── 管理所有 RTPSParticipant
+├── createParticipant() → RTPSParticipant
+├── createRTPSWrite...</p></div>
 <h2 id="_1">2. 核心类详解</h2>
 <h3 id="21-rtpsdomain-">2.1 RTPSDomain - 域管理器</h3>
 <p><strong>文件</strong>: <code>include/fastdds/rtps/RTPSDomain.hpp</code></p>
@@ -453,7 +462,12 @@ Endpoint (端点基类)
    - 触发 Listener 回调</p>
 </li>
 </ol>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">文件: include/fastdds/rtps/RTPSDomain.hpp 职责:
+- 单例模式管理所有 RTPS 实体
+- 负责 Participant、Writer、Reader 的生命周期
+- 提供静态工厂方法 关键方法: 代码示例// 创建 RTPSParticipant
+static RTPSParticipant* createParticipant(
+    uint32_t d...</p></div>
 <h2 id="_2">3. 核心数据结构</h2>
 <h3 id="31-guid-globally-unique-identifier">3.1 GUID (Globally Unique Identifier)</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 12字节唯一标识</span>
@@ -485,7 +499,13 @@ Endpoint (端点基类)
 - 存储接收到的数据<br/>
 - 应用消费后移除<br/>
 - 防止内存无限增长</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 12字节唯一标识
+struct GUID_t {
+    GuidPrefix_t guidPrefix;  // 前11字节：标识Participant
+    EntityId_t entityId;      // 最后1字节：标识Entity类型和实例
+};
+ 组成:
+- GuidPrefix: 同一 Participant 内的所有 Entity 共享相同的 prefix...</p></div>
 <h2 id="_3">4. 关键设计模式</h2>
 <h3 id="41-pimpl-pointer-to-implementation">4.1 Pimpl (Pointer to Implementation)</h3>
 <p><strong>用途</strong>: 隐藏实现细节，减少编译依赖</p>
@@ -519,7 +539,19 @@ Endpoint (端点基类)
 </code></pre></div>
 <h3 id="43">4.3 引用计数与智能指针</h3>
 <p>现代 C++ 特性确保资源安全释放。</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">用途: 隐藏实现细节，减少编译依赖 代码示例// 公共头文件
+class RTPSParticipant {
+private:
+    RTPSParticipantImpl* pimpl_;  // 指向实现的指针
+public:
+    // 公共接口...
+};
+
+// 实现文件
+class RTPSParticipantImpl {
+    // 实际实现...
+};
+ 用途: 异步通知应...</p></div>
 <h2 id="dds">5. 与 DDS 层的对应关系</h2>
 <table>
 <thead>
@@ -619,15 +651,6 @@ Endpoint (端点基类)
 <p><em>分析完成时间: 2026-03-01</em><br/>
 <em>Fast-DDS 版本: 3.5.0</em><br/>
 <em>文档状态: 初版完成</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

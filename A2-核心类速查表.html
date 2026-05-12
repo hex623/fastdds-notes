@@ -123,9 +123,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能快速查阅核心类的继承关系和关键方法</li><li style="margin:6px 0;">理解 RTPSDomain、RTPSParticipant、Endpoint 的层次</li><li style="margin:6px 0;">掌握常用类的头文件位置</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">类继承关系图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">核心类速查</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">关键数据结构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">QoS 策略速查</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">RTPS 消息类型</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">文件位置速查</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">常见端口号</span></div></div>
 <h2 id="_1">类继承关系图</h2>
-
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>eprosima::fastdds::dds::DomainEntity
 ├── DomainParticipant
 ├── Publisher
@@ -146,7 +151,16 @@ Endpoint (抽象基类)
     ├── StatelessReader
     └── StatefulReader
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例eprosima::fastdds::dds::DomainEntity
+├── DomainParticipant
+├── Publisher
+├── DataWriter
+├── Subscriber
+└── DataReader
+
+eprosima::fastdds::rtps::RTPSDomain (单例)
+├── RTPSParticipant
+│   ├── RTPSWrit...</p></div>
 <h2 id="_2">核心类速查</h2>
 <h3 id="rtpsdomain">RTPSDomain</h3>
 <table>
@@ -338,7 +352,13 @@ Endpoint (抽象基类)
 <span class="p">};</span>
 <span class="c1">// 支持 2^64 个序列号，实际使用 low 部分</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例struct GUID_t {
+    GuidPrefix_t guidPrefix;  // 12 bytes
+    EntityId_t entityId;      // 4 bytes
+};
+
+// 示例: 01.0f.da.70.f5.ea.d7.9b.00.00.00.00|0.0.1.4
+//       └──────── GUID Prefix ────────┘ |...</p></div>
 <h2 id="qos">QoS 策略速查</h2>
 <table>
 <thead>

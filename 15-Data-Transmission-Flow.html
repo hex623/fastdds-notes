@@ -129,7 +129,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 核心类、内存管理基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. Writer 发送数据流程</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. Reader 接收数据流程</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. 可靠传输 vs 尽力传输对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. ACKNACK 与 HEARTBEAT 交互</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 完整数据流图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 关键源码解析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">总结</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
@@ -374,7 +380,9 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Writer 发送数据流程                                 │
+└───────────────────────────────────────...</p></div>
 <h2 id="reader">2. Reader 接收数据流程</h2>
 <h3 id="21">2.1 整体流程图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
@@ -559,7 +567,9 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Reader 接收数据流程                                 │
+└───────────────────────────────────────...</p></div>
 <h2 id="vs">3. 可靠传输 vs 尽力传输对比</h2>
 <table>
 <thead>
@@ -641,7 +651,11 @@ Writer (StatefulWriter)              Reader (StatefulReader)
         └── 可以从 History 删除 #1,#2,#3      │
                                            │
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例场景：Reliable 传输，发生丢包
+────────────────────────────────────────────────────────────────────────
+
+Writer (StatefulWriter)              Reader (StatefulReader)
+        │...</p></div>
 <h2 id="_2">5. 完整数据流图</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
 │                    完整数据流：应用 → 网络 → 应用                              │
@@ -685,7 +699,9 @@ Writer ◄──────── ACKNACK ──────── Reader
   │                               │
   │◄──────── ACK (最终确认) ──────┤
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────────────────┐
+│                    完整数据流：应用 → 网络 → 应用                              │
+└────────────────────────────────────────────...</p></div>
 <h2 id="_3">6. 关键源码解析</h2>
 <h3 id="61">6.1 发送端核心调用链</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 完整调用链：应用层 → DDS层 → RTPS层 → 传输层</span>
@@ -764,7 +780,14 @@ ReaderHistory [暂存]
     ▼ (return_loan)
 从 History 删除
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 完整调用链：应用层 → DDS层 → RTPS层 → 传输层
+
+// 1. 应用层调用
+DataWriter::write(void* data)
+└── DataWriterImpl::write(data)
+    └── 序列化数据
+    └── RTPSWriter::new_change(size_calculator, kind, handle)
+        └──...</p></div>
 <h2 id="_4">总结</h2>
 <table>
 <thead>
@@ -806,15 +829,6 @@ ReaderHistory [暂存]
 <p><em>文档版本: 1.0<br/>
 最后更新: 2026-03-10<br/>
 作者: 旭旭助手</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>多线程编程、DDS 内部架构</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 线程模型概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 核心线程池</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. 线程职责详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 线程间通信机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 线程安全设计</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 性能调优</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 源码分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 常见问题与调试</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
@@ -267,7 +274,9 @@
 <span class="k">-</span> 默认配置: 1 + 8 + 1 = 10 线程
 <span class="k">-</span> 高性能配置: 1 + 16 + 2 = 19 线程
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">DDS 是高性能分布式通信中间件，单线程无法满足以下需求： 代码示例┌─────────────────────────────────────────────────────────────────────────┐
+│                         Fast-DDS 线程全景图                              │
+└─────────────────...</p></div>
 <h2 id="_3">2. 核心线程池</h2>
 <h3 id="21-eventloop">2.1 EventLoop 线程 (事件循环)</h3>
 <p><strong>职责</strong>: 管理所有定时器事件</p>
@@ -406,7 +415,12 @@
 | UDPv4 | 1 | 单线程 epoll/kqueue |<br/>
 | TCPv4 | 2 | Accept + IO 分离 |<br/>
 | SHM | 0 | 无（通过信号量通知） |</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">职责: 管理所有定时器事件 代码示例// 源码位置: src/cpp/rtps/resources/ResourceEvent.cpp
+
+class ResourceEvent {
+public:
+    void init_thread() {
+        event_thread_ = std::thread(&amp;ResourceEvent::event_loop, this);...</p></div>
 <h2 id="_4">3. 线程职责详解</h2>
 <h3 id="31">3.1 发现协议线程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// SPDP 宣告线程职责</span>
@@ -501,7 +515,14 @@
     │    write()   │    ↓        │    ↓       │    ↓        │    ↓
     └────────────────────────────┴────────────┴─────────────┴────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// SPDP 宣告线程职责
+
+class SPDPAnnounceThread {
+    void run() {
+        while (participant_-&gt;is_active()) {
+            // 1. 构建 Participant 发现数据
+            ParticipantProxyData ppd;
+            ppd....</p></div>
 <h2 id="_5">4. 线程间通信机制</h2>
 <h3 id="41-spsc-">4.1 无锁队列 (SPSC - 单生产者单消费者)</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 用于: Receive Thread → Reader Thread</span>
@@ -637,7 +658,16 @@
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 用于: Receive Thread → Reader Thread
+
+#include <boost lockfree="" spsc_queue.hpp="">
+
+template<typename t="">
+class LockFreeQueue {
+public:
+    LockFreeQueue(size_t capacity) : queue_(capacity) {}
+
+    bo...</typename></boost></p></div>
 <h2 id="_6">5. 线程安全设计</h2>
 <h3 id="51-dds-api">5.1 DDS API 线程安全保证</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Fast-DDS 保证以下操作是线程安全的:</span>
@@ -759,7 +789,14 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// Fast-DDS 保证以下操作是线程安全的:
+
+// 1. 多线程同时写入不同 DataWriter (安全)
+void thread1() { writer1-&gt;write(&amp;data1); }
+void thread2() { writer2-&gt;write(&amp;data2); }
+
+// 2. 多线程同时读取不同 DataReader (安全)
+void thread3() { r...</p></div>
 <h2 id="_7">6. 性能调优</h2>
 <h3 id="61">6.1 线程数配置</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
@@ -863,7 +900,14 @@
 <span class="w">    </span><span class="c1">// 竞争降低为原来的 1/NUM_PARTITIONS</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例DomainParticipantQos qos;
+
+// 1. 异步发送线程数 (默认: CPU核心数)
+qos.publish_mode().kind = ASYNCHRONOUS_PUBLISH_MODE;
+qos.publish_mode().async_thread_count = 8;  // 明确指定
+
+// 2. 接收缓冲区大小 (影响接收线程)
+qos.transport...</p></div>
 <h2 id="_8">7. 源码分析</h2>
 <h3 id="71">7.1 线程创建流程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// DomainParticipant 初始化时创建线程</span>
@@ -930,7 +974,14 @@
      └──────────────┴──────────────┴──────────────┘
                     总延迟: ~15-60μs
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// DomainParticipant 初始化时创建线程
+
+DomainParticipantImpl::DomainParticipantImpl() {
+    // 1. 创建资源事件线程 (定时器)
+    resource_event_.init_thread();
+
+    // 2. 创建异步发送线程池 (如果启用异步模式)
+    if (qos_.publish_mod...</p></div>
 <h2 id="_9">8. 常见问题与调试</h2>
 <h3 id="81">8.1 线程相关故障排查</h3>
 <table>
@@ -1035,7 +1086,20 @@ valgrind<span class="w"> </span>--tool<span class="o">=</span>helgrind<span clas
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">queue_depth_</span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例# 1. 查看线程状态
+ps -T -p <fastdds_pid>
+
+# 2. 查看 CPU 亲和性
+taskset -pc <fastdds_pid>
+
+# 3. 查看实时优先级
+chrt -p <fastdds_pid>
+
+# 4. 线程性能分析
+perf top -p <fastdds_pid>
+
+# 5. 锁竞争分析
+valgrind --tool=helgrind ./fast...</fastdds_pid></fastdds_pid></fastdds_pid></fastdds_pid></p></div>
 <h2 id="_10">9. 总结</h2>
 <h3 id="_11">核心要点</h3>
 <ol>
@@ -1063,15 +1127,6 @@ valgrind<span class="w"> </span>--tool<span class="o">=</span>helgrind<span clas
 <p><em>文档版本: 1.0</em><br/>
 <em>最后更新: 2026-03-13</em><br/>
 <em>关联笔记: 15-Timer-System.md, 14-Memory-Fragmentation.md</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

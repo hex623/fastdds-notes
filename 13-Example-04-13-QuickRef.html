@@ -127,9 +127,15 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>Fast-DDS 基础、CMake 基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能快速查阅常用 DDS API</li><li style="margin:6px 0;">理解各示例的适用场景</li><li style="margin:6px 0;">掌握从示例到实际项目的迁移方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">Example 04: Static EDP Discovery</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">Example 05: Configuration</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">Example 06: Content Filter</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">Example 07: Flow Control</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">Example 08: Delivery Mechanisms</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">Example 09: Topic Instances</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">Example 10: Custom Payload Pool</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">Example 11: Security</span></div></div>
 <h2 id="example-04-static-edp-discovery">Example 04: Static EDP Discovery</h2>
-
 <p><strong>路径</strong>: <code>examples/cpp/static_edp_discovery/</code><br/>
 <strong>核心概念</strong>: 静态端点发现，禁用动态发现，预先配置对端信息<br/>
 <strong>适用场景</strong>: 嵌入式系统、确定性网络、安全环境</p>
@@ -149,7 +155,11 @@
 <li>手动配置所有端点信息</li>
 <li>启动顺序无关，但配置复杂</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/static_edp_discovery/
+核心概念: 静态端点发现，禁用动态发现，预先配置对端信息
+适用场景: 嵌入式系统、确定性网络、安全环境 代码示例// 禁用所有自动发现
+participant_qos.wire_protocol().builtin.discovery_config.discoveryProtocol =
+    DiscoveryPro...</p></div>
 <h2 id="example-05-configuration">Example 05: Configuration</h2>
 <p><strong>路径</strong>: <code>examples/cpp/configuration/</code><br/>
 <strong>核心概念</strong>: XML 配置文件加载 QoS<br/>
@@ -179,7 +189,11 @@
 <span class="w">    </span><span class="nt">&lt;/profiles&gt;</span>
 <span class="nt">&lt;/dds&gt;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/configuration/
+核心概念: XML 配置文件加载 QoS
+适用场景: 动态配置、多环境部署、运维管理 代码示例// 从环境变量加载 XML
+const char* xml_file = std::getenv("FASTDDS_DEFAULT_PROFILES_FILE");
+DomainParticipantFactory::get_instanc...</p></div>
 <h2 id="example-06-content-filter">Example 06: Content Filter</h2>
 <p><strong>路径</strong>: <code>examples/cpp/content_filter/</code><br/>
 <strong>核心概念</strong>: 内容过滤 Topic，Reader 只接收满足条件的数据<br/>
@@ -204,7 +218,11 @@
 <li>在 Reader 端过滤，减少 CPU 占用</li>
 <li>也可以配置为在 Writer 端过滤（更高效）</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/content_filter/
+核心概念: 内容过滤 Topic，Reader 只接收满足条件的数据
+适用场景: 大数据量场景，减少不必要的数据传输 代码示例// 创建 ContentFilteredTopic
+ContentFilteredTopic* filtered_topic = 
+    participant-&gt;create_contentfilter...</p></div>
 <h2 id="example-07-flow-control">Example 07: Flow Control</h2>
 <p><strong>路径</strong>: <code>examples/cpp/flow_control/</code><br/>
 <strong>核心概念</strong>: 流量控制，限制 Writer 的发送速率<br/>
@@ -227,7 +245,13 @@
 <li>带宽限制（bytes/period）</li>
 <li>防止接收端缓冲区溢出</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/flow_control/
+核心概念: 流量控制，限制 Writer 的发送速率
+适用场景: 带宽受限、接收端处理能力有限 代码示例// 配置异步发送
+writer_qos.publish_mode().kind = ASYNCHRONOUS_PUBLISH_MODE;
+
+// 配置流量控制
+writer_qos.throughput_controller().b...</p></div>
 <h2 id="example-08-delivery-mechanisms">Example 08: Delivery Mechanisms</h2>
 <p><strong>路径</strong>: <code>examples/cpp/delivery_mechanisms/</code><br/>
 <strong>核心概念</strong>: 多种传输机制对比（UDP、TCP、SHM）<br/>
@@ -250,7 +274,11 @@
 <li>传输优先级</li>
 <li>性能对比测试</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/delivery_mechanisms/
+核心概念: 多种传输机制对比（UDP、TCP、SHM）
+适用场景: 性能测试、传输层选型 代码示例// 配置多种传输
+auto udp_transport = std::make_shared<udpv4transportdescriptor>();
+auto tcp_transport = std::make_share...</udpv4transportdescriptor></p></div>
 <h2 id="example-09-topic-instances">Example 09: Topic Instances</h2>
 <p><strong>路径</strong>: <code>examples/cpp/topic_instances/</code><br/>
 <strong>核心概念</strong>: Topic 多实例，用 Key 区分不同数据流<br/>
@@ -280,7 +308,16 @@
 <li>实例生命周期管理（ALIVE/NOT_ALIVE）</li>
 <li>读取特定实例的历史数据</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/topic_instances/
+核心概念: Topic 多实例，用 Key 区分不同数据流
+适用场景: 多传感器、多设备状态管理 代码示例// 定义带 Key 的数据类型
+struct ShapeType {
+    @key string color;  // Key 字段
+    long x;
+    long y;
+};
+
+// 创建 Reader，接收...</p></div>
 <h2 id="example-10-custom-payload-pool">Example 10: Custom Payload Pool</h2>
 <p><strong>路径</strong>: <code>examples/cpp/custom_payload_pool/</code><br/>
 <strong>核心概念</strong>: 自定义 Payload 内存池，零拷贝优化<br/>
@@ -314,7 +351,12 @@
 <li>内存池预分配</li>
 <li>零拷贝传输</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/custom_payload_pool/
+核心概念: 自定义 Payload 内存池，零拷贝优化
+适用场景: 高性能、低延迟、大数据量 代码示例// 创建自定义 PayloadPool
+class CustomPayloadPool : public IPayloadPool {
+public:
+    bool get_payload(uint32_t size...</p></div>
 <h2 id="example-11-security">Example 11: Security</h2>
 <p><strong>路径</strong>: <code>examples/cpp/security/</code><br/>
 <strong>核心概念</strong>: DDS-Security，认证、加密、访问控制<br/>
@@ -337,7 +379,12 @@
 <li>Governance 和 Permissions 配置</li>
 <li>签名 XML 文件</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/security/
+核心概念: DDS-Security，认证、加密、访问控制
+适用场景: 生产环境、跨网段、零信任网络 代码示例// 配置认证
+participant_qos.properties().properties().emplace_back(
+    "dds.sec.auth.plugin", "builtin.PKI-DH");
+particip...</p></div>
 <h2 id="example-12-xtypes">Example 12: XTypes</h2>
 <p><strong>路径</strong>: <code>examples/cpp/xtypes/</code><br/>
 <strong>核心概念</strong>: 动态类型发现，类型演进<br/>
@@ -359,7 +406,11 @@
 <li>类型兼容性检查</li>
 <li>向后兼容的版本演进</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/xtypes/
+核心概念: 动态类型发现，类型演进
+适用场景: 版本兼容、动态系统 代码示例// 动态类型注册
+DynamicType_ptr dynamic_type = DynamicTypeBuilderFactory::get_instance()-&gt;create_struct_builder();
+dynamic_type-&gt;add_member(0,...</p></div>
 <h2 id="example-13-benchmark">Example 13: Benchmark</h2>
 <p><strong>路径</strong>: <code>examples/cpp/benchmark/</code><br/>
 <strong>核心概念</strong>: 性能基准测试，吞吐量、延迟测量<br/>
@@ -387,7 +438,12 @@
 <li>延迟测试方法（往返时间）</li>
 <li>不同 QoS 配置的性能对比</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">路径: examples/cpp/benchmark/
+核心概念: 性能基准测试，吞吐量、延迟测量
+适用场景: 性能调优、架构选型 代码示例// 配置测试参数
+uint32_t payload_size = 1024;      // 1KB payload
+uint32_t sample_count = 10000;     // 发送 10000 个样本
+bool reliable = tru...</p></div>
 <h2 id="_20">📊 示例学习路线图</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">Week</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="err">基础</span>
 <span class="err">├──</span><span class="w"> </span><span class="n">hello_world</span><span class="w"> </span><span class="p">(</span><span class="n">DDS</span><span class="w"> </span><span class="err">基础</span><span class="p">)</span>
@@ -410,7 +466,17 @@
 <span class="err">├──</span><span class="w"> </span><span class="n">xtypes</span><span class="w"> </span><span class="p">(</span><span class="err">动态类型</span><span class="p">)</span>
 <span class="err">└──</span><span class="w"> </span><span class="n">benchmark</span><span class="w"> </span><span class="p">(</span><span class="err">性能测试</span><span class="p">)</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Week 1: 基础
+├── hello_world (DDS 基础)
+├── rtps (RTPS 层)
+└── configuration (XML 配置)
+
+Week 2: 发现与连接
+├── discovery_server (集中式发现)
+├── static_edp_discovery (静态发现)
+└── delivery_mechanisms (传输层)
+
+Week 3:...</p></div>
 <h2 id="_21">✅ 完整学习检查清单</h2>
 <ul>
 <li>[x] Example 01: hello_world</li>

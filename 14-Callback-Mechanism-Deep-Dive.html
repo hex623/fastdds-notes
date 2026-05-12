@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础、RTPS 消息格式</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 Listener 回调的触发线程模型</li><li style="margin:6px 0;">掌握回调链的注册和注销机制</li><li style="margin:6px 0;">了解回调中的线程安全问题</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 回调机制全景</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 底层实现原理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. 线程安全与性能优化</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 高级回调技巧</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. WaitSet 底层原理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 回调 vs 轮询选型指南</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 实战代码模式</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 学习检查清单</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
@@ -268,7 +275,9 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                    数据到达通知机制                              │
+├─────────────┬─────────────────┬─────────────────────────────────┤...</p></div>
 <h2 id="2">2. 底层实现原理</h2>
 <h3 id="21">2.1 回调触发流程图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">网络层接收数据</span>
@@ -361,7 +370,15 @@ Writer 收到确认
 - 回调触发时，数据<strong>已经在 History 中</strong><br/>
 - 用户 take() 后，Reader 才会发送 ACKNACK<br/>
 - 如果回调中不 take()，数据会一直占着 History 空间</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例网络层接收数据
+       ↓
+RTPS Reader 处理 DATA 子消息
+       ↓
+ReaderHistory::add_change() 存入缓存
+       ↼────────────────────────┐
+       ↓                        │
+检查 Listener 是否设置           │
+       ↓...</p></div>
 <h2 id="3">3. 线程安全与性能优化</h2>
 <h3 id="31">3.1 回调执行的线程模型</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>接收线程池 (Receive Thread Pool)
@@ -624,7 +641,11 @@ Writer 收到确认
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例接收线程池 (Receive Thread Pool)
+├─ Thread 1: UDP Port 7400 ──→ on_data_available()
+├─ Thread 2: UDP Port 7401 ──→ on_data_available()
+├─ Thread 3: TCP Connection ──→ on_data_available()
+└─ Thread 4: S...</p></div>
 <h2 id="4">4. 高级回调技巧</h2>
 <h3 id="41-reader-listener">4.1 多 Reader 共享同一个 Listener</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SharedListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
@@ -771,7 +792,11 @@ Writer 收到确认
 <span class="n">std</span><span class="o">::</span><span class="n">this_thread</span><span class="o">::</span><span class="n">sleep_for</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">60</span><span class="p">));</span>
 <span class="n">listener</span><span class="p">.</span><span class="n">enable</span><span class="p">();</span><span class="w">   </span><span class="c1">// 恢复处理</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class SharedListener : public DataReaderListener {
+public:
+    void on_data_available(DataReader* reader) override {
+        // 通过 reader 指针区分来源
+        if (reader == temperature_reader_) {...</p></div>
 <h2 id="5-waitset">5. WaitSet 底层原理</h2>
 <h3 id="51-waitset">5.1 WaitSet 架构图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌────────────────────────────────────────────────────────────┐
@@ -995,7 +1020,10 @@ Writer 收到确认
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌────────────────────────────────────────────────────────────┐
+│                        WaitSet                              │
+├────────────────────────────────────────────────────────────┤
+│  ┌──...</p></div>
 <h2 id="6-vs">6. 回调 vs 轮询选型指南</h2>
 <h3 id="61">6.1 决策树</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>是否需要实时响应？
@@ -1118,7 +1146,15 @@ Writer 收到确认
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例是否需要实时响应？
+├── 是 → 实时性要求高吗？
+│       ├── 极高（&lt;1ms）→ Listener + 无锁队列
+│       ├── 高（&lt;10ms）→ Listener + 线程池
+│       └── 中等 → WaitSet
+└── 否 → 数据频率高吗？
+        ├── 高 → WaitSet 批量处理
+        └── 低 → 简单轮询
+ 代码...</p></div>
 <h2 id="7">7. 实战代码模式</h2>
 <h3 id="71">7.1 完整的可靠接收模式</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -1244,7 +1280,10 @@ Writer 收到确认
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fastdds dds="" subscriber="" subscriber.hpp="">
+#include <fastdds dat...<="" dds="" p="" subscriber=""></fastdds></fastdds></fastdds></fastdds></p></div>
 <h2 id="8">8. 学习检查清单</h2>
 <ul>
 <li>[ ] 理解回调触发的完整流程</li>
@@ -1264,7 +1303,6 @@ Writer 收到确认
 <p><em>记录时间: 2026-03-24</em><br/>
 <em>模块: DDS 回调机制深度解析</em><br/>
 <em>关联笔记: 10-Listener-WaitSet.md</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -1284,7 +1322,16 @@ Writer 收到确认
 <div class="label">下一篇 →</div>
 <div class="title">14 流量控制</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">完成回调机制学习后，可以继续：
+- 性能测试：对比 Listener/WaitSet/轮询的性能差异
+- 实际项目：将回调模式应用到具体业务场景
+- 源码阅读：深入 Fast-DDS 的回调实现源码 记录时间: 2026-03-24
+模块: DDS 回调机制深度解析
+关联笔记: 10-Listener-WaitSet.md 
+🔗 相关阅读
+
+16 - Fast-DDS 线程模型详解
+21 - Fa...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

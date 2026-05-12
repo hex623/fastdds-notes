@@ -121,7 +121,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 类型系统、序列化基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 序列化概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. CDR 编码规范</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. Fast-DDS 序列化架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. TypeSupport 详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 封装格式与版本</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 动态类型序列化</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 源码实现分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 性能优化</span></div></div>
 <div class="demo-container"><svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
 <rect fill="#21262d" height="60" rx="5" stroke="#58a6ff" stroke-width="2" width="100" x="50" y="60"></rect>
 <text fill="#c9d1d9" font-size="13" text-anchor="middle" x="100" y="95">C++对象</text>
@@ -259,7 +266,9 @@
 <span class="w">    </span><span class="n">SP</span><span class="w"> </span><span class="o">--</span><span class="s2">"deserialize()"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">TW</span>
 <span class="w">    </span><span class="n">TW</span><span class="w"> </span><span class="o">--</span><span class="s2">"read()"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">Obj</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                     序列化的必要性                              │
+├─────────────────────────────────────────────────────────────────┤...</p></div>
 <h2 id="2-cdr">2. CDR 编码规范</h2>
 <h3 id="21-cdr">2.1 CDR 基本规则</h3>
 <p>CDR (Common Data Representation) 是 OMG 定义的标准二进制编码：</p>
@@ -374,7 +383,15 @@
 <span class="c1">// IDL: sequence&lt;octet&gt; raw_data;</span>
 <span class="c1">// 优化: 元素无对齐要求，紧凑排列</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">CDR (Common Data Representation) 是 OMG 定义的标准二进制编码： 代码示例// CDR 编码核心原则
+
+// 1. 对齐规则 - 数据按自然边界对齐
+//    1-byte: 任意地址
+//    2-byte: 偶数地址
+//    4-byte: 4的倍数地址
+//    8-byte: 8的倍数地址
+
+// 2. 字节序 - 默认大端序 (Big End...</p></div>
 <h2 id="3-fast-dds">3. Fast-DDS 序列化架构</h2>
 <h3 id="31">3.1 核心类图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 序列化架构核心类</span>
@@ -466,7 +483,11 @@
 <span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
 <span class="err">└─────────────────────────────────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 序列化架构核心类
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         序列化架构                              │
+├───────────────────────────────────────────────────...</p></div>
 <h2 id="4-typesupport">4. TypeSupport 详解</h2>
 <h3 id="41-typesupport">4.1 TypeSupport 接口</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// include/fastdds/dds/topic/TypeSupport.hpp</span>
@@ -655,7 +676,15 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// include/fastdds/dds/topic/TypeSupport.hpp
+
+class TypeSupport : public std::shared_ptr<fastdds::dds::topicdatatype>
+{
+public:
+    // === 序列化 ===
+    bool serialize(
+        void* data,
+        S...</fastdds::dds::topicdatatype></p></div>
 <h2 id="5">5. 封装格式与版本</h2>
 <h3 id="51">5.1 封装头格式</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// CDR 封装头 (4 bytes)</span>
@@ -773,7 +802,13 @@
 <span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// CDR 封装头 (4 bytes)
+// ┌─────────────────────────────────────┐
+// │ 0x00 0x01 │ 0x00 0x00              │
+// │ 封装标识   │ 选项（保留）            │
+// └─────────────────────────────────────┘
+//
+// 封装标识解码：...</p></div>
 <h2 id="6">6. 动态类型序列化</h2>
 <h3 id="61">6.1 动态类型概述</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 静态类型（编译时确定）</span>
@@ -889,7 +924,13 @@
 <span class="w">    </span><span class="p">};</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 静态类型（编译时确定）
+SensorData data;  // 结构固定
+
+// 动态类型（运行时确定）
+DynamicType_ptr dynamic_type = ...;  // 运行时构建类型
+DynamicData_ptr data = DynamicDataFactory::get_instance()
+    -&gt;create_data(dynamic_type);...</p></div>
 <h2 id="7">7. 源码实现分析</h2>
 <h3 id="71-cdr">7.1 Cdr 类核心实现</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// include/fastcdr/Cdr.h</span>
@@ -1074,7 +1115,18 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// include/fastcdr/Cdr.h
+
+namespace eprosima::fastcdr {
+
+class Cdr
+{
+public:
+    // === 构造函数 ===
+    Cdr(FastBuffer* buffer, Endianness endianness = DEFAULT_ENDIAN);
+
+    // === 封装头 ===
+    void s...</p></div>
 <h2 id="8">8. 性能优化</h2>
 <h3 id="81">8.1 序列化性能优化技巧</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// === 优化1: 预分配内存 ===</span>
@@ -1211,7 +1263,15 @@
 <span class="w">    </span><span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// === 优化1: 预分配内存 ===
+
+// ❌ 差：频繁分配
+void bad_serialize()
+{
+    for (int i = 0; i &lt; 1000; i++) {
+        SerializedPayload_t payload;
+        payload.reserve(1024);  // 每次分配
+        serialize(data[i...</p></div>
 <h2 id="9">9. 实战示例</h2>
 <h3 id="91-1">9.1 示例1: 大消息序列化</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 场景: 传输高清图像数据 (1MB+)</span>
@@ -1439,7 +1499,19 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 场景: 传输高清图像数据 (1MB+)
+
+struct ImageFrame
+{
+    uint32_t width;
+    uint32_t height;
+    std::vector<uint8_t> pixel_data;  // 大内存块
+};
+
+class ImageTypeSupport : public TopicDataType
+{
+public:
+    b...</uint8_t></p></div>
 <h2 id="_2">总结</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
 <span class="err">│</span><span class="w">                     </span><span class="n">Fast</span><span class="o">-</span><span class="n">DDS</span><span class="w"> </span><span class="err">序列化总结</span><span class="w">                        </span><span class="err">│</span>
@@ -1474,15 +1546,6 @@
 <hr/>
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 Fast-DDS 2.14.x 和 fastcdr 2.x</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -1502,7 +1565,9 @@
 <div class="label">下一篇 →</div>
 <div class="title">19 RTPS消息格式</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                     Fast-DDS 序列化总结                        │
+├─────────────────────────────────────────────────────────────────...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

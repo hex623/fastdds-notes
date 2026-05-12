@@ -124,7 +124,12 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>网络安全基础、DDS-Security 规范</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能说明 DDS-Security 五层安全模型的组成</li><li style="margin:6px 0;">理解 Governance 和 Permissions 文件的作用</li><li style="margin:6px 0;">掌握证书和密钥在认证流程中的使用</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">安全架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">PKI 证书体系</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">Governance 策略</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">Permissions 权限配置</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">C++ 安全配置</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">生产环境最佳实践</span></div></div>
 <h2 id="_1">安全架构</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -154,7 +159,11 @@
 │  - 数据加密/签名                    │
 └─────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">DDS-Security 提供三层保护： 代码示例┌─────────────────────────────────────┐
+│  Authentication (身份认证)          │
+│  - PKI 证书体系                     │
+│  - 握手协议                         │
+├──────────────────────────...</p></div>
 <h2 id="pki">PKI 证书体系</h2>
 <h3 id="_2">需要的证书文件</h3>
 <table>
@@ -214,7 +223,13 @@ openssl<span class="w"> </span>req<span class="w"> </span>-new<span class="w"> <
 openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> </span>-in<span class="w"> </span>participant.csr<span class="w"> </span>-CA<span class="w"> </span>identity_ca.pem<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>-CAkey<span class="w"> </span>identity_ca_key.pem<span class="w"> </span>-out<span class="w"> </span>participant_cert.pem<span class="w"> </span>-days<span class="w"> </span><span class="m">365</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#!/bin/bash
+# 1. 生成 CA 私钥和证书
+openssl genrsa -out identity_ca_key.pem 2048
+openssl req -x509 -new -key identity_ca_key.pem -out identity_ca.pem -days 3650
+
+# 2. 生成节点私钥
+openssl genrsa -out participa...</p></div>
 <h2 id="governance">Governance 策略</h2>
 <p>Governance 定义全局安全策略。</p>
 <h3 id="governancexml">governance.xml 示例</h3>
@@ -271,7 +286,11 @@ openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> 
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Governance 定义全局安全策略。 代码示例<?xml version="1.0" encoding="UTF-8"?>
+<ds_governance xmlns="http://www.omg.org/spec/DDS-Security/20170801">
+<domain_access_rules>
+<domain_rule>
+<domai...< p=""></domai...<></domain_rule></domain_access_rules></ds_governance></p></div>
 <h2 id="permissions">Permissions 权限配置</h2>
 <p>Permissions 定义细粒度的 Topic 访问权限。</p>
 <h3 id="permissionsxml">permissions.xml 示例</h3>
@@ -309,7 +328,10 @@ openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> 
 <span class="w">    </span><span class="nt">&lt;/grant&gt;</span>
 <span class="nt">&lt;/ds_permissions&gt;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Permissions 定义细粒度的 Topic 访问权限。 代码示例<?xml version="1.0" encoding="UTF-8"?>
+<ds_permissions xmlns="http://www.omg.org/spec/DDS-Security/20170801">
+<grant name="PublisherPermissions">
+<subjec...< p=""></subjec...<></grant></ds_permissions></p></div>
 <h2 id="c">C++ 安全配置</h2>
 <h3 id="_5">完整代码示例</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -378,7 +400,11 @@ openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> 
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds attributes="" propertypolicy.hpp="" rtps="">
+
+using namespace eprosima::fastdds::dds;
+using namespace eprosima::fastrtps::rtps;...</fastdds></fastdds></p></div>
 <h2 id="_6">生产环境最佳实践</h2>
 <h3 id="1">1. 证书管理</h3>
 <ul>
@@ -406,7 +432,6 @@ openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> 
 </ul>
 <hr/>
 <p><em>整理自 2026-03-03 DDS-Security 笔记</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

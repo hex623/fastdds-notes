@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能分析传输层吞吐量和延迟的瓶颈</li><li style="margin:6px 0;">理解 ZeroCopy 传输的实现原理</li><li style="margin:6px 0;">掌握发送/接收缓冲区大小的调优方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 传输层全景</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. Locator - 网络地址标识</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. UDPv4 传输（默认）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. TCPv4 传输</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. SHM（共享内存）传输 ⭐</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 传输层选择策略</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 性能优化实战</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 性能测试方法</span></div></div>
 <h2 id="1">1. 传输层全景</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -228,7 +235,16 @@
 <span class="n">udp_locator</span><span class="p">.</span><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7410</span><span class="p">;</span>
 <span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">udp_locator</span><span class="p">,</span><span class="w"> </span><span class="s">"192.168.1.100"</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// Locator 统一标识网络地址
+struct Locator_t
+{
+    int32_t kind;           // 传输类型
+    uint32_t port;          // 端口
+    octet address[16];      // IP地址
+};
+
+// Locator 类型
+#define LOCATOR_KIND_UDPv4  0x000...</p></div>
 <h2 id="3-udpv4">3. UDPv4 传输（默认）</h2>
 <h3 id="_2">特点</h3>
 <ul>
@@ -297,7 +313,13 @@
 <span class="n">udp_desc</span><span class="p">.</span><span class="n">sendBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1048576</span><span class="p">;</span><span class="w">      </span><span class="c1">// 1MB</span>
 <span class="n">udp_desc</span><span class="p">.</span><span class="n">receiveBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1048576</span><span class="p">;</span><span class="w">   </span><span class="c1">// 1MB</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class UDPv4Transport : public TransportInterface
+{
+public:
+    bool send(const octet* data, uint32_t size, 
+              const Locator_t&amp; remote_locator)
+    {
+        auto socket = get_socket_fo...</p></div>
 <h2 id="4-tcpv4">4. TCPv4 传输</h2>
 <h3 id="_4">特点</h3>
 <ul>
@@ -434,7 +456,9 @@
 <span class="c1">// 4. 权限</span>
 <span class="c1">// 确保运行用户有 /dev/shm 的读写权限</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">快 100-1000 倍！ 代码示例进程A (Writer)                共享内存                进程B (Reader)
+    |                              |                         |
+    |-- 1. 写入数据 ---------------&gt;|...</p></div>
 <h2 id="6">6. 传输层选择策略</h2>
 <h3 id="_9">自动选择（推荐）</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Fast-DDS 默认行为（智能选择）</span>
@@ -468,7 +492,16 @@
 <span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">TCPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">());</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// Fast-DDS 默认行为（智能选择）
+DomainParticipantQos qos;
+qos.transport().use_builtin_transports = true;
+
+// 逻辑：
+// 1. 检查目标地址是否是本地地址
+// 2. 如果是，使用 SHM
+// 3. 如果不是，使用 UDP
+// 4. 如果配置了 TCP 且需要 NAT 穿透，使用 TCP
+ 代码...</p></div>
 <h2 id="7">7. 性能优化实战</h2>
 <h3 id="1socket">优化 1：Socket 缓冲区大小</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 增大缓冲区，减少丢包</span>
@@ -520,7 +553,13 @@
 <span class="w">    </span><span class="c1">// ...</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 增大缓冲区，减少丢包
+UDPv4TransportDescriptor udp_desc;
+udp_desc.sendBufferSize = 16 * 1024 * 1024;    // 16MB
+udp_desc.receiveBufferSize = 16 * 1024 * 1024; // 16MB
+
+// 系统级设置（Linux）
+// sudo sysctl -w ne...</p></div>
 <h2 id="8">8. 性能测试方法</h2>
 <h3 id="_11">延迟测试</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 发送端</span>
@@ -593,7 +632,14 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 发送端
+auto start = std::chrono::high_resolution_clock::now();
+writer-&gt;write(&amp;msg);
+
+// 接收端
+void on_data_available(DataReader* reader)
+{
+    auto end = std::chrono::high_resolution_clock::now();...</p></div>
 <h2 id="_14">参考链接</h2>
 <ul>
 <li><a href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a></li>
@@ -601,7 +647,6 @@
 <li><a href="10-Listener-WaitSet.html">10 监听与回调</a></li>
 <li>Fast-DDS 官方文档: https://fast-dds.docs.eprosima.com/</li>
 </ul>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

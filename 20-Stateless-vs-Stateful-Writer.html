@@ -121,7 +121,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>RTPS Writer 类型、可靠传输</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 核心概念对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. StatefulWriter 详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. StatelessWriter 详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 架构设计对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 源码实现分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 使用场景选择</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 性能对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 实战配置</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
@@ -269,7 +276,9 @@
 <span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ReaderProxy</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">;</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                    两种 Writer 的设计哲学                        │
+├─────────────────────────────────────────────────────────────────...</p></div>
 <h2 id="2-statefulwriter">2. StatefulWriter 详解</h2>
 <h3 id="21-readerproxy">2.1 核心组件：ReaderProxy</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// include/fastdds/rtps/writer/ReaderProxy.hpp</span>
@@ -441,7 +450,14 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// include/fastdds/rtps/writer/ReaderProxy.hpp
+
+class ReaderProxy
+{
+public:
+    // Reader 标识
+    GUID_t remote_reader_guid_;           // 远端 Reader GUID
+    LocatorList_t remote_locators_;       /...</p></div>
 <h2 id="3-statelesswriter">3. StatelessWriter 详解</h2>
 <h3 id="31">3.1 设计哲学</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
@@ -562,7 +578,9 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                   StatelessWriter 设计哲学                       │
+├──────────────────────────────────────────────────────────────...</p></div>
 <h2 id="4">4. 架构设计对比</h2>
 <h3 id="41">4.1 类图对比</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
@@ -639,7 +657,9 @@
 <p><strong>估算</strong>: 100 个 Reader，每个缓存 100 条数据<br/>
 - Stateful: ~10MB+<br/>
 - Stateless: ~1MB</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                      架构设计对比                                │
+├────────────────────────────────────────────────────────────────...</p></div>
 <h2 id="5">5. 源码实现分析</h2>
 <h3 id="51">5.1 创建时的选择</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/rtps/participant/RTPSParticipantImpl.cpp</span>
@@ -735,7 +755,14 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// src/cpp/rtps/participant/RTPSParticipantImpl.cpp
+
+RTPSWriter* RTPSParticipantImpl::createWriter(
+    WriterAttributes&amp; param,
+    WriterHistory* history,
+    WriterListener* listener)
+{
+    //...</p></div>
 <h2 id="6">6. 使用场景选择</h2>
 <h3 id="61">6.1 选择指南</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
@@ -803,7 +830,9 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                      选择决策树                                  │
+├───────────────────────────────────────────────────────────────...</p></div>
 <h2 id="7">7. 性能对比</h2>
 <h3 id="71">7.1 基准测试结果</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>测试环境: localhost, 1KB 消息
@@ -830,7 +859,11 @@
 1. <strong>可靠性</strong>: 无法保证送达<br/>
 2. <strong>顺序</strong>: 不保证跨 Reader 的顺序一致性<br/>
 3. <strong>发现</strong>: 无法通知 Reader 历史数据</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例测试环境: localhost, 1KB 消息
+
+┌─────────────────┬─────────────┬─────────────┬─────────────┐
+│     指标        │  Stateless  │  Stateful   │   差异      │
+├─────────────────┼─────────────┼─────────────┼────...</p></div>
 <h2 id="8">8. 实战配置</h2>
 <h3 id="81-qos-writer">8.1 配置 QoS 选择 Writer 类型</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/qos/DataWriterQos.hpp&gt;</span>
@@ -924,7 +957,15 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds datawriterqos.hpp="" dds="" publisher="" qos="">
+
+// ==================== 创建 StatelessWriter ====================
+
+void create_best_effort_writer()
+{
+    DataWriterQos qos;
+
+    // 设置为 Best-...</fastdds></p></div>
 <h2 id="_2">总结</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │              Stateless vs Stateful Writer 总结                   │
@@ -951,16 +992,6 @@
 <hr/>
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 Fast-DDS 2.14.x 源码分析</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -980,7 +1011,9 @@
 <div class="label">下一篇 →</div>
 <div class="title">21 线程模型源码</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│              Stateless vs Stateful Writer 总结                   │
+├────────────────────────────────────────────────────────────...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

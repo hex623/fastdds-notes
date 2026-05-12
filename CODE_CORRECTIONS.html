@@ -121,9 +121,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">了解英文版代码修正记录的对应关系</li><li style="margin:6px 0;">掌握跨语言版本的同步更新方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">更正概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">主要更正</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">如何验证代码</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">核心类名对照表</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">后续改进计划</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">反馈与贡献</span></div></div>
 <h2 id="_1">更正概述</h2>
-
 <p>本次更正是为了修正之前文章中使用的<strong>不准确类名</strong>，确保所有展示的代码都能在 Fast-DDS 官方源码中找到对应实现。</p>
 <h2 id="_2">主要更正</h2>
 <h3 id="1-asyncwriterthread-flowcontrollerasyncpublishmode">1. <code>AsyncWriterThread</code> → <code>FlowControllerAsyncPublishMode</code></h3>
@@ -182,7 +186,12 @@
 <li>边界检查</li>
 <li>日志记录</li>
 <li>性能优化代码</li>
-</ul>
+</ul><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">问题：文中使用的 AsyncWriterThread 类名是概念性命名，并非 Fast-DDS 源码中的实际类名。 实际源码中的对应实现： 受影响的文件：
+- 14-Flow-Control.md
+- 15-Data-Transmission-Flow.md
+- 21-Thread-Model.md
+- 21-Thread-Model-Detailed.md
+- 22-Inter-Thread-C...</p></div>
 <h2 id="_3">如何验证代码</h2>
 <h3 id="1">方法 1：在线查看源码</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># Fast-DDS 官方仓库</span>
@@ -206,7 +215,14 @@ grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"FlowCont
 grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"class.*Writer"</span><span class="w"> </span>src/cpp/rtps/writer/
 </code></pre></div>
 <h3 id="3-ide">方法 3：使用 IDE 跳转</h3>
-<p>使用 VSCode/CLion 等 IDE 打开 Fast-DDS 源码，利用代码跳转功能验证类和方法的存在性。</p>
+<p>使用 VSCode/CLion 等 IDE 打开 Fast-DDS 源码，利用代码跳转功能验证类和方法的存在性。</p><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例# Fast-DDS 官方仓库
+https://github.com/eProsima/Fast-DDS
+
+# 关键目录
+src/cpp/rtps/writer/          # Writer 实现
+src/cpp/rtps/reader/          # Reader 实现
+src/cpp/rtps/flowcontrol/     # 流量控制实现
+src/cpp/rtps...</p></div>
 <h2 id="_4">核心类名对照表</h2>
 <table>
 <thead>
@@ -289,7 +305,15 @@ grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"class.*W
 <div class="label">下一篇 →</div>
 <div class="title">A4 归档索引</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">如果发现其他代码问题，欢迎通过以下方式反馈：
+- GitHub Issues: https://github.com/hex623/fastdds-notes/issues
+- 邮件: 直接联系作者 更正日期: 2026-03-12
+更正者: 旭旭助手 🐾
+核实状态: ✅ 已通过 Fast-DDS v2.14.x 源码验证 
+🔗 相关阅读
+
+16 - Fast-DDS 线程模型详解
+21 - Fa...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

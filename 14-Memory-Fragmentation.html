@@ -123,7 +123,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>内存管理基础、C++ 智能指针、DDS 数据流</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 为什么需要特殊内存管理？</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 内存池机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. History 缓存机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 分片传输（Fragmentation）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 零拷贝与共享内存</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 实战代码示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 性能调优建议</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 总结</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
@@ -241,7 +248,10 @@
 <span class="err">│</span><span class="w">         </span><span class="p">(</span><span class="n">UDP</span><span class="o">/</span><span class="n">TCP</span><span class="o">/</span><span class="n">SHM</span><span class="err">，分片在此层处理</span><span class="p">)</span><span class="w">                            </span><span class="err">│</span>
 <span class="err">└─────────────────────────────────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                    Application Layer                             │
+│              (用户数据，序列化后的字节流)                          │
+└...</p></div>
 <h2 id="_3">2. 内存池机制</h2>
 <h3 id="21-cachechangepool-">2.1 CacheChangePool - 缓存单元池</h3>
 <p><strong>源码位置</strong>: <code>src/cpp/rtps/history/CacheChangePool.cpp</code></p>
@@ -318,7 +328,12 @@
 <span class="n">writer_qos</span><span class="p">.</span><span class="n">writer_resource_limits</span><span class="p">().</span><span class="n">matched_subscriber_allocation</span><span class="p">.</span>
 <span class="w">    </span><span class="n">maximum_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最多支持20个匹配的 Reader</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">源码位置: src/cpp/rtps/history/CacheChangePool.cpp 代码示例class CacheChangePool {
+public:
+    // 初始化内存池
+    CacheChangePool(
+        size_t pool_size,           // 池大小（初始分配数量）
+        size_t max_pool_size,...</p></div>
 <h2 id="history">3. History 缓存机制</h2>
 <h3 id="31-writerhistory-vs-readerhistory">3.1 WriterHistory vs ReaderHistory</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌──────────────────────────────────────────────────────────────┐
@@ -399,7 +414,10 @@
 <span class="w">    </span><span class="n">listener_</span><span class="o">-&gt;</span><span class="n">on_data_available</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌──────────────────────────────────────────────────────────────┐
+│                      WriterHistory                           │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│...</p></div>
 <h2 id="fragmentation">4. 分片传输（Fragmentation）</h2>
 <h3 id="41">4.1 为什么需要分片？</h3>
 <p><strong>UDP 报文大小限制</strong>：<br/>
@@ -537,7 +555,11 @@ Writer 收到 ACKNACK:
 → 重传 DATA_FRAG(fragmentStartingNum=3)
 → 重传 DATA_FRAG(fragmentStartingNum=7)
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">UDP 报文大小限制：
+- 理论上限：65,507 字节（IPv4）
+- 实际限制：通常 1,500 字节（以太网 MTU）
+- 大数据样本（如 1MB 图像）必须分片 代码示例┌─────────────────────────────────────────────────────────────────┐
+│                     大数据样本 (1MB)...</p></div>
 <h2 id="_4">5. 零拷贝与共享内存</h2>
 <h3 id="51-vs">5.1 传统拷贝 vs 零拷贝</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>传统方式（4次拷贝）:
@@ -662,7 +684,11 @@ Writer 收到 ACKNACK:
 <span class="w">    </span><span class="n">sem_t</span><span class="w"> </span><span class="n">notification_semaphore_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 进程间信号量</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例传统方式（4次拷贝）:
+┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
+│ 应用数据 │ → │ 序列化  │ → │ Socket  │ → │ 内核    │ → │ 网卡    │
+│ 缓冲区  │   │ 缓冲区  │   │ 缓冲区  │   │ 缓冲区  │   │ 发送    │
+└───...</p></div>
 <h2 id="_5">6. 实战代码示例</h2>
 <h3 id="61">6.1 配置大消息分片传输</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -797,7 +823,10 @@ Writer 收到 ACKNACK:
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fastdds dds="" publisher="" publisher.hpp="">
+#include <fastdds datawr...<="" dds="" p="" publisher=""></fastdds></fastdds></fastdds></fastdds></p></div>
 <h2 id="_6">7. 性能调优建议</h2>
 <h3 id="71-checklist">7.1 内存池调优 checklist</h3>
 <table>
@@ -913,7 +942,14 @@ Writer 收到 ACKNACK:
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// ✅ 推荐配置：大消息传输
+DataWriterQos large_message_qos;
+
+// 1. 必须使用可靠传输
+large_message_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+
+// 2. 使用异步发布（避免阻塞）
+large_message_qos.publish_mode().kind = ASYNCH...</p></div>
 <h2 id="_7">8. 总结</h2>
 <h3 id="_8">核心要点</h3>
 <ol>
@@ -940,15 +976,6 @@ Writer 收到 ACKNACK:
 <p><em>文档版本: 1.0</em><br/>
 <em>最后更新: 2026-03-13</em><br/>
 <em>关联笔记: 01-RTPS-Source-Analysis.md, 04-QoS-Implementation.md, 05-Transport-Layer.md</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

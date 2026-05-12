@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制基础、XML 配置基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 Server 内部数据库的结构（Participant/Topic/Endpoint）</li><li style="margin:6px 0;">掌握 Client 连接 Server 的协议流程</li><li style="margin:6px 0;">了解 Lease Duration 在 Server 模式下的工作方式</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">为什么需要 Discovery Server</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">架构对比：Simple vs Server</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">工作原理详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">配置方法</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">使用场景</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">高级配置</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">性能对比测试</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">常见问题排查</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
@@ -183,7 +190,14 @@
 │   1000节点 → 1000条/周期                                   │
 └─────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">网络流量爆炸问题: 代码示例节点数 N = 10  →  广播流量 ~100 条/周期
+节点数 N = 100 →  广播流量 ~10,000 条/周期
+节点数 N = 1000 → 广播流量 ~1,000,000 条/周期
+ 实际部署问题:
+1. 云环境限制: AWS/GCP/阿里云禁用多播
+2. 容器网络: Kubernetes 跨节点多播困难
+3. 跨网段: 路由器不转发多播包
+4. NAT...</p></div>
 <h2 id="simple-vs-server">架构对比：Simple vs Server</h2>
 <h3 id="_2">发现流程对比</h3>
 <table>
@@ -329,7 +343,13 @@ Client A ──PDP/EDP──► Server ◄──PDP/EDP── Client B
 Client A ◄══════════直接通信══════════► Client B
           (不经过 Server)
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Server 也是 Participant: 代码示例// Server 本质上是一个特殊的 Participant
+// 它可以像普通 Participant 一样发布/订阅数据
+// 额外的职责是协助 Client 发现彼此
+
+class DiscoveryServer {
+    // 维护一张 Client 注册表
+    map<guid, clientinfo=""> client_regi...</guid,></p></div>
 <h2 id="_5">配置方法</h2>
 <h3 id="1-server_1">1. 命令行快速启动 Server</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 使用 Fast-DDS 自带的 discovery 工具</span>
@@ -514,7 +534,16 @@ nohup<span class="w"> </span>fastdds<span class="w"> </span>discovery<span class
 <span class="k">auto</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span>
 <span class="w">    </span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">PARTICIPANT_QOS_DEFAULT</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例# 使用 Fast-DDS 自带的 discovery 工具
+fastdds discovery -i 0 -p 11811
+
+# 参数说明:
+# -i 0          : Server ID (0-255)
+# -p 11811      : 监听端口
+# -l 0.0.0.0    : 监听地址 (默认)
+
+# 后台运行
+nohup fastdds discovery -i 0...</p></div>
 <h2 id="_6">使用场景</h2>
 <h3 id="1">场景 1: 云环境部署</h3>
 <p><strong>问题</strong>: AWS/GCP/阿里云禁用多播</p>
@@ -597,7 +626,11 @@ nohup<span class="w"> </span>fastdds<span class="w"> </span>discovery<span class
 
 Client 配置两个 Server，实现跨地域发现
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">问题: AWS/GCP/阿里云禁用多播 解决方案: 代码示例┌─────────────────────────────────────┐
+│           AWS VPC                    │
+│                                      │
+│  ┌──────────────┐                   │
+│  │ EC2...</p></div>
 <h2 id="_7">高级配置</h2>
 <h3 id="1-server_2">1. Server 冗余 (高可用)</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 配置多个 Server，Client 会向所有 Server 宣告</span>
@@ -650,7 +683,12 @@ Client 配置两个 Server，实现跨地域发现
 
 <span class="n">server_qos</span><span class="p">.</span><span class="n">properties</span><span class="p">(</span><span class="n">security_props</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 配置多个 Server，Client 会向所有 Server 宣告
+DomainParticipantQos qos;
+
+for (auto&amp; server_info : server_list) {
+    RemoteServerAttributes server_attr;
+    server_attr.ReadguidPrefix(server_info.guid_pref...</p></div>
 <h2 id="_8">性能对比测试</h2>
 <h3 id="_9">测试环境</h3>
 <table>
@@ -725,7 +763,14 @@ Client 配置两个 Server，实现跨地域发现
 
 <span class="nx">注意</span><span class="err">：</span><span class="nx">Server</span><span class="w"> </span><span class="nx">模式下数据通信建立更快</span><span class="err">，</span><span class="nx">长期运行流量更低</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Simple Discovery (100节点，1分钟):
+- PDP 广播: 100节点 × 10次 = 1000 包
+- EDP 单播: 100 × 99 = 9900 连接
+- 总计: ~10,900 包
+
+Discovery Server (100节点，1分钟):
+- Client→Server PDP: 100 × 10 = 1000 包
+- Server→Client PDP:...</p></div>
 <h2 id="_12">常见问题排查</h2>
 <h3 id="q1-client-server">Q1: Client 无法连接到 Server</h3>
 <p><strong>症状</strong>: Client 启动后一直无法发现其他节点</p>
@@ -777,7 +822,17 @@ traceroute<span class="w"> </span>&lt;server_ip&gt;
 <span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span>
 <span class="w">    </span><span class="n">leaseDuration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"> </span><span class="c1">// 10秒超时</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">症状: Client 启动后一直无法发现其他节点 排查步骤: 代码示例# 1. 检查 Server 是否运行
+netstat -an | grep 11811
+
+# 2. 检查防火墙
+iptables -L | grep 11811
+
+# 3. 检查 Client 配置的 Server IP
+# 确认 IP 和端口正确
+
+# 4. 抓包分析
+tcpdump -i any port 11811 -w...</p></div>
 <h2 id="_13">最佳实践</h2>
 <h3 id="_14">部署架构建议</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>生产环境推荐架构:
@@ -822,7 +877,12 @@ traceroute<span class="w"> </span>&lt;server_ip&gt;
 <span class="o">-</span><span class="w"> </span><span class="n">发现延迟</span>
 <span class="o">-</span><span class="w"> </span><span class="n">匹配节点数</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例生产环境推荐架构:
+
+                    ┌─────────────────┐
+                    │  Load Balancer  │
+                    │   (可选)        │
+                    └────────┬────────┘...</p></div>
 <h2 id="_17">相关文档</h2>
 <table>
 <thead>
@@ -849,7 +909,6 @@ traceroute<span class="w"> </span>&lt;server_ip&gt;
 <hr/>
 <p><strong>最后更新</strong>: 2026-03-05<br/>
 <strong>文档版本</strong>: v1.0</p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

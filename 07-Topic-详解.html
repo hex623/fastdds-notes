@@ -125,7 +125,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 数据模型、Topic 基础概念</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 Topic 作为数据主题的类型系统角色</li><li style="margin:6px 0;">掌握 TopicDescription、TopicListener 的用途</li><li style="margin:6px 0;">了解 Topic 与 TypeSupport 的绑定关系</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 三要素</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">创建与销毁流程</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">TypeSupport 详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">Writer/Reader 匹配机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">动态 Topic</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">最佳实践</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">常见问题</span></div></div>
 <h2 id="topic">Topic 三要素</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -215,7 +221,13 @@
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_topic</span><span class="p">(</span><span class="n">topic</span><span class="p">);</span>
 <span class="n">type</span><span class="p">.</span><span class="n">unregister_type</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 1. 注册数据类型
+DomainParticipant* participant = ...;
+TypeSupport type(new HelloWorldPubSubType());
+type.register_type(participant, "HelloWorld");
+
+// 2. 创建 Topic
+Topic* topic = participant-&gt;create_t...</p></div>
 <h2 id="typesupport">TypeSupport 详解</h2>
 <p>TypeSupport 是 DDS 与具体数据类型的桥梁。</p>
 <h3 id="_2">自动生成代码结构</h3>
@@ -247,7 +259,12 @@ fastddsgen<span class="w"> </span>-python<span class="w"> </span>HelloWorld.idl
 <span class="c1"># - HelloWorld.cpp/h</span>
 <span class="c1"># - HelloWorld.i (Python 绑定)</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">TypeSupport 是 DDS 与具体数据类型的桥梁。 代码示例class HelloWorldPubSubType : public TopicDataType {
+public:
+    // 序列化: C++对象 → 字节流
+    bool serialize(void* data, SerializedPayload_t* payload) override;
+
+    // 反序列...</p></div>
 <h2 id="writerreader">Writer/Reader 匹配机制</h2>
 <h3 id="_4">匹配条件</h3>
 <ol>
@@ -324,7 +341,11 @@ fastddsgen<span class="w"> </span>-python<span class="w"> </span>HelloWorld.idl
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">核心规则: Writer 提供的 QoS 必须满足或超过 Reader 的要求。 代码示例class PubListener : public PublisherListener {
+public:
+    void on_publication_matched(
+        DataWriter* writer,
+        const PublicationMatchedStatus&amp;...</p></div>
 <h2 id="topic_3">动态 Topic</h2>
 <h3 id="_6">场景</h3>
 <ul>
@@ -354,7 +375,12 @@ fastddsgen<span class="w"> </span>-python<span class="w"> </span>HelloWorld.idl
 <span class="w">                                          </span><span class="n">type</span><span class="o">-&gt;</span><span class="n">get_name</span><span class="p">(),</span><span class="w"> </span>
 <span class="w">                                          </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fastdds dds="" dynamictopic.hpp="" topic="">
+
+// 创建动态类型
+DynamicTypeBuilder_ptr builder = DynamicTypeBuilderFactory::get_instance()
+    -&gt;create...</fastdds></fastdds></p></div>
 <h2 id="_7">最佳实践</h2>
 <h3 id="1-topic">1. Topic 命名规范</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>建议使用层级命名:
@@ -381,7 +407,18 @@ fastddsgen<span class="w"> </span>-python<span class="w"> </span>HelloWorld.idl
 <span class="n">history</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
 <span class="n">history</span><span class="p">.</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">  </span><span class="c1">// 保留最近10个样本</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例建议使用层级命名:
+- Robot/Sensor/Lidar
+- Robot/Actuator/Motor
+- System/Status/Health
+ 代码示例在类型名中包含版本:
+- HelloWorld_v1
+- HelloWorld_v2
+
+或使用 namespace:
+- MyApp::v1::HelloWorld
+- MyApp::v2::HelloWorld
+ 代码示例//...</p></div>
 <h2 id="_8">常见问题</h2>
 <h3 id="q-writer-reader">Q: 为什么 Writer 和 Reader 无法匹配？</h3>
 <p><strong>检查清单</strong>:<br/>
@@ -402,7 +439,6 @@ fastddsgen<span class="w"> </span>-python<span class="w"> </span>HelloWorld.idl
 </code></pre></div>
 <hr/>
 <p><em>整理自 2026-03-05 Topic 详解笔记</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -422,7 +458,14 @@ fastddsgen<span class="w"> </span>-python<span class="w"> </span>HelloWorld.idl
 <div class="label">下一篇 →</div>
 <div class="title">08 调试工具</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">检查清单:
+1. ✅ Topic 名称完全相同（区分大小写）
+2. ✅ 数据类型名相同
+3. ✅ QoS 兼容（特别是 RELIABILITY）
+4. ✅ 在同一个 Domain（域号相同） 代码示例// 在 Writer 端
+PublicationMatchedStatus status;
+writer-&gt;get_publication_matched_status(status);
+std::...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

@@ -128,9 +128,15 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>Fast-DDS 基础、CMake 基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能配置并启动 Discovery Server</li><li style="margin:6px 0;">理解 Client 与 Server 的连接参数</li><li style="margin:6px 0;">掌握 Server 冗余配置方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">学习目标</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">📚 Discovery Server 回顾</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">📁 源码结构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">🔍 核心源码分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">🚀 运行示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">🧪 实验任务</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">📚 与笔记关联</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">✅ 学习检查清单</span></div></div>
 <h2 id="_1">🎯 学习目标</h2>
-
 <ol>
 <li>理解 Discovery Server 的工作原理</li>
 <li>掌握 Server、Client 角色的配置</li>
@@ -160,7 +166,13 @@
 ├── Helpers.hpp                 # 辅助函数
 └── HelloWorld.*                # 数据类型
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例discovery_server/
+├── CMakeLists.txt
+├── README.md
+├── Application.hpp             # 应用基类
+├── ServerApp.hpp/cpp           # Discovery Server 实现
+├── ClientPublisherApp.hpp/cpp  # Client Publisher
+├...</p></div>
 <h2 id="_3">🔍 核心源码分析</h2>
 <h3 id="1-server">1. Server 端实现</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="kt">bool</span><span class="w"> </span><span class="nf">ServerApp::init</span><span class="p">()</span>
@@ -262,7 +274,13 @@
 
 <span class="err">注意：数据通信仍然是</span><span class="w"> </span><span class="n">P2P</span><span class="err">，只有发现经过</span><span class="w"> </span><span class="n">Server</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例bool ServerApp::init()
+{
+    // Step 1: 配置为 SERVER 模式
+    DomainParticipantQos participant_qos;
+
+    // 🔴 关键：设置为 SERVER 角色
+    participant_qos.wire_protocol().builtin.discovery_config.discoveryPro...</p></div>
 <h2 id="_4">🚀 运行示例</h2>
 <h3 id="_5">编译</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/Documents/GitHub/Fast-DDS/examples/cpp/discovery_server
@@ -294,7 +312,14 @@ Message: 'Hello world' with index: '1' RECEIVED
 ...
 </code></pre></div>
 <p><strong>注意</strong>: 如果先启动 Client，再启动 Server，Client 会在 Server 启动后自动连接</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例cd ~/Documents/GitHub/Fast-DDS/examples/cpp/discovery_server
+mkdir build &amp;&amp; cd build
+cmake ..
+make -j$(nproc)
+ 需要 3 个终端： 代码示例# 终端 1：启动 Server
+./discovery_server server
+
+# 终端 2：启动 Subscriber Client...</p></div>
 <h2 id="_8">🧪 实验任务</h2>
 <h3 id="1-server_1">实验 1：多 Server 冗余</h3>
 <p>启动两个 Server，配置 Client 连接两个 Server：</p>
@@ -322,7 +347,12 @@ Message: 'Hello world' with index: '1' RECEIVED
 <span class="c1">// ... 使用公网IP</span>
 </code></pre></div>
 <p><strong>观察</strong>: 即使 Client 和 Server 在不同网段，发现仍能正常工作</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">启动两个 Server，配置 Client 连接两个 Server： 代码示例// 配置两个 Server
+RemoteServerAttributes server1, server2;
+// ... 配置 server1 端口 56542
+// ... 配置 server2 端口 56543
+
+participant_qos.wire_protocol().builtin.discovery_...</p></div>
 <h2 id="_9">📚 与笔记关联</h2>
 <table>
 <thead>

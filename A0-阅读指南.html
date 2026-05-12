@@ -121,9 +121,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">了解全站 56 篇笔记的组织结构</li><li style="margin:6px 0;">掌握推荐的学习路径和前置知识</li><li style="margin:6px 0;">理解代码示例的分类（实际源码 vs 简化示例）</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">关于本文档</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">代码示例说明</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">部分早期笔记中使用的 AsyncWriterThread 是概念性命名，实际源码中的对应实现为 FlowControllerAsyncPublishMode，位于 src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp。</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">学习路线图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">术语速查</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">作者</span></div></div>
 <h2 id="_2">关于本文档</h2>
-
 <p>本文档是 Fast-DDS 的专业级学习资料，共 30+ 篇核心学习笔记，约 <strong>165,000+ 字</strong>。</p>
 <h2 id="_3">代码示例说明</h2>
 <p>文档中的代码示例分为两类：</p>
@@ -148,7 +152,16 @@
 <span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">configuration</span><span class="err">、</span><span class="nx">content_filter</span><span class="err">、</span><span class="nx">flow_control</span>
 <span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">security</span><span class="err">、</span><span class="nx">xtypes</span>
 <span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">benchmark性能测试</span>
-</code></pre></div>
+</code></pre></div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Week 1-2: 基础架构（00-08）
+    ├── RTPS架构、DDS层、发现机制、QoS
+    └── 传输层、安全、性能优化、调试工具
+
+Week 3-4: 进阶深入（09-12）
+    ├── ACKNACK/HEARTBEAT、Proxy机制
+    ├── Listener/WaitSet、传输优化
+    └── DDS-Security实战
+
+Week 5-8:...</p></div>
 <h2 id="_5">术语速查</h2>
 <table>
 <thead>

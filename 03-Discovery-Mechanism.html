@@ -121,7 +121,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制基础、XML 配置基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">Simple Discovery 协议架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">Participant Discovery Protocol (PDP)</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">Endpoint Discovery Protocol (EDP)</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">Discovery 消息流程图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">动态加入与离开处理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">关键配置参数详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">代码示例</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
@@ -164,7 +171,7 @@
 <span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">维护参与者活性</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">匹配</span><span class="w"> </span><span class="nx">Topic</span><span class="o">/</span><span class="nx">QoS</span><span class="w">                      </span><span class="err">│</span>
 <span class="err">└─────────────────────┴───────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 的发现机制是 DDS 分布式系统的核心组件，负责自动发现网络中的参与者（Participant）、数据写入者（Writer）和数据读取者（Reader）。Fast-DDS 实现了 RTPS (Real-Time Publish Subscribe) 标准 中定义的 Simple Discovery Protocol。 代码示例┌──────────────────────────...</p></div>
 <h2 id="simple-discovery">Simple Discovery 协议架构</h2>
 <h3 id="_4">核心设计思想</h3>
 <p>Simple Discovery 基于<strong>参与者自发现</strong>的概念：<br/>
@@ -190,7 +197,11 @@
 <span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">开始用户数据传输</span><span class="w">                                      </span><span class="err">│</span>
 <span class="err">└────────────────────────────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Simple Discovery 基于参与者自发现的概念：
+1. 每个参与者定期广播自己的存在信息
+2. 新加入的参与者通过监听这些广播来发现现有参与者
+3. 已发现的参与者之间交换端点信息，建立实际的数据通道 代码示例┌────────────────────────────────────────────────────────────┐
+│                    Simple...</p></div>
 <h2 id="participant-discovery-protocol-pdp">Participant Discovery Protocol (PDP)</h2>
 <h3 id="pdp">PDP 核心职责</h3>
 <p>PDP 负责管理<strong>参与者级别的发现</strong>，包括：<br/>
@@ -309,7 +320,14 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">PDP 负责管理参与者级别的发现，包括：
+- 参与者信息的发布与订阅
+- 维护远程参与者的活性状态
+- 触发 EDP 进行端点发现 代码示例// 源码位置: src/cpp/rtps/builtin/discovery/participant/
+
+PDP (抽象基类)
+├── PDPSimple          // 标准 Simple PDP 实现
+├── PDPServer...</p></div>
 <h2 id="endpoint-discovery-protocol-edp">Endpoint Discovery Protocol (EDP)</h2>
 <h3 id="edp">EDP 核心职责</h3>
 <p>EDP 负责管理<strong>端点级别的发现</strong>，包括：<br/>
@@ -445,7 +463,14 @@
 <span class="w">        </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">PW</span><span class="p">,</span><span class="n">RR</span><span class="o">:</span><span class="w"> </span><span class="err">无匹配通知</span>
 <span class="w">    </span><span class="kd">end</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">EDP 负责管理端点级别的发现，包括：
+- 发布和订阅 Writer/Reader 信息
+- 基于 Topic 名称和 QoS 策略匹配端点
+- 通知应用层匹配状态变化 代码示例// 源码位置: src/cpp/rtps/builtin/discovery/endpoint/
+
+EDP (抽象基类)
+├── EDPSimple          // 动态端点发现
+└── EDPStatic...</p></div>
 <h2 id="discovery">Discovery 消息流程图</h2>
 <h3 id="_7">完整发现流程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
@@ -492,7 +517,14 @@
 │ └── 用于确保可靠发现消息的传输                                 │
 └────────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例graph TB
+    P1["Participant A"] --&gt;|"DATA(p) 广播"| M1["组播"]
+    P2["Participant B"] --&gt;|"DATA(p) 广播"| M1
+    M1 --&gt;|"接收"| P1
+    M1 --&gt;|"接收"| P2
+
+    P1 --&gt;|"DATA(w) + DATA(r)"| P2
+    P2 --&gt;|"DAT...</p></div>
 <h2 id="_9">动态加入与离开处理</h2>
 <h3 id="_10">“我刚醒来，错过了什么？”</h3>
 <p>当一个新参与者加入已经运行的系统时，需要解决的关键问题是：<strong>如何获取已存在参与者的信息？</strong></p>
@@ -594,7 +626,9 @@
 │ 延迟: 立即               │ 延迟: up to leaseDuration (20s)  │
 └─────────────────────────┴───────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">当一个新参与者加入已经运行的系统时，需要解决的关键问题是：如何获取已存在参与者的信息？ 代码示例┌────────────────────────────────────────────────────────────────┐
+│               新参与者加入处理机制                              │
+├──────────────────────────...</p></div>
 <h2 id="_14">关键配置参数详解</h2>
 <h3 id="discoverysettings">DiscoverySettings 配置类</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 源码: include/fastdds/rtps/attributes/RTPSParticipantAttributes.hpp</span>
@@ -732,7 +766,12 @@
 <span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">edp_heartbeat_period</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">               </span><span class="c1">// 1s</span>
 <span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">edp_nack_response_delay</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="p">};</span><span class="w"> </span><span class="c1">// 100ms</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 源码: include/fastdds/rtps/attributes/RTPSParticipantAttributes.hpp
+
+class DiscoverySettings {
+public:
+    // ========== 发现协议选择 ==========
+    DiscoveryProtocol discoveryProtocol = DiscoveryProto...</p></div>
 <h2 id="_17">代码示例</h2>
 <h3 id="1-discovery">示例 1: 基本 Discovery 配置</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -932,7 +971,11 @@
 <span class="w">            </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">listener</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds attributes="" rtps="" rtpsparticipantattributes.hpp="">
+
+using namespace eprosima::fastdds::dds;
+using namespace eprosima::fastd...</fastdds></fastdds></p></div>
 <h2 id="_18">总结</h2>
 <h3 id="_19">核心概念回顾</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌────────────────────────────────────────────────────────────────┐
@@ -1014,16 +1057,6 @@
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 Fast-DDS 2.x 版本源码分析</em><br/>
 <em>参考: DDS-RTPS 标准规范</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -1043,7 +1076,9 @@
 <div class="label">下一篇 →</div>
 <div class="title">03 Discovery Server</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌────────────────────────────────────────────────────────────────┐
+│                   Fast-DDS Discovery 核心                      │
+├───────────────────────────────────────────────────────────────...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

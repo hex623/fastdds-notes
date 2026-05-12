@@ -121,7 +121,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制、C++ 类设计</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 传输层架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. TransportInterface 设计</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. UDPTransport 实现详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. TCPTransport 特点与配置</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 共享内存 (SHM) 传输优化</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 代码示例：配置不同传输层</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 传输层选择建议</span></div></div>
 <h2 id="1">1. 概述</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 数据传输流程</div>
@@ -228,7 +235,9 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Fast-DDS 传输层架构                                   │
+├──────────────────────────────────────...</p></div>
 <h2 id="3-transportinterface">3. TransportInterface 设计</h2>
 <h3 id="31">3.1 核心接口定义</h3>
 <p><code>TransportInterface</code> 是所有传输层的抽象基类，定义了传输层必须实现的核心方法：</p>
@@ -278,7 +287,11 @@
      └─ Kind (UDP/TCP/SHM) ─────┘
 </code></pre></div>
 <p>在 UDP 中，一个端口对应一个 Channel；在 TCP 中，一个连接对应一个 Channel；在 SHM 中，一个共享内存端口对应一个 Channel。</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">TransportInterface 是所有传输层的抽象基类，定义了传输层必须实现的核心方法： 代码示例class TransportInterface {
+public:
+    // 初始化传输层
+    virtual bool init(const PropertyPolicy* properties = nullptr, 
+                      const uint...</p></div>
 <h2 id="4-udptransport">4. UDPTransport 实现详解</h2>
 <h3 id="41-udp">4.1 UDP 架构特点</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
@@ -366,7 +379,10 @@
 <span class="w">        </span><span class="err">▼</span>
 <span class="mf">4.</span><span class="w"> </span><span class="n">底层</span><span class="w"> </span><span class="n">Socket</span><span class="w"> </span><span class="n">send_to</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">发送到目标地址</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────┐
+│                    UDPTransportInterface                     │
+├─────────────────────────────────────────────────────────────┤
+│...</p></div>
 <h2 id="5-tcptransport">5. TCPTransport 特点与配置</h2>
 <h3 id="51-tcp">5.1 TCP 架构特点</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
@@ -506,7 +522,9 @@
 <span class="w">    </span><span class="p">};</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                     TCPTransportInterface                        │
+├──────────────────────────────────────────────────────────...</p></div>
 <h2 id="6-shm">6. 共享内存 (SHM) 传输优化</h2>
 <h3 id="61-shm">6.1 SHM 架构特点</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
@@ -617,7 +635,9 @@
 <span class="c1">// 3. 如果发送方在超时时间内未收到确认，触发健康检查</span>
 <span class="c1">// 4. 检测到对端进程崩溃后，清理相关资源</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                    SharedMemTransport                            │
+├──────────────────────────────────────────────────────────...</p></div>
 <h2 id="7">7. 代码示例：配置不同传输层</h2>
 <h3 id="71-udpv4">7.1 配置 UDPv4 传输</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -766,7 +786,13 @@
 <span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">tcp_transport</span><span class="p">);</span>
 <span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds rtps="" transport="" udpv4transportdescriptor.hpp="">
+
+using namespace eprosima::fastdds::rtps;
+
+// 创建 UDPv4 传输描述符
+auto udp_tran...</fastdds></fastdds></p></div>
 <h2 id="8">8. 传输层选择建议</h2>
 <h3 id="81">8.1 场景对比</h3>
 <table>
@@ -831,15 +857,6 @@ TCP      ~1-2 GB/s
 <li><strong>共享内存传输</strong> 提供零拷贝高性能，是同机通信的最佳选择</li>
 </ol>
 <p>在实际应用中，可以根据部署环境和性能需求选择合适的传输协议，也可以组合多种传输实现最优的通信效果。</p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

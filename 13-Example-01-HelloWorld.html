@@ -128,9 +128,15 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>Fast-DDS 基础、CMake 基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能独立编译并运行 HelloWorld 示例</li><li style="margin:6px 0;">理解 Publisher/Subscriber 的初始化流程</li><li style="margin:6px 0;">掌握 CMake 中 Fast-DDS 的链接配置</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">学习目标</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">📁 源码结构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">🏗️ 架构图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">🔍 核心源码分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">🔄 Listener vs WaitSet 对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">🚀 运行示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">🧪 实验任务</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">📚 与笔记关联</span></div></div>
 <h2 id="_1">🎯 学习目标</h2>
-
 <ol>
 <li>理解 DDS 基础实体：DomainParticipant → Publisher/Subscriber → DataWriter/DataReader</li>
 <li>掌握两种订阅机制：Listener 回调 vs WaitSet 等待</li>
@@ -150,7 +156,12 @@
 ├── HelloWorldPubSubTypes.hpp   # TypeSupport（IDL生成）
 └── HelloWorldTypeObjectSupport.hpp  # XTypes支持（IDL生成）
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例hello_world/
+├── CMakeLists.txt              # 构建配置
+├── README.md                   # 官方文档
+├── Application.hpp/cpp         # 应用基类（公共逻辑）
+├── PublisherApp.hpp/cpp        # Publisher 实现
+├── Subscribe...</p></div>
 <h2 id="_3">🏗️ 架构图</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Publisher 端                                          Subscriber 端
 ═══════════════                                      ═══════════════
@@ -193,7 +204,10 @@
 3. Publisher 写入数据 → 通过网络传输 → Subscriber 接收数据
 4. Subscriber 通过 Listener 回调或 WaitSet 获取数据
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Publisher 端                                          Subscriber 端
+═══════════════                                      ═══════════════
+
+┌─────────────────┐                                  ┌──────...</p></div>
 <h2 id="_4">🔍 核心源码分析</h2>
 <h3 id="1-helloworldhpp">1. 数据类型定义 (HelloWorld.hpp)</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// IDL 生成的数据类型</span>
@@ -474,7 +488,15 @@
 - WaitSet：在用户线程中阻塞等待事件，适合需要精确控制时机的场景<br/>
 - StatusCondition：监听 Entity 的状态变化<br/>
 - 可以组合多个 Condition，实现多路复用</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// IDL 生成的数据类型
+struct HelloWorld
+{
+    uint32_t index();           // 序列号
+    void index(uint32_t _index);
+
+    std::string message();      // 消息内容
+    void message(const std::string&amp; _message);
+}...</p></div>
 <h2 id="listener-vs-waitset">🔄 Listener vs WaitSet 对比</h2>
 <table>
 <thead>
@@ -552,7 +574,15 @@ Message: 'Hello world' with index: '2' SENT
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># Subscriber 使用 WaitSet</span>
 ./hello_world<span class="w"> </span>subscriber<span class="w"> </span>--waitset
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例cd ~/Documents/GitHub/Fast-DDS/examples/cpp/hello_world
+mkdir build &amp;&amp; cd build
+cmake ..
+make -j$(nproc)
+ 代码示例# 终端 1：启动 Subscriber
+./hello_world subscriber
+
+# 终端 2：启动 Publisher
+./hello_world publi...</p></div>
 <h2 id="_9">🧪 实验任务</h2>
 <h3 id="1">实验 1：观察发现过程</h3>
 <ol>
@@ -585,7 +615,11 @@ Message: 'Hello world' with index: '2' SENT
 </code></pre></div>
 <p><strong>观察</strong>: 是否会影响其他数据的接收？</p>
 <p><strong>结论</strong>: Listener 回调不能阻塞，否则会影响 DDS 内部线程</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">结论: DDS 的发现是动态的，Publisher 会等待 Subscriber 匹配后才发送 修改 HelloWorldPublisher.xml，尝试以下配置： 代码示例<!-- 修改可靠性为 BEST_EFFORT -->
+<reliability>
+<kind>BEST_EFFORT</kind>
+</reliability>
+<!-- 修改历史为 KEEP_LAST，深度为 1...</p></div>--></p></div>
 <h2 id="_10">📚 与笔记关联</h2>
 <table>
 <thead>

@@ -127,7 +127,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础、RTPS 消息格式</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 FlowController 的令牌桶机制</li><li style="margin:6px 0;">掌握吞吐量限制和突发流量控制</li><li style="margin:6px 0;">了解 AsyncWriterThread 的调度策略</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 流量控制概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. 核心概念与架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. PublishMode（发布模式）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. FlowController（流控器）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. FlowControllerAsyncPublishMode（异步写入线程）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 源码解析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 配置与调优</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 实战示例</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
@@ -208,7 +215,9 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">在 DDS/RTPS 系统中，流量控制解决以下核心问题： 代码示例┌─────────────────────────────────────────────────────────────────┐
+│                      流量控制要解决的问题                        │
+├───────────────────────────────────────...</p></div>
 <h2 id="2">2. 核心概念与架构</h2>
 <h3 id="21">2.1 整体架构图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
@@ -266,7 +275,17 @@
 <span class="err">├──</span><span class="w"> </span><span class="n">throughput_controller</span><span class="w">     </span><span class="c1">// 吞吐量控制器 (旧版)</span>
 <span class="err">└──</span><span class="w"> </span><span class="n">data_sharing</span><span class="w">              </span><span class="c1">// 数据共享配置</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例graph TB
+    subgraph Application["应用程序层"]
+        App["用户代码"]
+    end
+
+    subgraph DDSLayer["DDS/RTPS 层"]
+        DW["DataWriter"]
+        WM["WriterMutex"]
+    end
+
+    subgraph PublishMode["发布...</p></div>
 <h2 id="3-publishmode">3. PublishMode（发布模式）</h2>
 <h3 id="31">3.1 两种发布模式</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// include/fastdds/dds/core/policy/QosPolicies.hpp</span>
@@ -399,7 +418,15 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// include/fastdds/dds/core/policy/QosPolicies.hpp
+
+enum class PublishModeQosPolicyKind : uint8_t
+{
+    SYNCHRONOUS,    // 同步模式 - write() 直接发送
+    ASYNCHRONOUS    // 异步模式 - write() 入队，后台线程发送
+};
+
+c...</p></div>
 <h2 id="4-flowcontroller">4. FlowController（流控器）</h2>
 <h3 id="41-flowcontroller">4.1 FlowController 概述</h3>
 <p>FlowController 是异步模式下的核心组件，负责：<br/>
@@ -539,7 +566,15 @@ Writer 请求发送 100 bytes:
     ▼
 阻塞/等待
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">FlowController 是异步模式下的核心组件，负责：
+1. 速率限制：控制数据发送速率
+2. 优先级调度：多 Writer 间的公平调度
+3. 流量整形：平滑突发流量 代码示例// include/fastdds/rtps/flowcontrol/FlowController.hpp
+
+class FlowController
+{
+public:
+    // 添加数据到流控队列...</p></div>
 <h2 id="5-flowcontrollerasyncpublishmode">5. FlowControllerAsyncPublishMode（异步写入线程）</h2>
 <h3 id="51">5.1 线程模型</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
@@ -631,7 +666,18 @@ Writer 请求发送 100 bytes:
 <span class="c1">// 3. 网络可用 (发送完成回调)</span>
 <span class="c1">// 4. 外部配置变更</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp
+
+class FlowControllerAsyncPublishMode
+{
+public:
+    // 启动异步写入线程
+    static bool start();
+
+    // 停止异步写入线程
+    static bool stop();
+
+    //...</p></div>
 <h2 id="6">6. 源码解析</h2>
 <h3 id="61-datawriter">6.1 DataWriter 写入流程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
@@ -732,7 +778,14 @@ Writer 请求发送 100 bytes:
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// src/cpp/fastdds/publisher/DataWriterImpl.cpp
+
+ReturnCode_t DataWriterImpl::write(void* data)
+{
+    // 1. 序列化数据
+    CacheChange_t* change = create_new_change(data);
+
+    // 2. 根据 PublishMode 决定发...</p></div>
 <h2 id="7">7. 配置与调优</h2>
 <h3 id="71-publishmode">7.1 配置 PublishMode</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -866,7 +919,11 @@ Writer 请求发送 100 bytes:
 <span class="n">background_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
 <span class="n">background_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"low_priority_fc"</span><span class="p">;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds datawriter.hpp="" dds="" publisher="">
+#include <fastdds datawriterqos.hpp="" dds="" publisher="" qos="">
+
+using namespace eprosima::fastdds...</fastdds></fastdds></fastdds></p></div>
 <h2 id="8">8. 实战示例</h2>
 <h3 id="81-1">8.1 示例1: 视频流流量控制</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 场景: 发送 1080p 视频流，限制带宽不超过 4Mbps</span>
@@ -975,7 +1032,15 @@ Writer 请求发送 100 bytes:
 <span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">sensor_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">sensor_topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 场景: 发送 1080p 视频流，限制带宽不超过 4Mbps
+
+void setup_video_stream_writer()
+{
+    DataWriterQos qos;
+
+    // 视频流适合异步模式（数据量大，允许延迟）
+    qos.publish_mode().kind = ASYNCHRONOUS;
+    qos.publish_mode().flow_co...</p></div>
 <h2 id="9">9. 常见问题</h2>
 <h3 id="q1-write">Q1: 异步模式下，write() 会阻塞吗？</h3>
 <p><strong>答</strong>: 可能阻塞，取决于配置：</p>
@@ -1074,7 +1139,13 @@ Writer 请求发送 100 bytes:
 <span class="c1">// Writer 3 使用独立流控器</span>
 <span class="n">qos3</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerDefault"</span><span class="p">;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">答: 可能阻塞，取决于配置： 代码示例// max_blocking_time 参数控制最大阻塞时间
+ReturnCode_t write(void* data,
+    WriteParams&amp; params,
+    const std::chrono::steady_clock::duration&amp; max_blocking_time);
+
+// 场景:
+// 1. 队列已满 -&gt; 阻塞直到...</p></div>
 <h2 id="_2">总结</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
 │                      流量控制要点回顾                            │
@@ -1103,16 +1174,6 @@ Writer 请求发送 100 bytes:
 <hr/>
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 Fast-DDS 2.14.x 版本源码分析</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -1132,7 +1193,9 @@ Writer 请求发送 100 bytes:
 <div class="label">下一篇 →</div>
 <div class="title">14 内存管理</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────┐
+│                      流量控制要点回顾                            │
+├─────────────────────────────────────────────────────────────────┤...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

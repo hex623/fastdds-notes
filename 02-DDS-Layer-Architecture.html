@@ -121,7 +121,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>RTPS 架构基础、UDP/TCP 网络基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. DDS 层与 RTPS 层的映射关系</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. 核心类创建流程</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 关键类分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 设计模式</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 代码示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 总结</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
@@ -201,7 +207,7 @@
 │              (UDP/TCP/Shared Memory/SHM)                     │
 └─────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 是一个实现了 DDS (Data Distribution Service) 标准的实时发布订阅通信框架。其架构分为两个主要层次： DDS Layer 作为上层抽象，为应用程序提供了面向对象的接口；而 RTPS Layer 则负责实际的数据序列化、传输和发现机制。 代码示例┌─────────────────────────────────────────────────────...</p></div>
 <h2 id="2-dds-rtps">2. DDS 层与 RTPS 层的映射关系</h2>
 <p>DDS 层和 RTPS 层之间存在清晰的一对一映射关系：</p>
 <table>
@@ -282,7 +288,9 @@
 <p><strong>Topic 映射</strong>: Topic 在 RTPS 层没有直接对应，其信息（类型名称、QoS）被用于创建 RTPSWriter/RTPSReader。</p>
 </li>
 </ol>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">DDS 层和 RTPS 层之间存在清晰的一对一映射关系： 代码示例                    DDS Layer                              RTPS Layer
+    ┌──────────────────────────────────┐          ┌────────────────────────┐
+    │      DomainPar...</p></div>
 <h2 id="3">3. 核心类创建流程</h2>
 <h3 id="31-domainparticipant">3.1 DomainParticipant 创建流程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────┐     ┌─────────────────────────────┐     ┌──────────────────┐
@@ -573,7 +581,9 @@
                        │   (RTPS Layer)              │
                        └─────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────┐     ┌─────────────────────────────┐     ┌──────────────────┐
+│   Application   │────▶│DomainParticipantFactory::   │────▶│   DomainParticipant
+│                 │     │   creat...</p></div>
 <h2 id="4">4. 关键类分析</h2>
 <h3 id="41-domainparticipantfactory">4.1 DomainParticipantFactory</h3>
 <p><strong>类位置</strong>: <code>include/fastdds/dds/domain/DomainParticipantFactory.hpp</code><br/>
@@ -782,7 +792,12 @@
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">pub</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">类位置: include/fastdds/dds/domain/DomainParticipantFactory.hpp
+实现位置: src/cpp/fastdds/domain/DomainParticipantFactory.cpp 职责: 
+- 管理 DomainParticipant 的生命周期
+- 维护所有 DomainParticipant 的注册表
+- 提供单例访问点
+- 加载和管理...</p></div>
 <h2 id="5">5. 设计模式</h2>
 <h3 id="51">5.1 工厂模式</h3>
 <p>Fast-DDS 在多处使用工厂模式来创建对象：</p>
@@ -1034,7 +1049,15 @@
 2. <strong>易于测试</strong>: 可以 mock 实现类进行单元测试<br/>
 3. <strong>支持扩展</strong>: 可以通过继承实现类添加功能（如统计模块）<br/>
 4. <strong>二进制兼容</strong>: 实现细节改变不影响公共接口</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 在多处使用工厂模式来创建对象： 代码示例class DomainParticipantFactory
+{
+public:
+    static DomainParticipantFactory* get_instance()
+    {
+        return get_shared_instance().get();
+    }
+
+    static std::share...</p></div>
 <h2 id="6">6. 代码示例</h2>
 <h3 id="dds">完整 DDS 应用示例</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -1250,7 +1273,10 @@
 <span class="c1">// 使用配置文件创建 DataWriter</span>
 <span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter_with_profile</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="s">"writer_profile"</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fastdds dds="" publisher="" publisher.hpp="">
+#include <fastdds datawr...<="" dds="" p="" publisher=""></fastdds></fastdds></fastdds></fastdds></p></div>
 <h2 id="7">7. 总结</h2>
 <p>Fast-DDS 的 DDS Layer 架构设计具有以下特点：</p>
 <h3 id="71">7.1 架构优势</h3>
@@ -1283,16 +1309,6 @@
 <p><em>文档版本: 1.0</em><br/>
 <em>基于 Fast-DDS 源码版本: 2.x</em><br/>
 <em>最后更新: 2026-03-02</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

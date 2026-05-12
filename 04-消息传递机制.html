@@ -124,7 +124,11 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS QoS 基础、RTPS 消息格式</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能描述 RTPS 消息从 Writer 到 Reader 的完整路径</li><li style="margin:6px 0;">理解 CacheChange 在发送端的排队机制</li><li style="margin:6px 0;">掌握接收端从 Transport 到 HistoryCache 的数据流</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">核心概念</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">可靠传输交互流程</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">关键机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">消息类型速查</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">可靠 vs 尽力而为对比</span></div></div>
 <h2 id="_1">核心概念</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -180,7 +184,12 @@ Bitmap=1101 (二进制)
   - bit 2 (Seq#3): 1 = 已收到 ✓
   - bit 3 (Seq#4): 1 = 已收到 ✓
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Writer → Reader: DATA(Seq#1)
+Writer → Reader: DATA(Seq#2)
+Writer → Reader: DATA(Seq#4)
+Writer → Reader: HEARTBEAT(First=1, Last=4)
+Reader → Writer: ACKNACK(Base=1, Bitmap=1101)  // 缺 #3
+Writer → R...</p></div>
 <h2 id="_5">关键机制</h2>
 <h3 id="1">1. 序列号去重</h3>
 <p>Reader 维护已接收序列号集合，丢弃重复数据。</p>
@@ -286,7 +295,6 @@ Bitmap=1101 (二进制)
 </table>
 <hr/>
 <p><em>整理自 2026-03-03 ACKNACK/HEARTBEAT 详解</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

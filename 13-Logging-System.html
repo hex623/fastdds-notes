@@ -123,9 +123,15 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础概念、C++ 编程基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能配置日志级别和输出目标</li><li style="margin:6px 0;">理解 LogModule 和 Category 的组织方式</li><li style="margin:6px 0;">掌握日志过滤和格式化选项</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">学习目标</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">1. Fast-DDS 日志系统架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">2. 日志配置方法</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">3. 日志格式解析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">4. 实战配置示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">5. 常见问题排查</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">6. 学习检查清单</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">7. 下一步</span></div></div>
 <h2 id="_1">学习目标</h2>
-
 <ul>
 <li>掌握 Fast-DDS 日志系统的配置方法</li>
 <li>理解 Log 级别和模块过滤机制</li>
@@ -181,7 +187,12 @@
 <span class="s">"QOS"</span><span class="w">           </span><span class="c1">// QoS 策略</span>
 <span class="s">"GENERAL"</span><span class="w">       </span><span class="c1">// 通用信息</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 使用分级日志系统，按严重程度排序： 默认级别: Warning（只显示 Warning 和 Error） Fast-DDS 将日志按功能模块分类： 代码示例// 主要类别
+"FASTDDS"       // 核心 DDS 层
+"RTPS"          // RTPS 协议层
+"TRANSPORT"     // 传输层
+"DISCOVERY"     // 发现机制
+"S...</p></div>
 <h2 id="2">2. 日志配置方法</h2>
 <h3 id="21">2.1 代码配置方式</h3>
 <h4 id="_2">设置日志级别</h4>
@@ -274,7 +285,16 @@
 <span class="c1"># 输出到文件</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">FASTDDS_LOG_FILE</span><span class="o">=</span>/tmp/fastdds.log
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" log="" log.hpp="">
+
+using namespace eprosima::fastdds::dds;
+
+// 设置全局日志级别为 Debug
+Log::SetVerbosity(Log::Kind::Debug);
+
+// 只显示 Info 及以上级别
+Log::SetVerbosity(Log::Kind::Info);
+ 代码示例//...</fastdds></p></div>
 <h2 id="3">3. 日志格式解析</h2>
 <h3 id="31">3.1 标准日志格式</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="o">[</span><span class="n">2024-03-24 10:15:32.123456</span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="n">RTPS</span><span class="o">]</span><span class="w"> </span><span class="nl">DEBUG</span><span class="p">:</span><span class="w"> </span>
@@ -330,7 +350,11 @@
 <p><strong>解读</strong>:<br/>
 - Writer 发送 HEARTBEAT（序列号范围 1-5）<br/>
 - Reader 发送 ACKNACK，位图显示已全部收到</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例[2024-03-24 10:15:32.123456] [RTPS] DEBUG: 
+RTPSParticipantImpl::createWriter() - Created writer with GUID: 
+01.0f.da.70.f5.ea.d7.9b.00.00.00.00|0.0.1.4
+ 格式说明: 代码示例[时间戳] [类别] 级别: 消息内容
+ 代码示例[INFO]...</p></div>
 <h2 id="4">4. 实战配置示例</h2>
 <h3 id="41">4.1 排查发现问题的配置</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 只关注发现相关日志</span>
@@ -389,7 +413,13 @@
 <span class="w">    </span><span class="nt">&lt;/consumer&gt;</span>
 <span class="nt">&lt;/log&gt;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 只关注发现相关日志
+Log::SetVerbosity(Log::Kind::Debug);
+Log::SetCategoryFilter(std::regex("(DISCOVERY|SPDP|SEDP)"));
+
+// 输出到文件便于分析
+std::unique_ptr<fileconsumer> file_consumer(
+    new FileConsumer("disc...</fileconsumer></p></div>
 <h2 id="5">5. 常见问题排查</h2>
 <h3 id="51-participant-not-discovered">5.1 “Participant not discovered”</h3>
 <p><strong>查看日志</strong>:</p>
@@ -419,7 +449,12 @@
 - 网络是否丢包？<br/>
 - History 缓存是否足够大？<br/>
 - 重试次数是否设置合理？</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">查看日志: 代码示例[DEBUG] SPDP: Sending DATA(p) to 239.255.0.1:7400
+[DEBUG] SPDP: No DATA(p) received for 5 seconds
+ 诊断:
+- 组播是否正常发送？
+- 网络是否有防火墙阻止 7400 端口？
+- 两个节点是否在同一个 Domain？ 查看日志: 代码示例[INFO] SEDP: Checking...</p></div>
 <h2 id="6">6. 学习检查清单</h2>
 <ul>
 <li>[ ] 理解 Log 级别的区别和使用场景</li>
@@ -456,7 +491,16 @@
 <div class="label">下一篇 →</div>
 <div class="title">14 回调机制</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">完成日志系统学习后，进入 调试工具 模块：
+- 使用 DDS Spy 监控 Topic 数据
+- Wireshark 抓包分析 RTPS 协议
+- 使用 DDS_RTPS_PCAP_Analyzer 分析通信 记录时间: 2026-03-24
+模块: 第6周 - 日志系统详解 
+🔗 相关阅读
+
+02 - DDS 发现机制
+03 - Fast-DDS 发现机制 (Discovery) 详解
+03 -...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

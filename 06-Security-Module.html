@@ -119,7 +119,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 基础、网络安全概念（证书/加密）</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. DDS-Security 规范概述</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. Authentication (认证)</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. Access Control (访问控制)</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. Cryptographic (加密)</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. Logging (日志审计)</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 代码示例：配置安全通信</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">总结</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">参考资源</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 200" xmlns="http://www.w3.org/2000/svg">
@@ -207,7 +214,8 @@
 <li><strong>权限检查阶段</strong>：验证参与者的访问权限</li>
 <li><strong>安全通信阶段</strong>：使用对称加密算法保护数据传输</li>
 </ol>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">DDS-Security 是 OMG 针对 DDS 标准制定的安全规范，旨在为 DDS 系统提供端到端的安全保护。Fast-DDS 完整实现了 DDS-Security 1.1 规范，提供了五个核心安全插件模块： Fast-DDS 安全模块采用插件化架构设计： 代码示例┌─────────────────────────────────────────────────────────┐
+│...</p></div>
 <h2 id="2-authentication">2. Authentication (认证)</h2>
 <h3 id="21-pki">2.1 PKI 基础设施</h3>
 <p>Fast-DDS 使用公钥基础设施 (PKI) 进行身份验证，支持 X.509 数字证书：</p>
@@ -308,7 +316,12 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 使用公钥基础设施 (PKI) 进行身份验证，支持 X.509 数字证书： 代码示例// src/cpp/security/authentication/PKIDH.h
+class PKIDH : public Authentication
+{
+public:
+    // 验证本地身份
+    ValidationResult_t validate_local_identity(...</p></div>
 <h2 id="3-access-control">3. Access Control (访问控制)</h2>
 <h3 id="31-governance">3.1 Governance 文件</h3>
 <p>Governance 文件定义了域级别的安全策略，控制发现、认证和数据保护：</p>
@@ -434,7 +447,12 @@
 <span class="w">        </span><span class="n">SecurityException</span><span class="o">&amp;</span><span class="w"> </span><span class="n">exception</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Governance 文件定义了域级别的安全策略，控制发现、认证和数据保护： 代码示例<!-- Governance 示例 -->
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<domain_access_rules>
+<domain_rule>
+<domains>
+<id_rang...< p=""></id_rang...<></domains></domain_rule></domain_access_rules></dds></p></div>
 <h2 id="4-cryptographic">4. Cryptographic (加密)</h2>
 <h3 id="41-aes-gcm-gmac">4.1 AES-GCM-GMAC 加密插件</h3>
 <p>Fast-DDS 使用 AES-GCM-GMAC 算法实现加密和完整性保护：</p>
@@ -528,7 +546,11 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 使用 AES-GCM-GMAC 算法实现加密和完整性保护： 代码示例// src/cpp/security/cryptography/AESGCMGMAC.h
+class AESGCMGMAC : public Cryptography
+{
+    CryptoKeyExchange* m_cryptokeyexchange;      // 密钥交换
+    std::shar...</p></div>
 <h2 id="5-logging">5. Logging (日志审计)</h2>
 <h3 id="51">5.1 安全日志系统</h3>
 <p>Fast-DDS 提供内置的安全日志审计功能，记录安全相关事件：</p>
@@ -612,7 +634,12 @@
 <span class="w">    </span><span class="s">"security_logs.txt"</span>
 <span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 提供内置的安全日志审计功能，记录安全相关事件： 代码示例// src/cpp/security/logging/LogTopic.h
+class LogTopic final : public Logging
+{
+public:
+    LogTopic(uint32_t thread_id = 0, 
+             const fastdds::rtps::Thre...</p></div>
 <h2 id="6">6. 代码示例：配置安全通信</h2>
 <h3 id="61">6.1 完整安全配置示例</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -775,7 +802,11 @@ openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> 
 <span class="nb">echo</span><span class="w"> </span><span class="s2">"证书生成完成！"</span>
 <span class="nb">echo</span><span class="w"> </span><span class="s2">"文件位置: </span><span class="nv">$CERTS_DIR</span><span class="s2">/"</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds attributes="" propertypolicy.hpp="" rtps="">
+
+using namespace eprosima::fastdds::dds;
+using namespace eprosima::fastdds::rtps;...</fastdds></fastdds></p></div>
 <h2 id="_2">总结</h2>
 <p>Fast-DDS 的安全模块提供了完整的企业级安全解决方案：</p>
 <ol>
@@ -801,15 +832,6 @@ openssl<span class="w"> </span>x509<span class="w"> </span>-req<span class="w"> 
 <li><code>cryptography/AESGCMGMAC_*.h/cpp</code> - 加密实现</li>
 <li><code>logging/LogTopic.h/cpp</code> - 日志审计</li>
 </ul>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

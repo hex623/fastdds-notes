@@ -125,7 +125,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>网络安全基础、DDS-Security 规范</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 Listener 模式的异步回调机制</li><li style="margin:6px 0;">掌握 WaitSet 同步等待的使用方法</li><li style="margin:6px 0;">了解两种模式的线程安全注意事项</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 异步通知机制全景</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. Listener - 回调机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. WaitSet - 条件等待机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. Listener vs WaitSet 对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 多线程数据处理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 调试与监控</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">参考链接</span></div></div>
 <h2 id="1">1. 异步通知机制全景</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -268,7 +274,14 @@
 <span class="w">    </span><span class="n">worker_pool_</span><span class="p">.</span><span class="n">notify</span><span class="p">();</span><span class="w">  </span><span class="c1">// 通知工作线程</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class DataReaderListener
+{
+public:
+    // 有数据到达（最常用）
+    virtual void on_data_available(DataReader* reader) {}
+
+    // 匹配的 Writer 发生变化
+    virtual void on_subscription_matched(DataReader* reader,...</p></div>
 <h2 id="3-waitset-">3. WaitSet - 条件等待机制</h2>
 <h3 id="_4">核心概念</h3>
 <p>WaitSet = 一组 Condition 的集合，可以等待多个事件同时发生。</p>
@@ -382,7 +395,12 @@
 <span class="c1">// 当有新数据且 id &gt; 100 时触发</span>
 <span class="n">waitset</span><span class="p">.</span><span class="n">wait</span><span class="p">(</span><span class="n">triggered</span><span class="p">,</span><span class="w"> </span><span class="n">Duration_t</span><span class="o">::</span><span class="n">infinite</span><span class="p">());</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">WaitSet = 一组 Condition 的集合，可以等待多个事件同时发生。 代码示例WaitSet waitset;
+waitset.attach_condition(condition1);
+waitset.attach_condition(condition2);
+
+ConditionSeq triggered_conditions;
+Duration_t timeout(10, 0);...</p></div>
 <h2 id="4-listener-vs-waitset">4. Listener vs WaitSet 对比</h2>
 <table>
 <thead>
@@ -480,7 +498,16 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 场景 1：简单实时响应 → Listener
+class SimpleListener : public DataReaderListener
+{
+    void on_data_available(DataReader* reader) override
+    {
+        take_and_process_quickly(reader);
+    }
+};
+
+// 场景...</p></div>
 <h2 id="5">5. 多线程数据处理</h2>
 <h3 id="_6">线程池 + 无锁队列</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ParallelProcessor</span>
@@ -542,7 +569,13 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class ParallelProcessor
+{
+private:
+    DataReader* reader_;
+    boost::lockfree::spsc_queue<sample, boost::lockfree::capacity<1024="">&gt; queue_;
+    std::vector<std::thread> workers_;
+    std::atomic&lt;...</std::thread></sample,></p></div>
 <h2 id="6">6. 调试与监控</h2>
 <h3 id="_7">检查回调触发频率</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MonitoredListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span>
@@ -588,14 +621,20 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class MonitoredListener : public DataReaderListener
+{
+private:
+    std::atomic<uint64_t> callback_count_{0};
+    std::chrono::steady_clock::time_point last_log_;
+
+public:
+    void on_data_availabl...</uint64_t></p></div>
 <h2 id="_9">参考链接</h2>
 <ul>
 <li><a href="01-RTPS-Source-Analysis.html">01 RTPS源码分析</a></li>
 <li><a href="09-Advanced-Topics.html">09 进阶主题</a></li>
 <li>Fast-DDS 官方文档: https://fast-dds.docs.eprosima.com/</li>
 </ul>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

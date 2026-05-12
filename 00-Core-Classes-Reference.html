@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>C++ 基础、DDS 基本概念</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">1. 架构总览</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">2. DDS Layer 核心类</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">3. RTPS Layer 核心类</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">4. 数据与缓存类</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">5. 发现协议类</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">6. 辅助与工具类</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">7. 类关系图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">8. 代码示例</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
@@ -206,7 +213,9 @@
 │              (UDP / TCP / Shared Memory / Zero Copy / SHM)                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Fast-DDS 采用分层架构设计，主要分为三个层次： 代码示例┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Application Layer                                  │
+│...</p></div>
 <h2 id="dds-layer">2. DDS Layer 核心类</h2>
 <h3 id="21-domainparticipantfactory-">2.1 DomainParticipantFactory - 域参与者工厂</h3>
 <table>
@@ -1024,7 +1033,12 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class DomainParticipantFactory {
+protected:
+    // 参与者列表映射: domain_id -&gt; vector<domainparticipantimpl*>
+    std::map<domainid_t, std::vector<domainparticipantimpl*="">&gt; participants_;
+
+    // 工厂自身的 Q...</domainid_t,></domainparticipantimpl*></p></div>
 <h2 id="rtps-layer">3. RTPS Layer 核心类</h2>
 <h3 id="31-rtpsdomain-rtps">3.1 RTPSDomain - RTPS 域管理器</h3>
 <table>
@@ -1529,7 +1543,10 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例RTPSParticipant
+├── GuidPrefix_t m_guidPrefix                    // GUID 前缀
+├── RTPSParticipantImpl* mp_impl                 // 实现类 (Pimpl)
+│   ├── std::vector<rtpswriter*> m_writers       // Writ...</rtpswriter*></p></div>
 <h2 id="_35">4. 数据与缓存类</h2>
 <h3 id="41-cachechange_t-">4.1 CacheChange_t - 缓存变更</h3>
 <table>
@@ -1750,7 +1767,10 @@
 <span class="cp">#define ENTITYID_BUILTIN_PARTICIPANT_STATELESS_READER 0x000002c7</span>
 <span class="cp">#define ENTITYID_BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_READER 0x000002c3</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例struct CacheChange_t {
+    ChangeKind_t kind;                    // 变更类型 (ALIVE, NOT_ALIVE_DISPOSED, etc.)
+    GUID_t writerGUID;                    // 写入者 GUID
+    InstanceHandle_t instanceHandle...</p></div>
 <h2 id="_42">5. 发现协议类</h2>
 <h3 id="51-pdp-participant-discovery-protocol">5.1 PDP - 参与者发现协议 (Participant Discovery Protocol)</h3>
 <table>
@@ -1892,7 +1912,13 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例PDP (抽象基类)
+├── PDPSimple          // 标准 Simple PDP 实现
+├── PDPServer          // Discovery Server 服务器模式
+└── PDPClient          // Discovery Server 客户端模式
+ 代码示例class PDP {
+protected:
+    RTPSParticip...</p></div>
 <h2 id="_49">6. 辅助与工具类</h2>
 <h3 id="61-locator-">6.1 Locator - 网络定位器</h3>
 <table>
@@ -1986,7 +2012,10 @@
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">data_is_internal</span><span class="p">;</span><span class="w">            </span><span class="c1">// 数据是否内部管理</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例struct Locator_t {
+    int32_t kind;                     // 传输类型 (LOCATOR_KIND_UDPv4, etc.)
+    uint32_t port;                    // 端口号
+    octet address[16];                // IP 地址 (IPv4/IPv6)...</p></div>
 <h2 id="_53">7. 类关系图</h2>
 <h3 id="71-dds-layer">7.1 DDS Layer 完整类图</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
@@ -2114,7 +2143,9 @@
 <span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
 <span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DDS Layer                                          │
+│...</p></div>
 <h2 id="_54">8. 代码示例</h2>
 <h3 id="81-">8.1 完整的发布者-订阅者示例</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ==================== Publisher.cpp ====================</span>
@@ -2246,7 +2277,10 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// ==================== Publisher.cpp ====================
+#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fastdds dds="" p="" publ...<=""></fastdds></fastdds></fastdds></p></div>
 <h2 id="_55">9. 设计模式总结</h2>
 <table>
 <thead>
@@ -2314,15 +2348,6 @@
 <p><em>文档版本: 1.0<br/>
 最后更新: 2026-03-10<br/>
 作者: 旭旭助手</em></p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

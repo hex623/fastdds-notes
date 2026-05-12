@@ -124,7 +124,10 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS API 基础、RTPS 内部结构</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能跟踪 DomainParticipant → Publisher → DataWriter 的创建链</li><li style="margin:6px 0;">理解 write() 调用如何最终触发 RTPS 消息发送</li><li style="margin:6px 0;">掌握 Listener 回调在调用链中的触发时机</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">发送流程（DataWriter → 网络）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">接收流程（网络 → DataReader）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">完整数据流图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">关键设计模式</span></div></div>
 <h2 id="datawriter">发送流程（DataWriter → 网络）</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -220,7 +223,18 @@ Transport Layer (UDP/TCP/SHM)
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例DataWriter::write(data)
+  ↓
+DataWriterImpl::write()
+  [序列化: TypeSupport::serialize()]
+  ↓
+RTPSWriter::write()
+  [创建 CacheChange，分配 Seq#]
+  ↓
+WriterHistory::add_change()
+  [存入 History 缓存]
+  ↓
+RTPSW...</p></div>
 <h2 id="datareader">接收流程（网络 → DataReader）</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Transport Layer (收到 UDP 包)
   ↓
@@ -282,7 +296,18 @@ DataReader::take_next_sample()
 <span class="n">TypeSupport</span><span class="o">::</span><span class="n">deserialize</span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">data</span><span class="p">);</span>
 <span class="k">return</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Transport Layer (收到 UDP 包)
+  ↓
+RTPSParticipantImpl::receive_message()
+  ↓
+解析 RTPS Message
+  ↓
+RTPSReader::process_data()
+  ↓
+ReaderHistory::add_change()
+  [检查序列号，去重]
+  ↓
+send_acknack_if_needed()...</p></div>
 <h2 id="_3">完整数据流图</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
 │ 发送端 (Publisher)                                           │
@@ -324,7 +349,10 @@ DataReader::take_next_sample()
 │ Application                                                 │
 └─────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────┐
+│ 发送端 (Publisher)                                           │
+├─────────────────────────────────────────────────────────────┤
+│ Appl...</p></div>
 <h2 id="_4">关键设计模式</h2>
 <table>
 <thead>
@@ -359,7 +387,6 @@ DataReader::take_next_sample()
 </table>
 <hr/>
 <p><em>整理自 2026-03-03 调用链详解</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制基础、XML 配置基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能理解本文涉及的核心概念和机制</li><li style="margin:6px 0;">能结合代码示例理解实现原理</li><li style="margin:6px 0;">能在实际项目中应用所学知识</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">为什么需要双 Server 冗余</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">两种冗余架构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">Client 多归属架构详解</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">原理解析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">配置实现</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">故障场景分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">性能与资源分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">总结</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
@@ -198,7 +205,16 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例单 Server 故障场景：
+┌─────────────────┐
+│     Server      │◄── 宕机/网络中断
+│   (单点故障)     │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌───────┐ ┌───────┐
+│ClientA│ │ClientB│ ◄── 无法发现新节...</p></div>
 <h2 id="_2">两种冗余架构</h2>
 <h3 id="aclient-fast-dds">架构 A：Client 多归属（Fast-DDS 实现）</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────┐
@@ -255,7 +271,11 @@
 │  Fast-DDS 2.3+ 支持备份文件，但非实时同步     │
 └─────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────┐
+│                                             │
+│    ┌─────────┐         ┌─────────┐         │
+│    │ Server1 │         │ Server2 │         │
+│    │...</p></div>
 <h2 id="client">Client 多归属架构详解</h2>
 <h3 id="_3">发现数据库结构</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Server 维护的发现数据库 (Discovery Database)
@@ -315,7 +335,10 @@
      │    每 5-10 秒一次                        │
      │                                         │
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Server 维护的发现数据库 (Discovery Database)
+┌────────────────────────────────────────────────────┐
+│                                                    │
+│  ┌─────────────────┐  ┌─────────────────┐...</p></div>
 <h2 id="_4">原理解析</h2>
 <h3 id="_5">心跳检测状态机</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌────────────────────────────────────────────────┐
@@ -428,7 +451,10 @@ Server Prefix 生成规则：
 │     • 新节点最终会被所有 Client 发现                         │
 └─────────────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌────────────────────────────────────────────────┐
+│           Client 的心跳检测状态机               │
+│                                                │
+│     ┌─────────┐                                │...</p></div>
 <h2 id="_7">配置实现</h2>
 <h3 id="xml">XML 配置</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
@@ -523,7 +549,11 @@ Server Prefix 生成规则：
 <span class="c1"># 启动 ROS2 节点</span>
 ros2<span class="w"> </span>run<span class="w"> </span>demo_nodes_cpp<span class="w"> </span>talker
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例<?xml version="1.0" encoding="UTF-8"?>
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+<profiles>
+<!-- Client 配置 -->
+</profiles></dds></p></div>
 <h2 id="_8">故障场景分析</h2>
 <h3 id="server_3">Server 故障切换完整流程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>时间轴 ───────────────────────────────────────────────────────►
@@ -616,7 +646,12 @@ T3: Server1 恢复
 
 关键：只要至少一个 Server 可达，Client 就能正常工作
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例时间轴 ───────────────────────────────────────────────────────►
+
+T0: 正常运行
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ Client  │◄───────►│ Server1 │         │ Server2 │
+│         │  主连接  │ (...</p></div>
 <h2 id="_10">性能与资源分析</h2>
 <h3 id="_11">网络开销对比</h3>
 <table>
@@ -725,7 +760,14 @@ T3: Server1 恢复
 <span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="n">Client</span><span class="w"> </span><span class="n">优先使用延迟最低的</span><span class="w"> </span><span class="n">Server</span><span class="w">   </span><span class="err">│</span>
 <span class="w">   </span><span class="err">└──────────────────────────────────────┘</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例<discovery_config>
+<!-- 客户端重试间隔 -->
+<clientannouncementperiod>
+<sec>5</sec>
+<nanosec>0</nanosec>
+</clientannouncementperiod>
+<!-- 心跳保活周期 -->
+<keepaliveduration...< p=""></keepaliveduration...<></discovery_config></p></div>
 <h2 id="_14">总结</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
 │                    双 Server 核心要点                        │
@@ -756,16 +798,6 @@ T3: Server1 恢复
 <hr/>
 <p><strong>最后更新</strong>: 2026-03-23<br/>
 <strong>文档版本</strong>: v1.0</p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -785,7 +817,10 @@ T3: Server1 恢复
 <div class="label">下一篇 →</div>
 <div class="title">03B Topic详解</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例┌─────────────────────────────────────────────────────────────┐
+│                    双 Server 核心要点                        │
+├─────────────────────────────────────────────────────────────┤
+│...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

@@ -128,9 +128,15 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>Fast-DDS 基础、CMake 基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能使用 RTPS API 直接创建 Writer/Reader</li><li style="margin:6px 0;">理解 RTPSParticipant 和 Endpoint 的配置参数</li><li style="margin:6px 0;">掌握 RTPS 层与 DDS 层的 API 差异</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">学习目标</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">📚 RTPS vs DDS 对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">📁 源码结构</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">🔍 核心源码分析</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">🏗️ RTPS 架构图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">🚀 运行示例</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">🧪 实验任务</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">📚 与笔记关联</span></div></div>
 <h2 id="_1">🎯 学习目标</h2>
-
 <ol>
 <li>理解 RTPS 层与 DDS 层的区别</li>
 <li>掌握 RTPSWriter 和 RTPSReader 的直接使用</li>
@@ -362,7 +368,14 @@
 - Reader 需要手动释放 CacheChange，否则内存泄漏<br/>
 - onNewCacheChangeAdded 是 RTPSReaderListener 的回调<br/>
 - 需要处理 ChangeKind（ALIVE/NOT_ALIVE_DISPOSED 等）</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// RTPS 层不需要 DomainParticipant、Publisher、Subscriber
+// 直接使用 RTPSDomain 创建 RTPSParticipant
+
+bool WriterApp::init()
+{
+    // Step 1: 创建 RTPSParticipant
+    // RTPSParticipant 是 RTPS 层的入口
+    RTPSPar...</p></div>
 <h2 id="rtps">🏗️ RTPS 架构图</h2>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>RTPS Layer Architecture
 ═══════════════════════════════════════════════════════
@@ -395,7 +408,12 @@ Reader Side:
 │  Application                                        │
 └─────────────────────────────────────────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例RTPS Layer Architecture
+═══════════════════════════════════════════════════════
+
+Writer Side:
+┌─────────────────────────────────────────────────────┐
+│  Application...</p></div>
 <h2 id="_4">🚀 运行示例</h2>
 <h3 id="_5">编译</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/Documents/GitHub/Fast-DDS/examples/cpp/rtps
@@ -420,7 +438,16 @@ Message: Hello World with index 2 RECEIVED
 ...
 </code></pre></div>
 <p><strong>注意</strong>: 输出显示 GUID，这是 RTPS 层的端点标识（DDS 层隐藏了这些细节）</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例cd ~/Documents/GitHub/Fast-DDS/examples/cpp/rtps
+mkdir build &amp;&amp; cd build
+cmake ..
+make -j$(nproc)
+ 代码示例# 终端 1：启动 Reader
+./rtps reader
+
+# 终端 2：启动 Writer
+./rtps writer
+ Reader: 代码示例Registering RTPS...</p></div>
 <h2 id="_8">🧪 实验任务</h2>
 <h3 id="1-dds-rtps">实验 1：对比 DDS 和 RTPS 层性能</h3>
 <p>使用相同的硬件和测试场景：<br/>
@@ -440,7 +467,12 @@ Message: Hello World with index 2 RECEIVED
 <span class="n">writer_attr</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">remoteLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">remote_locator</span><span class="p">);</span>
 </code></pre></div>
 <p><strong>观察</strong>: Writer 是否能直接发送数据到 Reader？</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">使用相同的硬件和测试场景：
+1. 运行 hello_world 示例，记录延迟和吞吐量
+2. 运行 rtps 示例，记录延迟和吞吐量
+3. 对比结果 预期: RTPS 层略快（减少了 DDS 层的抽象开销） 修改代码，使用静态端点配置： 代码示例// 禁用自动发现
+participant_attr.builtin.discovery_config.discoveryProtocol =
+    D...</p></div>
 <h2 id="_9">📚 与笔记关联</h2>
 <table>
 <thead>

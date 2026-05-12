@@ -125,7 +125,13 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制基础、XML 配置基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能说明 Discovery Server 相比 Simple Discovery 的优势</li><li style="margin:6px 0;">理解 Server-Client 架构与直连 P2P 的区别</li><li style="margin:6px 0;">掌握 Backup/Redundancy 配置方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">为什么需要 Discovery Server</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">架构对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">工作原理</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">配置方法</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">高级配置</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">使用场景</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">最佳实践</span></div></div>
 <h2 id="discovery-server">为什么需要 Discovery Server</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -272,7 +278,13 @@ Client B (Reader) ──单播──► Server ──┘
 <span class="w">    </span><span class="nt">&lt;/rtps&gt;</span>
 <span class="nt">&lt;/participant&gt;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例fast-discovery-server -l 127.0.0.1 -p 11811
+ 代码示例// Client 端配置
+DomainParticipantQos qos;
+qos.wire_protocol().builtin.discovery_config.discoveryProtocol = 
+    DiscoveryProtocol_t::CLIENT;
+
+// 指定 S...</p></div>
 <h2 id="_5">高级配置</h2>
 <h3 id="server">Server 冗余（高可用）</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// 配置多个 Server</span>
@@ -316,7 +328,10 @@ Client B (Reader) ──单播──► Server ──┘
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 配置多个 Server
+qos.wire_protocol().builtin.discovery_config.m_DiscoveryServers.push_back(server1);
+qos.wire_protocol().builtin.discovery_config.m_DiscoveryServers.push_back(server2);
+qos.wire_prot...</p></div>
 <h2 id="_7">使用场景</h2>
 <table>
 <thead>
@@ -358,7 +373,6 @@ Client B (Reader) ──单播──► Server ──┘
 </ol>
 <hr/>
 <p><em>整理自 2026-03-05 Discovery Server 深度笔记</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

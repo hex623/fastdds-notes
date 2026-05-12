@@ -124,7 +124,12 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制、C++ 类设计</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 WriterProxy 和 ReaderProxy 的镜像关系</li><li style="margin:6px 0;">掌握 Proxy 中序列号追踪的实现原理</li><li style="margin:6px 0;">了解 Proxy 状态机（UNMATCHED → MATCHED）的转换条件</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">为什么需要 Proxy</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">WriterProxy（位于 Writer 端）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">ReaderProxy（位于 Reader 端）</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">Proxy 创建流程</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">Proxy 关系图</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">设计模式：代理模式</span></div></div>
 <h2 id="proxy">为什么需要 Proxy</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -214,7 +219,11 @@ Writer 收到 ACKNACK:
 <li>超时未收到则认为 Reader 离线</li>
 <li>清理对应 ReaderProxy</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例struct ReaderProxy {
+    GUID_t remoteReaderGuid;              // 远端 Reader ID
+    SequenceNumber_t acked_seq_num;       // Reader 已确认到
+    SequenceNumberSet requested_changes;  // 请求重传的序列号
+    st...</p></div>
 <h2 id="readerproxy-reader">ReaderProxy（位于 Reader 端）</h2>
 <h3 id="_3">数据结构</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">WriterProxy</span><span class="w"> </span><span class="p">{</span>
@@ -252,7 +261,11 @@ Writer 收到 ACKNACK:
 <li>超时未收到则认为 Writer 离线</li>
 <li>通知应用层连接断开</li>
 </ul>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例struct WriterProxy {
+    GUID_t remoteWriterGuid;
+    SequenceNumber_t last_available_seq;   // Writer 最新序列号
+    SequenceNumberSet missing_changes;     // 检测到的丢包
+    Time_t last_heartbeat_time;...</p></div>
 <h2 id="proxy_1">Proxy 创建流程</h2>
 <h3 id="writer-readerproxy">Writer 端创建 ReaderProxy</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>SEDP 匹配成功
@@ -292,7 +305,11 @@ Reader 得知有新的 Writer 匹配
 │ └─────────────┘ │────────────►│ └─────────────┘ │
 └─────────────────┘             └─────────────────┘
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Node A                          Node B
+┌─────────────────┐             ┌─────────────────┐
+│ Writer          │             │ Reader          │
+│ ┌─────────────┐ │             │ ┌─────────────┐ │
+│...</p></div>
 <h2 id="_5">设计模式：代理模式</h2>
 <table>
 <thead>
@@ -316,7 +333,6 @@ Reader 得知有新的 Writer 匹配
 - 支持离线检测和故障恢复</p>
 <hr/>
 <p><em>整理自 2026-03-03 Proxy 机制详解</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

@@ -127,9 +127,15 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>Fast-DDS 基础、CMake 基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">了解所有示例的分类和难度等级</li><li style="margin:6px 0;">能根据需求选择合适的示例作为起点</li><li style="margin:6px 0;">掌握示例项目的构建和运行方法</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">📚 教程系列概览</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">学习路径建议</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">📖 每个示例的学习方法</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">🛠️ 环境准备</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">学习笔记模板</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">运行结果</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">实验记录</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">与笔记关联</span></div></div>
 <h2 id="_1">📚 教程系列概览</h2>
-
 <p>Fast-DDS 官方提供了 <strong>13个 C++ 示例</strong>，涵盖了从基础到高级的各种使用场景。通过逐一学习这些示例，可以全面掌握 Fast-DDS 的核心概念和源码实现。</p>
 <h3 id="_2">示例列表</h3>
 <table>
@@ -234,7 +240,14 @@
 </tr>
 </tbody>
 </table>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Week 1: 基础入门
+├── Day 1-2: hello_world (理解基础 Pub/Sub)
+├── Day 3-4: rtps (理解 RTPS 层)
+└── Day 5-7: discovery_server (理解发现机制)
+
+Week 2: 进阶特性
+├── Day 1-2: configuration (XML 配置)
+├── Day 3-4: content_fil...</p></div>
 <h2 id="_4">📖 每个示例的学习方法</h2>
 <h3 id="_5">学习步骤</h3>
 <ol>
@@ -264,7 +277,14 @@
 <span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 1. 从 main 函数开始
+int main(int argc, char** argv)
+{
+    // 2. 关注实体创建顺序
+    DomainParticipant* participant = 
+        DomainParticipantFactory::get_instance()-&gt;create_participant(...);
+
+    // 3. 理...</p></div>
 <h2 id="_7">🛠️ 环境准备</h2>
 <h3 id="_8">编译示例代码</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 1. 进入 Fast-DDS 源码目录</span>

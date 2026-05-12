@@ -124,7 +124,10 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 异步编程、回调函数基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">理解 Listener（回调）和 WaitSet（轮询）两种事件机制的适用场景</li><li style="margin:6px 0;">掌握 StatusMask 配置和回调优先级规则</li><li style="margin:6px 0;">了解 WaitSet 中 Condition 的注册和触发机制</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">Listener 回调机制</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">WaitSet 条件等待</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">Listener vs WaitSet 对比</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">多线程数据处理</span></div></div>
 <h2 id="listener">Listener 回调机制</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -247,7 +250,11 @@
 <span class="w">    </span><span class="o">&amp;</span><span class="n">listener</span>
 <span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Listener 是 DDS 的事件驱动编程模型。 代码示例class MyReaderListener : public DataReaderListener {
+public:
+    void on_data_available(DataReader* reader) override {
+        HelloWorld data;
+        SampleInfo info;...</p></div>
 <h2 id="waitset">WaitSet 条件等待</h2>
 <p>WaitSet 是 DDS 的<strong>轮询</strong>编程模型，适合多路复用场景。</p>
 <h3 id="4-condition">4种 Condition</h3>
@@ -311,7 +318,14 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">WaitSet 是 DDS 的轮询编程模型，适合多路复用场景。 代码示例// 创建 WaitSet
+WaitSet wait_set;
+
+// 创建 ReadCondition
+ReadCondition* read_cond = reader-&gt;create_readcondition(
+    ANY_SAMPLE_STATE,
+    ANY_VIEW_STATE,
+    ANY_INST...</p></div>
 <h2 id="listener-vs-waitset">Listener vs WaitSet 对比</h2>
 <table>
 <thead>
@@ -395,7 +409,6 @@
 </code></pre></div>
 <hr/>
 <p><em>整理自 2026-03-03 Listener/WaitSet 笔记</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -415,7 +428,14 @@
 <div class="label">下一篇 →</div>
 <div class="title">09 进阶主题</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// Listener 只做通知，数据处理放到工作线程
+class MyListener : public DataReaderListener {
+    std::queue<cachechange_t*>&amp; queue_;
+    std::mutex&amp; mutex_;
+    std::condition_variable&amp; cv_;
+
+public:
+    void on_da...</cachechange_t*></p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

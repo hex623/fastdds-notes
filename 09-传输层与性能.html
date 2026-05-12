@@ -124,7 +124,12 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>网络协议基础、DDS 传输层概念</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能对比 UDP、TCP、SHM 三种传输的优缺点</li><li style="margin:6px 0;">理解 TransportInterface 的抽象设计</li><li style="margin:6px 0;">掌握 Locator 的解析与匹配逻辑</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">传输层类型</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">UDPv4 传输</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">TCPv4 传输</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">SHM 共享内存</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">性能优化策略</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">性能测试方法</span></div></div>
 <h2 id="_1">传输层类型</h2>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
@@ -214,7 +219,12 @@
 <span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">udp_transport</span><span class="p">);</span>
 <span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例DomainParticipantQos qos;
+
+// 添加 UDPv4 传输
+auto udp_transport = std::make_shared<udpv4transportdescriptor>();
+udp_transport-&gt;sendBufferSize = 1048576;  // 1MB 发送缓冲
+udp_transport-&gt;receiveBufferSize...</udpv4transportdescriptor></p></div>
 <h2 id="tcpv4">TCPv4 传输</h2>
 <h3 id="_4">特点</h3>
 <ul>
@@ -240,7 +250,13 @@
 <span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">wan_locator</span><span class="p">,</span><span class="w"> </span><span class="s">"203.0.113.1"</span><span class="p">);</span>
 <span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">metatrafficUnicastLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">wan_locator</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例DomainParticipantQos qos;
+
+// 添加 TCPv4 传输
+auto tcp_transport = std::make_shared<tcpv4transportdescriptor>();
+tcp_transport-&gt;add_listener_port(5100);
+tcp_transport-&gt;sendBufferSize = 1048576;
+tcp_tr...</tcpv4transportdescriptor></p></div>
 <h2 id="shm">SHM 共享内存</h2>
 <h3 id="_6">特点</h3>
 <ul>
@@ -327,7 +343,10 @@
 <span class="n">writer_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
 <span class="n">writer_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_ALL_HISTORY_QOS</span><span class="p">;</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// 使用 SHM 共享内存实现零拷贝
+auto shm_transport = std::make_shared<sharedmemtransportdescriptor>();
+shm_transport-&gt;segment_size(10 * 1024 * 1024);  // 10MB
+qos.transport().user_transports.push_back(shm_tra...</sharedmemtransportdescriptor></p></div>
 <h2 id="_10">性能测试方法</h2>
 <h3 id="_11">吞吐量测试</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 使用 Fast-DDS 自带性能测试工具</span>
@@ -371,7 +390,6 @@
 </table>
 <hr/>
 <p><em>整理自 2026-03-03 传输层与性能笔记</em></p>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -391,7 +409,14 @@
 <div class="label">下一篇 →</div>
 <div class="title">10 DDS-Security</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例# 使用 Fast-DDS 自带性能测试工具
+./DDSPerfTest --data_size=1024 --sample_count=10000
+ 代码示例# 往返延迟测试
+./DDSLatencyTest --data_size=256 --sample_count=1000
+ 整理自 2026-03-03 传输层与性能笔记 
+🔗 相关阅读
+
+04 - Fast-DDS QoS 策略...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>

@@ -125,7 +125,14 @@
 <div class="prereq-box">
 <h4>📋 前置知识</h4>
 <p>DDS 发现机制基础、XML 配置基础</p>
-</div>
+</div><div class="checklist" style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin:20px 0;"><h4 style="color:#7ee787; margin:0 0 12px 0; font-size:1em;">✅ 学习自检清单</h4><ul style="margin:0; padding-left:20px; color:#8b949e;"><li style="margin:6px 0;">能区分 Topic、Type、Instance 的层级关系</li><li style="margin:6px 0;">理解 keyed topic 与 unkeyed topic 的区别</li><li style="margin:6px 0;">掌握 TopicQos 的常用配置项</li></ul></div><div class="section-roadmap" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;margin:16px 0;"><h4 style="color:#7ee787;margin:0 0 10px 0;font-size:0.95em;">📋 本文结构</h4><div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">1</span><span style="color:#c9d1d9;font-size:0.9em;">什么是 Topic</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">2</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 的核心组件</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">3</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 的创建与销毁</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">4</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 与数据类型的绑定</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">5</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 的 QoS 策略</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">6</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 与 Writer/Reader 的关系</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">7</span><span style="color:#c9d1d9;font-size:0.9em;">动态 Topic</span></div>
+<div class="roadmap-item" style="display:flex;align-items:center;margin:4px 0;"><span style="background:#58a6ff;color:#0d1117;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;margin-right:8px;">8</span><span style="color:#c9d1d9;font-size:0.9em;">Topic 匹配机制</span></div></div>
 <div class="demo-container">
 <div class="demo-title">🔔 流程演示</div>
 <svg class="svg-animate" viewbox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
@@ -209,7 +216,14 @@
 <span class="w">    </span><span class="p">.</span><span class="n">type_support</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TemperatureTypeSupport</span><span class="w">  </span><span class="c1">// 类型支持</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">Topic 是 DDS 中数据分发的逻辑通道，可以理解为：
+- 消息队列中的队列名称
+- ROS 中的 topic 名称
+- MQTT 中的主题 类比： 代码示例电视频道类比：
+- Topic = 频道名称 (如 "CCTV-1", "HBO")
+- DataWriter = 电视台 (发送信号)
+- DataReader = 电视机 (接收信号)
+- 数据类型 = 视频格式 (如 4K, 108...</p></div>
 <h2 id="topic_2">Topic 的核心组件</h2>
 <h3 id="1-topic">1. Topic 类层次结构</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="nx">DomainParticipant</span>
@@ -268,7 +282,13 @@
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例DomainParticipant
+    └── Topic (多个)
+            ├── TopicDescription
+            │       ├── name: "sensor/temp"
+            │       └── type_name: "Temperature"
+            │
+            ├── Typ...</p></div>
 <h2 id="topic_3">Topic 的创建与销毁</h2>
 <h3 id="_3">创建流程</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// Step 1: 创建 Participant</span>
@@ -309,7 +329,12 @@
 <span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">delete_participant</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
 </code></pre></div>
 <p><strong>重要</strong>：销毁顺序不能错，否则会导致内存泄漏或崩溃！</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// Step 1: 创建 Participant
+DomainParticipant* participant = 
+    DomainParticipantFactory::get_instance()-&gt;create_participant(0, PARTICIPANT_QOS_DEFAULT);
+
+// Step 2: 注册数据类型
+HelloWorldTypeSupport t...</p></div>
 <h2 id="topic_4">Topic 与数据类型的绑定</h2>
 <h3 id="fast-dds-gen">方式一：Fast DDS-Gen 自动生成（推荐）</h3>
 <p><strong>步骤</strong>：</p>
@@ -369,7 +394,19 @@ fastddsgen<span class="w"> </span>HelloWorld.idl
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">步骤： 代码示例# 1. 定义 IDL 文件
+cat &gt; HelloWorld.idl &lt;&lt; 'EOF'
+struct HelloWorld {
+    unsigned long index;
+    string message;
+};
+EOF
+
+# 2. 使用 Fast DDS-Gen 生成代码
+fastddsgen HelloWorld.idl
+
+# 生成文件：
+# - HelloWorl...</p></div>
 <h2 id="topic-qos">Topic 的 QoS 策略</h2>
 <h3 id="topic-qos_1">Topic 级别的 QoS</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="n">TopicQos</span><span class="w"> </span><span class="n">topic_qos</span><span class="p">;</span>
@@ -413,7 +450,14 @@ KEEP_ALL          KEEP_LAST(depth=10) ❌ 不匹配 (writer 要求更多)
 KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 </code></pre></div>
 <p><strong>最佳实践</strong>：Topic 上设置默认 QoS，Writer/Reader 可以覆盖。</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例TopicQos topic_qos;
+
+// 1. 可靠性
+topic_qos.reliability().kind = RELIABLE_RELIABILITY_QOS;
+// 或 BEST_EFFORT_RELIABILITY_QOS (传感器数据)
+
+// 2. 持久性
+topic_qos.durability().kind = TRANSIENT_LOCAL_DURABILITY...</p></div>
 <h2 id="topic-writerreader">Topic 与 Writer/Reader 的关系</h2>
 <h3 id="_5">一对多关系</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>Topic: "sensor/temperature"
@@ -456,7 +500,14 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 <span class="c1">// Reader 会收到来自两个 Writer 的数据</span>
 </code></pre></div>
 <p><strong>注意</strong>：如果有多个 Writer，Reader 需要区分数据来源！</p>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例Topic: "sensor/temperature"
+├── DataWriter (Publisher A)
+├── DataWriter (Publisher B)
+├── DataReader (Subscriber X)
+└── DataReader (Subscriber Y)
+
+多个 Writer 可以写入同一个 Topic
+多个 Reader 可以从同一个 Topic 读取...</p></div>
 <h2 id="topic_5">动态 Topic</h2>
 <h3 id="topic_6">场景：运行时创建 Topic</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DynamicTopicManager</span><span class="w"> </span><span class="p">{</span>
@@ -488,7 +539,11 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 <span class="w">    </span><span class="c1">// 使用已存在的 Topic</span>
 <span class="p">}</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例class DynamicTopicManager {
+public:
+    // 根据配置动态创建 Topic
+    Topic* create_topic_by_config(const std::string&amp; topic_name, 
+                                   const std::string&amp; type_name) {...</p></div>
 <h2 id="topic_8">Topic 匹配机制</h2>
 <h3 id="_6">匹配条件</h3>
 <p>两个 Endpoint (Writer &amp; Reader) 匹配的条件：</p>
@@ -521,7 +576,11 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 <span class="w">    </span><span class="p">}</span>
 <span class="p">};</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">两个 Endpoint (Writer &amp; Reader) 匹配的条件： 代码示例bool match(WriterAttributes writer, ReaderAttributes reader) {
+    // 1. Topic 名称必须相同
+    if (writer.topic_name != reader.topic_name) return false;
+
+    // 2....</p></div>
 <h2 id="_8">最佳实践</h2>
 <h3 id="1-topic_1">1. Topic 命名规范</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1">// ✅ 好的命名：层次化、清晰</span>
@@ -573,7 +632,18 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 <span class="c1">// 检查匹配的 Reader 数量</span>
 <span class="c1">// (通过 WriterListener 的回调统计)</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例// ✅ 好的命名：层次化、清晰
+"sensor/temperature/living_room"
+"robot/cmd_vel"
+"system/log/error"
+
+// ❌ 差的命名：模糊、易冲突
+"temp"
+"data"
+"topic1"
+ 代码示例// 使用命名空间区分版本
+struct SensorData_v1 { ... };
+struct SensorData_v2...</p></div>
 <h2 id="_9">代码示例</h2>
 <h3 id="_10">完整示例：传感器数据发布</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
@@ -688,7 +758,10 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 <span class="n">SensorData</span><span class="w"> </span><span class="n">temp_data</span><span class="p">{...};</span>
 <span class="n">pub</span><span class="p">.</span><span class="n">publish</span><span class="p">(</span><span class="s">"sensor/temp"</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">temp_data</span><span class="p">);</span>
 </code></pre></div>
-<hr/>
+<hr/><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例#include <fastdds dds="" domain="" domainparticipantfactory.hpp="">
+#include <fastdds dds="" domain="" domainparticipant.hpp="">
+#include <fastdds dds="" topic="" typesupport.hpp="">
+#include <fastdds dds="" p="" publishe...<="" publisher=""></fastdds></fastdds></fastdds></fastdds></p></div>
 <h2 id="_11">总结</h2>
 <h3 id="topic_10">Topic 核心要点</h3>
 <ol>
@@ -742,16 +815,6 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 - <a href="13-Example-01-HelloWorld.html">13-Example-01-HelloWorld.md</a> - 完整示例</p>
 <p><strong>最后更新</strong>: 2026-03-05<br/>
 <strong>文档版本</strong>: v1.0</p>
-<div class="checklist">
-<h3>✅ 学习检查清单</h3>
-<ul>
-<li>理解了核心概念和原理</li>
-<li>能够解释关键流程和机制</li>
-<li>可以在实际项目中应用</li>
-<li>能够排查常见问题</li>
-</ul>
-</div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>
@@ -771,7 +834,11 @@ KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
 <div class="label">下一篇 →</div>
 <div class="title">04 QoS实现</div>
 </a>
-</div>
+</div><div class="key-takeaway" style="background:linear-gradient(135deg,#1a2332 0%,#0d1117 100%);border-left:3px solid #f0883e;border-radius:4px;padding:12px 14px;margin:16px 0;"><p style="color:#f0883e;font-size:0.85em;font-weight:600;margin:0 0 4px 0;">💡 本节要点</p><p style="color:#8b949e;font-size:0.88em;margin:0;line-height:1.5;">代码示例了解概念 → 创建 Topic → 绑定 Writer/Reader → 配置 QoS → 动态管理 → 性能优化
+   ↑                                                               ↓
+   └──────────────── 实践和调试 ← 监控和日志 ← 异常处理 ──────────┘
+ 相关文档:
+- 02-DDS...</p></div>
 </main>
 </div>
 <button class="back-to-top">↑ 回到顶部</button>
