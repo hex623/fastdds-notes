@@ -124,49 +124,43 @@
 </div>
 <h2 id="1">1. 概述</h2>
 <div class="demo-container">
-<div class="demo-title">🔔 流程演示</div>
+<div class="demo-title">🔔 数据传输流程</div>
 <svg class="svg-animate" viewbox="0 0 600 280" xmlns="http://www.w3.org/2000/svg">
 <defs>
 <marker id="arrow" markerheight="10" markerwidth="10" orient="auto" refx="9" refy="3">
 <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"></path>
 </marker>
 </defs>
-<!-- Participant A -->
-<rect fill="#161b22" height="200" rx="8" stroke="#30363d" stroke-width="2" width="140" x="50" y="40"></rect>
-<text fill="#7ee787" font-size="14" font-weight="600" text-anchor="middle" x="120" y="65">Participant A</text>
-<rect fill="#0d1117" height="36" rx="4" stroke="#58a6ff" stroke-width="1.5" width="100" x="70" y="80"></rect>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="120" y="103">Writer</text>
-<rect fill="#0d1117" height="36" rx="4" stroke="#f0883e" stroke-width="1.5" width="100" x="70" y="130"></rect>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="120" y="153">Reader</text>
-<circle class="node" cx="120" cy="200" fill="#0d1117" r="20" stroke="#58a6ff" stroke-width="2" style="animation: pulse 2s ease-in-out infinite"></circle>
-<text fill="#58a6ff" font-size="10" text-anchor="middle" x="120" y="206">SEDP</text>
-<!-- Participant B -->
-<rect fill="#161b22" height="200" rx="8" stroke="#30363d" stroke-width="2" width="140" x="410" y="40"></rect>
-<text fill="#7ee787" font-size="14" font-weight="600" text-anchor="middle" x="480" y="65">Participant B</text>
-<rect fill="#0d1117" height="36" rx="4" stroke="#58a6ff" stroke-width="1.5" width="100" x="430" y="80"></rect>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="480" y="103">Writer</text>
-<rect fill="#0d1117" height="36" rx="4" stroke="#f0883e" stroke-width="1.5" width="100" x="430" y="130"></rect>
-<text fill="#c9d1d9" font-size="12" text-anchor="middle" x="480" y="153">Reader</text>
-<circle class="node" cx="480" cy="200" fill="#0d1117" r="20" stroke="#58a6ff" stroke-width="2" style="animation: pulse 2s ease-in-out infinite; animation-delay: 1s"></circle>
-<text fill="#58a6ff" font-size="10" text-anchor="middle" x="480" y="206">SEDP</text>
-<!-- SPDP Multicast -->
-<ellipse cx="300" cy="120" fill="none" opacity="0.6" rx="80" ry="40" stroke="#58a6ff" stroke-dasharray="6,4" stroke-width="1.5">
-<animate attributename="rx" dur="3s" repeatcount="indefinite" values="60;100;60"></animate>
-<animate attributename="ry" dur="3s" repeatcount="indefinite" values="30;50;30"></animate>
-<animate attributename="opacity" dur="3s" repeatcount="indefinite" values="0.6;0.2;0.6"></animate>
-</ellipse>
-<text fill="#58a6ff" font-size="12" text-anchor="middle" x="300" y="125">SPDP Multicast</text>
+<!-- Publisher Layer -->
+<rect fill="#161b22" height="80" rx="8" stroke="#30363d" stroke-width="2" width="180" x="20" y="40"></rect>
+<text fill="#7ee787" font-size="14" font-weight="600" text-anchor="middle" x="110" y="65">Publisher Layer</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#58a6ff" stroke-width="1.5" width="140" x="40" y="75"></rect>
+<text fill="#c9d1d9" font-size="11" text-anchor="middle" x="110" y="95">DataWriter + QoS</text>
+<!-- Transport Layer -->
+<rect fill="#161b22" height="200" rx="8" stroke="#58a6ff" stroke-width="2" width="200" x="200" y="40"></rect>
+<text fill="#7ee787" font-size="14" font-weight="600" text-anchor="middle" x="300" y="65">Transport Layer</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#f0883e" stroke-width="1.5" width="160" x="220" y="80"></rect>
+<text fill="#c9d1d9" font-size="11" text-anchor="middle" x="300" y="100">TransportInterface</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#58a6ff" stroke-width="1.5" width="160" x="220" y="125"></rect>
+<text fill="#c9d1d9" font-size="11" text-anchor="middle" x="300" y="145">UDPv4 / TCPv4 / SHM</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#7ee787" stroke-width="1.5" width="160" x="220" y="170"></rect>
+<text fill="#c9d1d9" font-size="11" text-anchor="middle" x="300" y="190">Locator + Channel</text>
+<!-- Subscriber Layer -->
+<rect fill="#161b22" height="80" rx="8" stroke="#30363d" stroke-width="2" width="180" x="420" y="40"></rect>
+<text fill="#7ee787" font-size="14" font-weight="600" text-anchor="middle" x="510" y="65">Subscriber Layer</text>
+<rect fill="#0d1117" height="32" rx="4" stroke="#f0883e" stroke-width="1.5" width="140" x="440" y="75"></rect>
+<text fill="#c9d1d9" font-size="11" text-anchor="middle" x="510" y="95">DataReader + QoS</text>
 <!-- Data Flow -->
-<path d="M 190 98 Q 300 98 420 153" fill="none" marker-end="url(#arrow)" stroke="#7ee787" stroke-dasharray="8,4" stroke-width="2">
-<animate attributename="stroke-dashoffset" dur="1s" from="0" repeatcount="indefinite" to="-12"></animate>
+<path d="M 200 95 L 420 95" fill="none" marker-end="url(#arrow)" stroke="#58a6ff" stroke-dasharray="8,4" stroke-width="2">
+<animate attributename="stroke-dashoffset" dur="1.5s" from="0" repeatcount="indefinite" to="-12"></animate>
 </path>
-<text fill="#7ee787" font-size="11" text-anchor="middle" x="300" y="85">Data</text>
-<path d="M 430 153 Q 300 153 190 98" fill="none" marker-end="url(#arrow)" stroke="#f0883e" stroke-dasharray="8,4" stroke-width="2">
-<animate attributename="stroke-dashoffset" dur="1.2s" from="0" repeatcount="indefinite" to="-12"></animate>
+<text fill="#58a6ff" font-size="11" text-anchor="middle" x="310" y="85">RTPS Message</text>
+<path d="M 420 180 L 200 180" fill="none" marker-end="url(#arrow)" stroke="#f0883e" stroke-dasharray="8,4" stroke-width="2">
+<animate attributename="stroke-dashoffset" dur="1.5s" from="0" repeatcount="indefinite" to="-12"></animate>
 </path>
-<text fill="#f0883e" font-size="11" text-anchor="middle" x="300" y="170">ACKNACK</text>
+<text fill="#f0883e" font-size="11" text-anchor="middle" x="310" y="195">ACK / NACK</text>
 </svg>
-<div class="demo-caption">鼠标悬停查看各组件详细说明</div>
+<div class="demo-caption">Fast-DDS 传输层：DataWriter → TransportInterface → DataReader</div>
 </div>
 <p>Fast-DDS 传输层负责 RTPS 消息在网络中的实际收发。它提供了一个可扩展的架构，支持多种底层传输协议，包括 UDPv4、UDPv6、TCPv4、TCPv6 以及共享内存 (SHM) 传输。本章将深入分析传输层的架构设计、核心接口实现以及各种传输协议的特点和配置方法。</p>
 <hr/>
@@ -846,7 +840,6 @@ TCP      ~1-2 GB/s
 <li>能够排查常见问题</li>
 </ul>
 </div>
-
 <div class="related-links">
 <h3>🔗 相关阅读</h3>
 <ul>

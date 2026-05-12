@@ -181,19 +181,21 @@ sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </
 <h3 id="21-dds">2.1 确定 DDS 使用的端口</h3>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>DDS 默认端口计算:
 <span class="k">-</span> Domain ID 0: 
-  <span class="k">-</span> Discovery: 7400 (用于 SPDP/SEDP 发现)
+  <span class="k">-</span> SPDP (发现): 7400 (用于 SPDP/SEDP 发现)
+  <span class="k">-</span> SEDP (元数据): 7401 (用于元数据交换)
   <span class="k">-</span> User Data: 7410 (用于实际数据传输)
-  <span class="k">-</span> 7411 (备用)
+  <span class="k">-</span> 7411 (备用, P=1时使用)
 
-<span class="k">-</span> Domain ID X:
-  <span class="k">-</span> Discovery: 7400 + X*2
-  <span class="k">-</span> User Data: 7410 + X*10
-  <span class="k">-</span> 7411 + X*10
+<span class="k">-</span> Domain ID X, Participant Index P:
+  <span class="k">-</span> SPDP (发现): 7400 + X*250 + P*2
+  <span class="k">-</span> SEDP (元数据): 7400 + X*250 + P*2 + 1
+  <span class="k">-</span> User Data: 7401 + X*250 + P*10
+  <span class="k">-</span> (X=DomainID, P=ParticipantIndex)
 
 示例:
-<span class="k">-</span> Domain 0: 7400, 7410, 7411
-<span class="k">-</span> Domain 1: 7402, 7420, 7421
-<span class="k">-</span> Domain 5: 7650, 7651 (单Participant情况)
+<span class="k">-</span> Domain 0, P=0: 7400(SPDP), 7401(SEDP), 7410(User)
+<span class="k">-</span> Domain 1, P=0: 7650(SPDP), 7651(SEDP), 7660(User)
+<span class="k">-</span> Domain 5, P=0: 8650(SPDP), 8651(SEDP), 8660(User)
 </code></pre></div>
 <h3 id="22">2.2 开始捕获</h3>
 <p><strong>步骤 1: 选择网络接口</strong></p>
@@ -204,13 +206,13 @@ sudo<span class="w"> </span>usermod<span class="w"> </span>-a<span class="w"> </
 <p><strong>步骤 2: 设置捕获过滤器</strong></p>
 <p>在捕获前设置过滤器，只捕获 DDS 相关流量：</p>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code>捕获过滤器 (Capture Filter):
-udp portrange 7400-7500
+udp portrange 7400-7800  (覆盖 Domain 0-15)
 
-或者指定具体端口:
-udp port 7400 or udp port 7410 or udp port 7411
+或者指定 Domain 0:
+udp port 7400 or udp port 7401 or udp port 7410
 
 如果是特定 Domain ID (例如 Domain 5):
-udp port 7410 or udp port 7460 or udp port 7461
+udp port 7650 or udp port 7651 or udp port 7660
 </code></pre></div>
 <p><strong>步骤 3: 运行 DDS 程序</strong></p>
 <div class="codehilite"><div class="code-header">代码示例</div><pre><span></span><code><span class="c1"># 启动 DDS 发布者</span>
