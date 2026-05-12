@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDS Instance Management（实例管理）详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item active" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 17-Instance-Management</div>
+        <h1 id="dds-instance-management">DDS Instance Management（实例管理）详解</h1>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-instance-概念与核心原理">Instance 概念与核心原理</a></li>
+<li><a href="#2-instance-的生命周期">Instance 的生命周期</a></li>
+<li><a href="#3-key-的定义与作用">Key 的定义与作用</a></li>
+<li><a href="#4-三种-state-详解">三种 State 详解</a></li>
+<li><a href="#5-源码实现分析">源码实现分析</a></li>
+<li><a href="#6-reader-端的-instance-管理">Reader 端的 Instance 管理</a></li>
+<li><a href="#7-实战示例">实战示例</a></li>
+<li><a href="#8-最佳实践">最佳实践</a></li>
+</ol>
+<hr/>
+<h2 id="1-instance">1. Instance 概念与核心原理</h2>
+<h3 id="11-instance">1.1 什么是 Instance？</h3>
+<p>在 DDS 中，<strong>Instance</strong> 是由 <strong>Key</strong> 标识的一组相关数据样本的集合。它是 DDS 区别于普通 Pub/Sub 系统的核心概念。</p>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                      DDS Instance 概念                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  传统 Pub/Sub (无 Instance):                                    │
+│  ┌─────────┐      Topic: "Temperature"      ┌─────────┐        │
+│  │ Writer  │  ───────────────────────────→  │ Reader  │        │
+│  └─────────┘                                └─────────┘        │
+│       │ 25°C                                          25°C      │
+│       │ 26°C                                          26°C      │
+│       │ 27°C                                          27°C      │
+│       └─→ 只是连续的数据流，无法区分是哪个传感器               │
+│                                                                  │
+│  DDS (有 Instance):                                             │
+│  ┌─────────┐      Topic: "Temperature"      ┌─────────┐        │
+│  │ Writer  │  ───────────────────────────→  │ Reader  │        │
+│  └─────────┘                                └─────────┘        │
+│       │                                                          │
+│       ├─ Instance A (sensor_id=1): 25°C, 26°C, 27°C...         │
+│       ├─ Instance B (sensor_id=2): 30°C, 31°C, 32°C...         │
+│       └─ Instance C (sensor_id=3): 20°C, 21°C, 22°C...         │
+│           ↑                                                      │
+│           └── Key = sensor_id，区分不同数据源                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="12-instance">1.2 为什么需要 Instance？</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景：追踪多个目标的位置</span>
+
+<span class="c1">// 不用 Instance（笨拙做法）</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">TargetPosition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">target_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// 需要手动携带ID</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="c1">// 问题：Reader 无法自动知道目标何时消失</span>
+
+<span class="c1">// 用 Instance（DDS 原生支持）</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">TargetPosition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">target_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// Key 定义 Instance</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="c1">// 优势：</span>
+<span class="c1">// 1. DDS 自动管理每个目标的生命周期</span>
+<span class="c1">// 2. 支持 Instance 级别的通知（目标出现/消失）</span>
+<span class="c1">// 3. 可以独立追踪每个目标的状态</span>
+</code></pre></div>
+<h3 id="13-instance-vs-sample">1.3 Instance vs Sample</h3>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>含义</th>
+<th>类比</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Instance</strong></td>
+<td>由 Key 标识的实体</td>
+<td>一个传感器、一个用户、一个目标</td>
+</tr>
+<tr>
+<td><strong>Sample</strong></td>
+<td>某个时间点 Instance 的数据值</td>
+<td>一次温度读数、一次位置更新</td>
+</tr>
+</tbody>
+</table>
+<div class="codehilite"><pre><span></span><code>Instance (目标A, key="A"):
+├── Sample 1: {time=t1, x=100, y=200}
+├── Sample 2: {time=t2, x=105, y=205}
+├── Sample 3: {time=t3, x=110, y=210}
+└── ...
+
+Instance (目标B, key="B"):
+├── Sample 1: {time=t1, x=300, y=400}
+├── Sample 2: {time=t2, x=305, y=405}
+└── ...
+</code></pre></div>
+<hr/>
+<h2 id="2-instance">2. Instance 的生命周期</h2>
+<h3 id="21">2.1 生命周期状态图</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">graph</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Writer</span><span class="p">[</span><span class="s">"Writer 端状态"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">direction</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">        </span><span class="n">W_UNREG</span><span class="p">[</span><span class="s">"UNREGISTERED&lt;br/&gt;未注册"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">W_ALIVE</span><span class="p">[</span><span class="s">"ALIVE&lt;br/&gt;活跃"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">W_DISPOSE</span><span class="p">[</span><span class="s">"DISPOSED&lt;br/&gt;已删除"</span><span class="p">]</span>
+
+<span class="w">        </span><span class="n">W_UNREG</span><span class="w"> </span><span class="o">--</span><span class="s">"write"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">W_ALIVE</span>
+<span class="w">        </span><span class="n">W_ALIVE</span><span class="w"> </span><span class="o">--</span><span class="s">"write"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">W_ALIVE</span>
+<span class="w">        </span><span class="n">W_ALIVE</span><span class="w"> </span><span class="o">--</span><span class="s">"dispose"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">W_DISPOSE</span>
+<span class="w">        </span><span class="n">W_ALIVE</span><span class="w"> </span><span class="o">--</span><span class="s">"unregister"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">W_UNREG</span>
+<span class="w">        </span><span class="n">W_DISPOSE</span><span class="w"> </span><span class="o">--</span><span class="s">"write"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">W_ALIVE</span>
+<span class="w">    </span><span class="k">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Reader</span><span class="p">[</span><span class="s">"Reader 端状态"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">direction</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">        </span><span class="n">R_NO</span><span class="p">[</span><span class="s">"NO_INSTANCE&lt;br/&gt;无实例"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">R_ALIVE</span><span class="p">[</span><span class="s">"ALIVE&lt;br/&gt;活跃"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">R_NOT_ALIVE_DIS</span><span class="p">[</span><span class="s">"NOT_ALIVE_DISPOSED&lt;br/&gt;已删除"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">R_NOT_ALIVE_UNREG</span><span class="p">[</span><span class="s">"NOT_ALIVE_NO_WRITERS&lt;br/&gt;无写入者"</span><span class="p">]</span>
+
+<span class="w">        </span><span class="n">R_NO</span><span class="w"> </span><span class="o">--</span><span class="s">"接收数据"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">R_ALIVE</span>
+<span class="w">        </span><span class="n">R_ALIVE</span><span class="w"> </span><span class="o">--</span><span class="s">"接收dispose"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">R_NOT_ALIVE_DIS</span>
+<span class="w">        </span><span class="n">R_ALIVE</span><span class="w"> </span><span class="o">--</span><span class="s">"租约过期"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">R_NOT_ALIVE_UNREG</span>
+<span class="w">        </span><span class="n">R_NOT_ALIVE_DIS</span><span class="w"> </span><span class="o">--</span><span class="s">"接收数据"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">R_ALIVE</span>
+<span class="w">        </span><span class="n">R_NOT_ALIVE_UNREG</span><span class="w"> </span><span class="o">--</span><span class="s">"接收数据"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">R_ALIVE</span>
+<span class="w">    </span><span class="k">end</span>
+
+<span class="w">    </span><span class="n">Writer</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="s">"网络传输"</span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Reader</span>
+</code></pre></div>
+<h3 id="22-writer">2.2 Writer 端操作</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 1. 隐式注册（写入时自动注册）</span>
+<span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">;</span>
+<span class="n">TargetPosition</span><span class="w"> </span><span class="n">pos</span><span class="p">;</span>
+<span class="n">pos</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Target_A"</span><span class="p">;</span><span class="w">  </span><span class="c1">// key</span>
+<span class="n">pos</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">200</span><span class="p">;</span>
+<span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pos</span><span class="p">);</span><span class="w">  </span><span class="c1">// 自动创建 Instance</span>
+
+<span class="c1">// 2. 显式注册（获取 handle 用于后续操作）</span>
+<span class="n">TargetPosition</span><span class="w"> </span><span class="n">key_holder</span><span class="p">;</span>
+<span class="n">key_holder</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Target_A"</span><span class="p">;</span>
+<span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">register_instance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key_holder</span><span class="p">);</span>
+
+<span class="c1">// 3. 使用 handle 写入</span>
+<span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pos</span><span class="p">,</span><span class="w"> </span><span class="n">handle</span><span class="p">);</span>
+
+<span class="c1">// 4. 标记实例为"已删除"（生命周期结束）</span>
+<span class="n">writer</span><span class="o">-&gt;</span><span class="n">dispose</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+<span class="c1">// 等价于: writer-&gt;write(&amp;pos, handle, DISPOSE);</span>
+
+<span class="c1">// 5. 注销实例（不再关注）</span>
+<span class="n">writer</span><span class="o">-&gt;</span><span class="n">unregister_instance</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="23-changekind_t">2.3 ChangeKind_t：样本的生命周期语义</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/common/CacheChange.h</span>
+
+<span class="k">enum</span><span class="w"> </span><span class="nc">ChangeKind_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                          </span><span class="c1">// 正常数据样本</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">,</span><span class="w">             </span><span class="c1">// 实例被显式删除 (dispose)</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_UNREGISTERED</span><span class="p">,</span><span class="w">         </span><span class="c1">// 实例被注销 (unregister)</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_DISPOSED_UNREGISTERED</span><span class="w"> </span><span class="c1">// 既删除又注销</span>
+<span class="p">};</span>
+</code></pre></div>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                      </span><span class="n">ChangeKind</span><span class="w"> </span><span class="err">语义</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">ALIVE</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">含义</span><span class="o">:</span><span class="w"> </span><span class="s">"这是某个 Instance 的新数据"</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">场景</span><span class="o">:</span><span class="w"> </span><span class="n">write</span><span class="p">()</span><span class="w"> </span><span class="err">正常写入</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nl">Reader:</span><span class="w"> </span><span class="err">更新实例状态为</span><span class="w"> </span><span class="n">ALIVE</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">含义</span><span class="o">:</span><span class="w"> </span><span class="s">"这个 Instance 被逻辑删除了"</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">场景</span><span class="o">:</span><span class="w"> </span><span class="n">dispose</span><span class="p">()</span><span class="w"> </span><span class="err">或带</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="err">的写操作标记删除</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">语义</span><span class="o">:</span><span class="w"> </span><span class="s">"目标已摧毁"</span><span class="err">、</span><span class="s">"用户已下线"</span><span class="err">、</span><span class="s">"订单已完成"</span><span class="w">            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nl">Reader:</span><span class="w"> </span><span class="err">更新实例状态，触发</span><span class="w"> </span><span class="n">on_data_available</span><span class="p">()</span><span class="w">             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">NOT_ALIVE_UNREGISTERED</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">含义</span><span class="o">:</span><span class="w"> </span><span class="s">"Writer 不再关注这个 Instance"</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">场景</span><span class="o">:</span><span class="w"> </span><span class="n">unregister_instance</span><span class="p">()</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">语义</span><span class="o">:</span><span class="w"> </span><span class="s">"我停止追踪这个目标"</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nl">Reader:</span><span class="w"> </span><span class="err">实例状态变为</span><span class="w"> </span><span class="n">NO_WRITERS</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-key">3. Key 的定义与作用</h2>
+<h3 id="31-key">3.1 Key 的定义方式</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === 方式1: IDL 中使用 @key 注解 ===</span>
+<span class="c1">// File: Target.idl</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">TargetPosition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">target_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// key 字段</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">y</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">z</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// === 方式2: C++ 代码中使用 @key 宏 ===</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/core/annotations.hpp&gt;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">TargetPosition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">target_id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// === 方式3: 多字段组成复合 Key ===</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorReading</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_type</span><span class="p">;</span><span class="w">   </span><span class="c1">// 传感器类型</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span><span class="w">    </span><span class="c1">// 传感器ID</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="w">    </span><span class="n">timestamp</span><span class="w"> </span><span class="n">time</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="c1">// Instance = (sensor_type, sensor_id) 的组合</span>
+</code></pre></div>
+<h3 id="32-instancehandle_t">3.2 InstanceHandle_t</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/common/InstanceHandle.h</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">InstanceHandle_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">octet</span><span class="w"> </span><span class="n">value</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span><span class="w">  </span><span class="c1">// 128-bit GUID</span>
+
+<span class="w">    </span><span class="c1">// 从 Key 计算 handle</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="nf">compute_key</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">TopicDescription</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 特殊值</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">c_InstanceHandle_Unknown</span><span class="p">;</span><span class="w">  </span><span class="c1">// 未知实例</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">c_InstanceHandle_All</span><span class="p">;</span><span class="w">      </span><span class="c1">// 所有实例</span>
+<span class="p">};</span>
+</code></pre></div>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                  InstanceHandle 计算过程                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  输入: Data Sample                                               │
+│  ┌─────────────────────────────────────────┐                    │
+│  │ target_id = "Target_A"                  │  ← key 字段        │
+│  │ x = 100.0                               │                    │
+│  │ y = 200.0                               │                    │
+│  │ z = 50.0                                │                    │
+│  └─────────────────────────────────────────┘                    │
+│       │                                                          │
+│       ▼                                                          │
+│  提取 Key 字段 (target_id = "Target_A")                          │
+│       │                                                          │
+│       ▼                                                          │
+│  MD5/SHA 哈希 (128-bit)                                          │
+│       │                                                          │
+│       ▼                                                          │
+│  InstanceHandle_t: {0xA1, 0xB2, 0xC3, ...} (16 bytes)           │
+│                                                                  │
+│  注意: 相同 Key 的数据 → 相同的 Handle                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="33-keyed-vs-keyless-topic">3.3 Keyed vs Keyless Topic</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === Keyed Topic ===</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Temperature</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// 有 @key</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="c1">// 特性:</span>
+<span class="c1">// - 支持多个 Instance (每个 sensor_id 是一个实例)</span>
+<span class="c1">// - 支持 Instance 生命周期管理</span>
+<span class="c1">// - Reader 可以独立追踪每个 sensor</span>
+
+<span class="c1">// === Keyless Topic ===</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SystemStatus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">cpu_usage</span><span class="p">;</span><span class="w">    </span><span class="c1">// 没有 @key</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">memory_usage</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="c1">// 特性:</span>
+<span class="c1">// - 只有一个隐式 Instance (handle = 0)</span>
+<span class="c1">// - 不支持 Instance 生命周期管理</span>
+<span class="c1">// - 就是普通的 Pub/Sub 语义</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Keyed Topic</th>
+<th>Keyless Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Instance 数量</td>
+<td>多个</td>
+<td>1 个（隐式）</td>
+</tr>
+<tr>
+<td>dispose()</td>
+<td>支持</td>
+<td>无意义</td>
+</tr>
+<tr>
+<td>register_instance()</td>
+<td>支持</td>
+<td>无意义</td>
+</tr>
+<tr>
+<td>Instance State</td>
+<td>支持</td>
+<td>固定 ALIVE</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>多目标追踪</td>
+<td>单流数据</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="4-state">4. 三种 State 详解</h2>
+<p>DDS 定义了三种与 Instance 相关的状态，都在 <strong>SampleInfo</strong> 结构中：</p>
+<h3 id="41-samplestate">4.1 SampleState：样本读取状态</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 表示某个样本是否被读取过</span>
+
+<span class="k">enum</span><span class="w"> </span><span class="nc">SampleStateKind</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">READ</span><span class="p">,</span><span class="w">       </span><span class="c1">// 样本已经被 read/take 过</span>
+<span class="w">    </span><span class="n">NOT_READ</span><span class="w">    </span><span class="c1">// 样本未被读取（新数据）</span>
+<span class="p">};</span>
+</code></pre></div>
+<div class="codehilite"><pre><span></span><code>Reader History:
+┌─────┬──────────┬─────────────┐
+│ Seq │ Data     │ SampleState │
+├─────┼──────────┼─────────────┤
+│ 100 │ 25°C     │ READ        │ ← 之前读取过
+│ 101 │ 26°C     │ READ        │ ← 之前读取过
+│ 102 │ 27°C     │ NOT_READ    │ ← 新数据，未读取
+└─────┴──────────┴─────────────┘
+</code></pre></div>
+<h3 id="42-viewstate">4.2 ViewState：实例视图状态</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 表示某个 Instance 是否是第一次出现</span>
+
+<span class="k">enum</span><span class="w"> </span><span class="nc">ViewStateKind</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NEW</span><span class="p">,</span><span class="w">        </span><span class="c1">// 这个 Instance 是第一次出现（或者重生）</span>
+<span class="w">    </span><span class="n">NOT_NEW</span><span class="w">     </span><span class="c1">// 这个 Instance 之前已经存在</span>
+<span class="p">};</span>
+</code></pre></div>
+<div class="codehilite"><pre><span></span><code>场景：追踪多个目标
+
+Time 0: 读取 Instance A
+┌─────┬──────────┬───────────┐
+│ Ins │ Data     │ ViewState │
+├─────┼──────────┼───────────┤
+│ A   │ pos1     │ NEW       │ ← 第一次出现
+└─────┴──────────┴───────────┘
+
+Time 1: 再次读取 Instance A
+┌─────┬──────────┬───────────┐
+│ Ins │ Data     │ ViewState │
+├─────┼──────────┼───────────┤
+│ A   │ pos2     │ NOT_NEW   │ ← 已存在
+└─────┴──────────┴───────────┘
+
+Time 2: 新的 Instance B 出现
+┌─────┬──────────┬───────────┐
+│ Ins │ Data     │ ViewState │
+├─────┼──────────┼───────────┤
+│ A   │ pos3     │ NOT_NEW   │
+│ B   │ pos1     │ NEW       │ ← 新目标
+└─────┴──────────┴───────────┘
+</code></pre></div>
+<h3 id="43-instancestate">4.3 InstanceState：实例存活状态</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 表示 Instance 的生命周期状态</span>
+
+<span class="k">enum</span><span class="w"> </span><span class="nc">InstanceStateKind</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                      </span><span class="c1">// 实例活跃，有 Writer 在更新</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">,</span><span class="w">         </span><span class="c1">// 实例被显式删除</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_NO_WRITERS</span><span class="w">        </span><span class="c1">// 没有 Writer 在更新（租约过期）</span>
+<span class="p">};</span>
+</code></pre></div>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                    InstanceState 转换图                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ALIVE                                                         │
+│    │                                                            │
+│    │ write()                                                    │
+│    ▼                                                            │
+│   ┌───────────────┐                                             │
+│   │  接收新数据    │ ←──────────────────────────┐               │
+│   │  有 Writer     │                            │               │
+│   └───────────────┘                             │               │
+│          │                                      │               │
+│          │ dispose()                            │               │
+│          ▼                                      │               │
+│   NOT_ALIVE_DISPOSED                            │               │
+│   ┌───────────────┐                             │               │
+│   │  实例被删除    │                             │               │
+│   │  (生命周期结束)│                             │               │
+│   └───────────────┘                             │               │
+│          │                                      │               │
+│          │ write() (重生)                        │               │
+│          └──────────────────────────────────────┘               │
+│                                                                  │
+│   ALIVE                                                         │
+│          │                                                       │
+│          │ lease_duration 过期                                   │
+│          ▼                                                       │
+│   NOT_ALIVE_NO_WRITERS                                          │
+│   ┌───────────────┐                                             │
+│   │  Writer 离线   │                                             │
+│   │  网络分区      │                                             │
+│   └───────────────┘                                             │
+│          │                                                       │
+│          │ write() (重新连接)                                     │
+│          └───────────────────────────────────────────────────────┘
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="44-sampleinfo">4.4 SampleInfo 完整结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/dds/sub/SampleInfo.hpp</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">SampleInfo</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// === 状态信息 ===</span>
+<span class="w">    </span><span class="n">SampleStateKind</span><span class="w"> </span><span class="n">sample_state</span><span class="p">;</span><span class="w">       </span><span class="c1">// READ / NOT_READ</span>
+<span class="w">    </span><span class="n">ViewStateKind</span><span class="w"> </span><span class="n">view_state</span><span class="p">;</span><span class="w">           </span><span class="c1">// NEW / NOT_NEW</span>
+<span class="w">    </span><span class="n">InstanceStateKind</span><span class="w"> </span><span class="n">instance_state</span><span class="p">;</span><span class="w">   </span><span class="c1">// ALIVE / DISPOSED / NO_WRITERS</span>
+
+<span class="w">    </span><span class="c1">// === 序列信息 ===</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">disposed_generation_count</span><span class="p">;</span><span class="w">   </span><span class="c1">// dispose 次数</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">no_writers_generation_count</span><span class="p">;</span><span class="w"> </span><span class="c1">// NO_WRITERS 次数</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">sample_rank</span><span class="p">;</span><span class="w">                 </span><span class="c1">// 同实例中未读样本数</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">generation_rank</span><span class="p">;</span><span class="w">             </span><span class="c1">// 跨代排名</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">absolute_generation_rank</span><span class="p">;</span><span class="w">    </span><span class="c1">// 绝对排名</span>
+
+<span class="w">    </span><span class="c1">// === 时间戳 ===</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">source_timestamp</span><span class="p">;</span><span class="w">             </span><span class="c1">// Writer 写入时间</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">reception_timestamp</span><span class="p">;</span><span class="w">          </span><span class="c1">// Reader 接收时间</span>
+
+<span class="w">    </span><span class="c1">// === 实例标识 ===</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">instance_handle</span><span class="p">;</span><span class="w">    </span><span class="c1">// 实例句柄</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">publication_handle</span><span class="p">;</span><span class="w"> </span><span class="c1">// Writer 句柄</span>
+
+<span class="w">    </span><span class="c1">// === 有效性 ===</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">valid_data</span><span class="p">;</span><span class="w">                     </span><span class="c1">// data 是否有效（metadata 样本时为 false）</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="5">5. 源码实现分析</h2>
+<h3 id="51-writer-instance">5.1 Writer 端 Instance 管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DataWriterImpl</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Instance 注册表: handle -&gt; Instance 状态</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">InstanceHandle_t</span><span class="p">,</span><span class="w"> </span><span class="n">InstanceState</span><span class="o">&gt;</span><span class="w"> </span><span class="n">instance_states_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 注册 Instance</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">register_instance</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 从 key 计算 handle</span>
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_handle</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 2. 检查是否已存在</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">instance_states_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">handle</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">instance_states_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 3. 创建新的 Instance 状态</span>
+<span class="w">            </span><span class="n">InstanceState</span><span class="w"> </span><span class="n">state</span><span class="p">;</span>
+<span class="w">            </span><span class="n">state</span><span class="p">.</span><span class="n">is_registered</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">            </span><span class="n">state</span><span class="p">.</span><span class="n">is_disposed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">            </span><span class="n">instance_states_</span><span class="p">[</span><span class="n">handle</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="p">;</span>
+
+<span class="w">            </span><span class="c1">// 4. 发送 ALIVE 通知（发现阶段）</span>
+<span class="w">            </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">handle</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 写入数据</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="n">write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">handle</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 如果是 UNKNOWN handle，从数据计算</span>
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">HANDLE_UNKNOWN</span><span class="p">)</span><span class="w"> </span><span class="o">?</span>
+<span class="w">                             </span><span class="n">calculate_handle</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">handle</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 检查 Instance 状态</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">instance_states_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">instance_states_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 自动注册</span>
+<span class="w">            </span><span class="n">register_instance</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 3. 创建 ALIVE 类型的 CacheChange</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_change</span><span class="p">(</span><span class="n">ALIVE</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 4. 添加到 HistoryCache</span>
+<span class="w">        </span><span class="n">rtps_writer_</span><span class="o">-&gt;</span><span class="n">new_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">RETCODE_OK</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 删除 Instance (dispose)</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="n">dispose</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">handle</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 检查 Instance 是否存在</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">instance_states_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">instance_states_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">RETCODE_BAD_PARAMETER</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 2. 标记为 disposed</span>
+<span class="w">        </span><span class="n">it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">.</span><span class="n">is_disposed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 3. 创建 DISPOSED 类型的 CacheChange</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_change</span><span class="p">(</span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">,</span><span class="w"> </span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 4. 发送</span>
+<span class="w">        </span><span class="n">rtps_writer_</span><span class="o">-&gt;</span><span class="n">new_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">RETCODE_OK</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="52-rtps-writer-instance">5.2 RTPS Writer 中的 Instance 管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/StatefulWriter.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">StatefulWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSWriter</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 每个匹配的 Reader 都有一个 ReaderProxy</span>
+<span class="w">    </span><span class="c1">// ReaderProxy 中追踪每个 Instance 的状态</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ReaderProxy</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Instance 到 Change 的映射（用于重传）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">InstanceHandle_t</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;&gt;</span><span class="w"> </span><span class="n">instance_changes_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">unsent_change_added_to_history</span><span class="p">(</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">time_point</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">max_blocking_time</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 获取 Instance handle</span>
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">instanceHandle</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 根据 ChangeKind 处理</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">kind</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">ALIVE</span><span class="p">:</span>
+<span class="w">                </span><span class="c1">// 正常数据，添加到匹配 Reader 的未确认队列</span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_DISPOSED</span><span class="p">:</span>
+<span class="w">                </span><span class="c1">// 通知所有 Reader 这个 Instance 被删除</span>
+<span class="w">                </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">                    </span><span class="c1">// Reader 会清理这个 Instance 的状态</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_UNREGISTERED</span><span class="p">:</span>
+<span class="w">                </span><span class="c1">// 类似处理...</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 3. 存储用于可能的 Gap 填充</span>
+<span class="w">        </span><span class="n">instance_changes_</span><span class="p">[</span><span class="n">handle</span><span class="p">].</span><span class="n">push_back</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="53-reader-instance">5.3 Reader 端 Instance 状态机</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/reader/StatefulReader.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">StatefulReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSReader</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 追踪所有已知的 Instance</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">InstanceInfo</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">InstanceStateKind</span><span class="w"> </span><span class="n">state</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">generation_count</span><span class="p">;</span>
+<span class="w">        </span><span class="n">Time_t</span><span class="w"> </span><span class="n">last_update_time</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">changes</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">InstanceHandle_t</span><span class="p">,</span><span class="w"> </span><span class="n">InstanceInfo</span><span class="o">&gt;</span><span class="w"> </span><span class="n">instances_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">processDataMsg</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">instanceHandle</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 1. 获取或创建 Instance 信息</span>
+<span class="w">        </span><span class="n">InstanceInfo</span><span class="o">&amp;</span><span class="w"> </span><span class="n">info</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">instances_</span><span class="p">[</span><span class="n">handle</span><span class="p">];</span>
+
+<span class="w">        </span><span class="c1">// 2. 根据 ChangeKind 更新状态</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">kind</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">ALIVE</span><span class="p">:</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">ALIVE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">// Instance 重生</span>
+<span class="w">                    </span><span class="n">info</span><span class="p">.</span><span class="n">generation_count</span><span class="o">++</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">info</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ALIVE</span><span class="p">;</span>
+<span class="w">                </span><span class="n">info</span><span class="p">.</span><span class="n">last_update_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">();</span>
+<span class="w">                </span><span class="n">info</span><span class="p">.</span><span class="n">changes</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_DISPOSED</span><span class="p">:</span>
+<span class="w">                </span><span class="n">info</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">;</span>
+<span class="w">                </span><span class="c1">// 保留历史数据（根据 QoS），但标记 Instance 已删除</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_UNREGISTERED</span><span class="p">:</span>
+<span class="w">                </span><span class="n">info</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOT_ALIVE_NO_WRITERS</span><span class="p">;</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 3. 通知应用层</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">listener_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">listener</span><span class="o">-&gt;</span><span class="n">on_data_available</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 检查租约过期（在独立线程中定期执行）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">check_instance_liveliness</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="p">[</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">instances_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ALIVE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">elapsed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">last_update_time</span><span class="p">;</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">elapsed</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">qos_</span><span class="p">.</span><span class="n">reader_data_lifecycle</span><span class="p">().</span><span class="w"> </span><span class="n">autopurge_nowriter_samples_delay</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">// 没有 Writer 更新，标记为 NO_WRITERS</span>
+<span class="w">                    </span><span class="n">info</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOT_ALIVE_NO_WRITERS</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">notify_state_change</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span><span class="w"> </span><span class="n">NOT_ALIVE_NO_WRITERS</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="6-reader-instance">6. Reader 端的 Instance 管理</h2>
+<h3 id="61-readtake-instance-api">6.1 read/take 的 Instance 相关 API</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataReader</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// === 按 Instance 读取 ===</span>
+
+<span class="w">    </span><span class="c1">// 读取特定 Instance 的样本</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="n">read_instance</span><span class="p">(</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;&amp;</span><span class="w"> </span><span class="n">data_values</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sample_infos</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">max_samples</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">handle</span><span class="p">,</span><span class="w">  </span><span class="c1">// 指定 Instance</span>
+<span class="w">        </span><span class="n">SampleStateMask</span><span class="w"> </span><span class="n">sample_states</span><span class="p">,</span>
+<span class="w">        </span><span class="n">ViewStateMask</span><span class="w"> </span><span class="n">view_states</span><span class="p">,</span>
+<span class="w">        </span><span class="n">InstanceStateMask</span><span class="w"> </span><span class="n">instance_states</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// take 版本（读取并移除）</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">take_instance</span><span class="p">(</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;&amp;</span><span class="w"> </span><span class="n">data_values</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sample_infos</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">max_samples</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">handle</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SampleStateMask</span><span class="w"> </span><span class="n">sample_states</span><span class="p">,</span>
+<span class="w">        </span><span class="n">ViewStateMask</span><span class="w"> </span><span class="n">view_states</span><span class="p">,</span>
+<span class="w">        </span><span class="n">InstanceStateMask</span><span class="w"> </span><span class="n">instance_states</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 遍历所有 Instance ===</span>
+
+<span class="w">    </span><span class="c1">// 读取下一个 Instance（用于遍历所有实例）</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">read_next_instance</span><span class="p">(</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;&amp;</span><span class="w"> </span><span class="n">data_values</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sample_infos</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">max_samples</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">previous_handle</span><span class="p">,</span><span class="w">  </span><span class="c1">// 上一个实例的 handle</span>
+<span class="w">        </span><span class="n">SampleStateMask</span><span class="w"> </span><span class="n">sample_states</span><span class="p">,</span>
+<span class="w">        </span><span class="n">ViewStateMask</span><span class="w"> </span><span class="n">view_states</span><span class="p">,</span>
+<span class="w">        </span><span class="n">InstanceStateMask</span><span class="w"> </span><span class="n">instance_states</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 获取 Instance 信息 ===</span>
+
+<span class="w">    </span><span class="c1">// 获取所有 Instance 的 handle</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">get_key_value</span><span class="p">(</span>
+<span class="w">        </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key_holder</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">handle</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 查找 Instance 的 handle</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="nf">lookup_instance</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key_holder</span><span class="p">);</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="62">6.2 使用示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 追踪多个目标，只关注特定目标</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">track_specific_target</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">target_id</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 构造 key</span>
+<span class="w">    </span><span class="n">TargetPosition</span><span class="w"> </span><span class="n">key_holder</span><span class="p">;</span>
+<span class="w">    </span><span class="n">key_holder</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">target_id</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. 查找 Instance handle</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">lookup_instance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key_holder</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">handle</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">HANDLE_UNKNOWN</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"目标 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">target_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 不存在</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 只读取这个 Instance 的数据</span>
+<span class="w">    </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">TargetPosition</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">    </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">read_instance</span><span class="p">(</span>
+<span class="w">        </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">  </span><span class="c1">// 最多读 1 个</span>
+<span class="w">        </span><span class="n">handle</span><span class="p">,</span><span class="w">         </span><span class="c1">// 指定 Instance</span>
+<span class="w">        </span><span class="n">NOT_READ_SAMPLE_STATE</span><span class="p">,</span><span class="w">  </span><span class="c1">// 只读未读过的</span>
+<span class="w">        </span><span class="n">ANY_VIEW_STATE</span><span class="p">,</span>
+<span class="w">        </span><span class="n">ALIVE_INSTANCE_STATE</span><span class="p">);</span><span class="w">  </span><span class="c1">// 只读活跃的</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"目标 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">target_id</span>
+<span class="w">             </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 位置: ("</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">x</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">", "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">y</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">")</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// 场景: 遍历所有活跃的目标</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">list_all_targets</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HANDLE_UNKNOWN</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="nb">true</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">TargetPosition</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 读取下一个 Instance</span>
+<span class="w">        </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="n">ret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">read_next_instance</span><span class="p">(</span>
+<span class="w">            </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">            </span><span class="n">handle</span><span class="p">,</span><span class="w">  </span><span class="c1">// 从上一个继续</span>
+<span class="w">            </span><span class="n">NOT_READ_SAMPLE_STATE</span><span class="p">,</span>
+<span class="w">            </span><span class="n">ANY_VIEW_STATE</span><span class="p">,</span>
+<span class="w">            </span><span class="n">ALIVE_INSTANCE_STATE</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ret</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">RETCODE_NO_DATA</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span><span class="w">  </span><span class="c1">// 没有更多数据</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">valid_data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"目标: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">target_id</span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 状态: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">instance_state</span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 视图: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">view_state</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 更新 handle 用于下一次迭代</span>
+<span class="w">        </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">instance_handle</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="63-instance">6.3 监听 Instance 状态变化</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MyReaderListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_data_available</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">TargetPosition</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 读取所有可用数据</span>
+<span class="w">        </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">,</span><span class="w"> </span><span class="n">LENGTH_UNLIMITED</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">ANY_SAMPLE_STATE</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">ANY_VIEW_STATE</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">ANY_INSTANCE_STATE</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">SampleInfo</span><span class="o">&amp;</span><span class="w"> </span><span class="n">si</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+
+<span class="w">            </span><span class="c1">// 检查 Instance 状态</span>
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">instance_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">ALIVE</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">view_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NEW</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[新目标] "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">target_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span><span class="n">process_position</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_DISPOSED</span><span class="p">:</span>
+<span class="w">                    </span><span class="c1">// 获取 key（因为 data 可能无效）</span>
+<span class="w">                    </span><span class="n">TargetPosition</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_key_value</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">si</span><span class="p">.</span><span class="n">instance_handle</span><span class="p">);</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[目标消失] "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">key</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_NO_WRITERS</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[目标丢失] 租约过期</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="7">7. 实战示例</h2>
+<h3 id="71-1">7.1 示例1: 多目标追踪系统</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// IDL: Target.idl</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">TargetPosition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">target_id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">vx</span><span class="p">,</span><span class="w"> </span><span class="n">vy</span><span class="p">,</span><span class="w"> </span><span class="n">vz</span><span class="p">;</span><span class="w">  </span><span class="c1">// 速度</span>
+<span class="p">};</span>
+
+<span class="c1">// === Writer 端：模拟多个目标 ===</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TargetTracker</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">map</span><span class="o">&lt;</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">TargetPosition</span><span class="o">&gt;</span><span class="w"> </span><span class="n">targets_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">spawn_target</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">TargetPosition</span><span class="w"> </span><span class="n">pos</span><span class="p">;</span>
+<span class="w">        </span><span class="n">pos</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="w">        </span><span class="n">pos</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="n">pos</span><span class="p">.</span><span class="n">vx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">.</span><span class="n">vy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">.</span><span class="n">vz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 新 Instance 自动创建</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pos</span><span class="p">);</span>
+<span class="w">        </span><span class="n">targets_</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pos</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[Spawn] 目标 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 出现在 ("</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">", "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">")</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">update_target</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">vx</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">vy</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">targets_</span><span class="p">[</span><span class="n">id</span><span class="p">];</span>
+<span class="w">        </span><span class="n">pos</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">vx</span><span class="p">;</span>
+<span class="w">        </span><span class="n">pos</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">vy</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pos</span><span class="p">);</span><span class="w">  </span><span class="c1">// 更新 Instance</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">destroy_target</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">TargetPosition</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="w">        </span><span class="n">key</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_</span>
+<span class="w">            </span><span class="o">-&gt;</span><span class="n">register_instance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">);</span><span class="w">  </span><span class="c1">// 获取 handle</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">dispose</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span><span class="w">       </span><span class="c1">// 通知删除</span>
+
+<span class="w">        </span><span class="n">targets_</span><span class="p">.</span><span class="n">erase</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[Destroy] 目标 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 已摧毁</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// === Reader 端：显示所有目标 ===</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TargetDisplay</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">map</span><span class="o">&lt;</span><span class="n">InstanceHandle_t</span><span class="p">,</span><span class="w"> </span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">tracked_targets_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">update</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">TargetPosition</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">,</span><span class="w"> </span><span class="n">LENGTH_UNLIMITED</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">SampleInfo</span><span class="o">&amp;</span><span class="w"> </span><span class="n">si</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">instance_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ALIVE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 目标存在</span>
+<span class="w">                </span><span class="n">tracked_targets_</span><span class="p">[</span><span class="n">si</span><span class="p">.</span><span class="n">instance_handle</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">target_id</span><span class="p">;</span>
+<span class="w">                </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">target_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">": ("</span>
+<span class="w">                     </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">x</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">", "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">y</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">")</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">instance_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 目标消失</span>
+<span class="w">                </span><span class="n">TargetPosition</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="w">                </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_key_value</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">si</span><span class="p">.</span><span class="n">instance_handle</span><span class="p">);</span>
+<span class="w">                </span><span class="n">tracked_targets_</span><span class="p">.</span><span class="n">erase</span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">instance_handle</span><span class="p">);</span>
+<span class="w">                </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[X] "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">key</span><span class="p">.</span><span class="n">target_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 消失</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="72-2">7.2 示例2: 设备在线状态管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// IDL: Device.idl</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">DeviceStatus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">device_id</span><span class="p">;</span>
+<span class="w">    </span><span class="n">boolean</span><span class="w"> </span><span class="n">online</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">battery_level</span><span class="p">;</span>
+<span class="w">    </span><span class="n">timestamp</span><span class="w"> </span><span class="n">last_heartbeat</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// === Writer：设备端 ===</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeviceManager</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">connect</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">device_id</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">DeviceStatus</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">device_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">device_id</span><span class="p">;</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">online</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">battery_level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">100.0</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 注册 Instance</span>
+<span class="w">        </span><span class="n">handle_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">register_instance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">status</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 发送上线通知</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">handle_</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">heartbeat</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">battery</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">DeviceStatus</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">device_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">""</span><span class="p">;</span><span class="w">  </span><span class="c1">// key 由 handle 确定</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">online</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">battery_level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">battery</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">handle_</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">disconnect</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 方式1: dispose（设备下线，但保留历史）</span>
+<span class="w">        </span><span class="n">DeviceStatus</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="w">        </span><span class="n">status</span><span class="p">.</span><span class="n">online</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">handle_</span><span class="p">);</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">dispose</span><span class="p">(</span><span class="n">handle_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 方式2: unregister（完全清理）</span>
+<span class="w">        </span><span class="c1">// writer_-&gt;unregister_instance(handle_);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// === Reader：监控端 ===</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DeviceMonitor</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_device_change</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">DeviceStatus</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">reader_</span><span class="o">-&gt;</span><span class="n">take</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">SampleInfo</span><span class="o">&amp;</span><span class="w"> </span><span class="n">si</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+
+<span class="w">            </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">instance_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">ALIVE</span><span class="p">:</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">si</span><span class="p">.</span><span class="n">view_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NEW</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[上线] 设备 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">device_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[状态] "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">device_id</span>
+<span class="w">                         </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 电量: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">battery_level</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"%</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_DISPOSED</span><span class="p">:</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">DeviceStatus</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_key_value</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">si</span><span class="p">.</span><span class="n">instance_handle</span><span class="p">);</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[下线] 设备 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">key</span><span class="p">.</span><span class="n">device_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+
+<span class="w">                </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_NO_WRITERS</span><span class="p">:</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[失联] 设备心跳超时</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="73-3">7.3 示例3: 订单生命周期管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// IDL: Order.idl</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Order</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">order_id</span><span class="p">;</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">customer_id</span><span class="p">;</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w">  </span><span class="c1">// PENDING, PAID, SHIPPED, DELIVERED, CANCELLED</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">amount</span><span class="p">;</span>
+<span class="w">    </span><span class="n">timestamp</span><span class="w"> </span><span class="n">create_time</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// === 订单服务 ===</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OrderService</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">create_order</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">order_id</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">customer</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Order</span><span class="w"> </span><span class="n">order</span><span class="p">;</span>
+<span class="w">        </span><span class="n">order</span><span class="p">.</span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">order_id</span><span class="p">;</span>
+<span class="w">        </span><span class="n">order</span><span class="p">.</span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">customer</span><span class="p">;</span>
+<span class="w">        </span><span class="n">order</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"PENDING"</span><span class="p">;</span>
+<span class="w">        </span><span class="n">order</span><span class="p">.</span><span class="n">amount</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">amount</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">order</span><span class="p">);</span>
+<span class="w">        </span><span class="c1">// 创建新 Instance</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">update_status</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">order_id</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">new_status</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Order</span><span class="w"> </span><span class="n">order</span><span class="p">;</span>
+<span class="w">        </span><span class="n">order</span><span class="p">.</span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">order_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// key</span>
+<span class="w">        </span><span class="n">order</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">new_status</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">order</span><span class="p">);</span>
+<span class="w">        </span><span class="c1">// 更新现有 Instance</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">complete_order</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">order_id</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Order</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="w">        </span><span class="n">key</span><span class="p">.</span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">order_id</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 标记订单完成（生命周期结束）</span>
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">lookup_instance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">);</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">dispose</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// === 订单监控 ===</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OrderMonitor</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">map</span><span class="o">&lt;</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">Order</span><span class="o">&gt;</span><span class="w"> </span><span class="n">active_orders_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">map</span><span class="o">&lt;</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">Order</span><span class="o">&gt;</span><span class="w"> </span><span class="n">completed_orders_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_order_update</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Order</span><span class="o">&amp;</span><span class="w"> </span><span class="n">order</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">SampleInfo</span><span class="o">&amp;</span><span class="w"> </span><span class="n">info</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">instance_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">ALIVE</span><span class="p">:</span>
+<span class="w">                </span><span class="n">active_orders_</span><span class="p">[</span><span class="n">order</span><span class="p">.</span><span class="n">order_id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">order</span><span class="p">;</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">view_state</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">NEW</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[新订单] "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">order</span><span class="p">.</span><span class="n">order_id</span>
+<span class="w">                         </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 金额: ¥"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">order</span><span class="p">.</span><span class="n">amount</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[更新] "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">order</span><span class="p">.</span><span class="n">order_id</span>
+<span class="w">                         </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 状态: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">order</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_DISPOSED</span><span class="p">:</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="n">Order</span><span class="w"> </span><span class="n">key</span><span class="p">;</span>
+<span class="w">                </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_key_value</span><span class="p">(</span><span class="o">&amp;</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">instance_handle</span><span class="p">);</span>
+<span class="w">                </span><span class="n">completed_orders_</span><span class="p">[</span><span class="n">key</span><span class="p">.</span><span class="n">order_id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">active_orders_</span><span class="p">[</span><span class="n">key</span><span class="p">.</span><span class="n">order_id</span><span class="p">];</span>
+<span class="w">                </span><span class="n">active_orders_</span><span class="p">.</span><span class="n">erase</span><span class="p">(</span><span class="n">key</span><span class="p">.</span><span class="n">order_id</span><span class="p">);</span>
+<span class="w">                </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"[完成] 订单 "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">key</span><span class="p">.</span><span class="n">order_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" 生命周期结束</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">NOT_ALIVE_NO_WRITERS</span><span class="p">:</span>
+<span class="w">                </span><span class="c1">// 订单服务异常，需要告警</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="8">8. 最佳实践</h2>
+<h3 id="81-instance">8.1 何时使用 Instance？</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>建议</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>多目标追踪</td>
+<td>✅ 使用</td>
+<td>需要独立追踪每个目标的生命周期</td>
+</tr>
+<tr>
+<td>设备管理</td>
+<td>✅ 使用</td>
+<td>需要知道设备在线/离线状态</td>
+</tr>
+<tr>
+<td>订单/会话</td>
+<td>✅ 使用</td>
+<td>需要知道生命周期（创建/完成）</td>
+</tr>
+<tr>
+<td>传感器数据流</td>
+<td>⚠️ 可选</td>
+<td>如果只是时序数据，可能不需要</td>
+</tr>
+<tr>
+<td>配置下发</td>
+<td>❌ 不使用</td>
+<td>通常是单流，无生命周期概念</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-key">8.2 Key 设计建议</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ✅ 好的 Key 设计</span>
+
+<span class="c1">// 1. 稳定唯一</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">GoodKey</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">uuid</span><span class="p">;</span><span class="w">  </span><span class="c1">// UUID 不会变化</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w">       </span><span class="c1">// 显示名称可以变</span>
+<span class="p">};</span>
+
+<span class="c1">// 2. 复合 Key 用于多维度</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">MultiKey</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">region</span><span class="p">;</span><span class="w">   </span><span class="c1">// 地区</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">node_id</span><span class="p">;</span><span class="w"> </span><span class="c1">// 节点ID</span>
+<span class="w">    </span><span class="c1">// Instance = (region, node_id) 的组合</span>
+<span class="p">};</span>
+
+<span class="c1">// ❌ 不好的 Key 设计</span>
+
+<span class="c1">// 1. 会变化的字段</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">BadKey</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w">  </span><span class="c1">// ❌ 状态会变化，导致 Instance 不断变化</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 2. 过于宽泛（Instance 太多）</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">TooBroad</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">type</span><span class="p">;</span><span class="w">    </span><span class="c1">// ❌ 只有类型，实例太少</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">detail</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 3. 过于具体（Instance 太少）</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">TooSpecific</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">timestamp</span><span class="w"> </span><span class="n">t</span><span class="p">;</span><span class="w">    </span><span class="c1">// ❌ 时间戳让每个样本都是新 Instance</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="83-instance">8.3 Instance 生命周期管理建议</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 建议: 显式管理生命周期</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">GoodPractice</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">map</span><span class="o">&lt;</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">handles_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">create</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Data</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">        </span><span class="n">data</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 1. 显式注册，保存 handle</span>
+<span class="w">        </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">register_instance</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="n">handles_</span><span class="p">[</span><span class="n">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handle</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 写入初始数据</span>
+<span class="w">        </span><span class="n">data</span><span class="p">.</span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"ACTIVE"</span><span class="p">;</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">handle</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">update</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Data</span><span class="o">&amp;</span><span class="w"> </span><span class="n">new_data</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 使用保存的 handle，避免重复计算</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handles_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">handles_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">new_data</span><span class="p">,</span><span class="w"> </span><span class="n">it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">destroy</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">id</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handles_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">handles_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 3. 显式 dispose，通知生命周期结束</span>
+<span class="w">            </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">dispose</span><span class="p">(</span><span class="n">it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">);</span>
+<span class="w">            </span><span class="n">handles_</span><span class="p">.</span><span class="n">erase</span><span class="p">(</span><span class="n">it</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. 清理时注销所有 Instance</span>
+<span class="w">    </span><span class="o">~</span><span class="n">GoodPractice</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="p">[</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">handle</span><span class="p">]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">handles_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">unregister_instance</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="84">8.4 常见陷阱</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 陷阱1: 忘记检查 valid_data</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">bad_handler</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">Data</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">    </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// ❌ 错误: 直接访问 data[i]</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">field</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span><span class="w">  </span><span class="c1">// 对于 DISPOSE 样本，data 无效！</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// ✅ 正确: 检查 valid_data</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">valid_data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">field</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 处理 Instance 状态变化（DISPOSE/UNREGISTER）</span>
+<span class="w">            </span><span class="n">handle_lifecycle_change</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// 陷阱2: 混淆 dispose 和 unregister</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">wrong_cleanup</span><span class="p">(</span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// ❌ 错误: 只 unregister，Reader 不会收到通知</span>
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">unregister_instance</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// ✅ 正确: 先 dispose（通知生命周期结束），再 unregister</span>
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">dispose</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ... 等待传播 ...</span>
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">unregister_instance</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// 陷阱3: 忽视 Instance 租约</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">ignore_lease</span><span class="p">(</span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// ❌ 错误: 一次性写入大量数据后停止</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// 如果不继续写入，Reader 会认为 Instance 过期</span>
+
+<span class="w">    </span><span class="c1">// ✅ 正确: 确保定期更新或配置合适的 QoS</span>
+<span class="w">    </span><span class="c1">// 或者使用 reliable QoS + 持久化</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="_2">总结</h2>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                   </span><span class="n">Instance</span><span class="w"> </span><span class="n">Management</span><span class="w"> </span><span class="n">核心</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">概念</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">Instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">由</span><span class="w"> </span><span class="k">Key</span><span class="w"> </span><span class="n">标识的一组相关样本</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="k">Key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">定义在数据类型中的</span><span class="w"> </span><span class="nv">@key</span><span class="w"> </span><span class="n">字段</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">Handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Instance</span><span class="w"> </span><span class="n">的</span><span class="w"> </span><span class="mi">128</span><span class="o">-</span><span class="nc">bit</span><span class="w"> </span><span class="n">唯一标识</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">生命周期</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="k">write</span><span class="p">()</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">创建</span><span class="o">/</span><span class="n">更新</span><span class="w"> </span><span class="n">Instance</span><span class="w"> </span><span class="p">(</span><span class="n">ALIVE</span><span class="p">)</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">dispose</span><span class="p">()</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">标记</span><span class="w"> </span><span class="n">Instance</span><span class="w"> </span><span class="n">已删除</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">unregister</span><span class="p">()</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Writer</span><span class="w"> </span><span class="n">停止关注</span><span class="w"> </span><span class="n">Instance</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">三种</span><span class="w"> </span><span class="k">State</span><span class="w">                                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nl">SampleState</span><span class="p">:</span><span class="w"> </span><span class="k">READ</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">NOT_READ</span><span class="err">（</span><span class="n">样本读取状态</span><span class="err">）</span><span class="w">               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nl">ViewState</span><span class="p">:</span><span class="w"> </span><span class="k">NEW</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">NOT_NEW</span><span class="err">（</span><span class="n">实例是否首次出现</span><span class="err">）</span><span class="w">               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nl">InstanceState</span><span class="p">:</span><span class="w"> </span><span class="n">ALIVE</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">DISPOSED</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">NO_WRITERS</span><span class="err">（</span><span class="n">存活状态</span><span class="err">）</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">使用场景</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">多目标追踪</span><span class="err">（</span><span class="n">无人机</span><span class="err">、</span><span class="n">车辆</span><span class="err">、</span><span class="n">设备</span><span class="err">）</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">会话</span><span class="o">/</span><span class="n">订单生命周期管理</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">在线状态监控</span><span class="w">                                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 DDS 标准和 Fast-DDS 实现</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

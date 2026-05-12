@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTPS 协议消息格式详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item active" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 19-RTPS-Message-Format</div>
+        <h1 id="rtps">RTPS 协议消息格式详解</h1>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-rtps-协议概述">RTPS 协议概述</a></li>
+<li><a href="#2-rtps-header-结构">RTPS Header 结构</a></li>
+<li><a href="#3-submessage-通用结构">SubMessage 通用结构</a></li>
+<li><a href="#4-data-submessage">DATA SubMessage</a></li>
+<li><a href="#5-heartbeat-submessage">HEARTBEAT SubMessage</a></li>
+<li><a href="#6-acknack-submessage">ACKNACK SubMessage</a></li>
+<li><a href="#7-gap-submessage">GAP SubMessage</a></li>
+<li><a href="#8-其他-submessage-类型">其他 SubMessage 类型</a></li>
+<li><a href="#9-wireshark-抓包分析">Wireshark 抓包分析</a></li>
+<li><a href="#10-实战手动解析-rtps-包">实战：手动解析 RTPS 包</a></li>
+</ol>
+<hr/>
+<h2 id="1-rtps">1. RTPS 协议概述</h2>
+<h3 id="11-rtps">1.1 RTPS 在协议栈中的位置</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                      协议栈层次                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  应用层                                                          │
+│  ├── DDS API (DataWriter/DataReader)                            │
+│  └── 用户业务逻辑                                                │
+│                                                                  │
+│  RTPS 层  ←── 本文重点                                          │
+│  ├── RTPS Header (12 bytes)                                     │
+│  ├── SubMessage 1                                               │
+│  ├── SubMessage 2                                               │
+│  └── ...                                                        │
+│                                                                  │
+│  传输层                                                          │
+│  ├── UDP (默认，端口 7400+)                                     │
+│  ├── TCP (可选)                                                 │
+│  └── SHM (共享内存)                                              │
+│                                                                  │
+│  网络层                                                          │
+│  └── IP (IPv4/IPv6)                                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="12-rtps">1.2 RTPS 消息基本结构</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                     RTPS Message 结构                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────────────────────────────┐                    │
+│  │         RTPS Header (12 bytes)          │                    │
+│  │  ┌─────────┬─────────┬──────────────┐  │                    │
+│  │  │ Magic   │Version  │Vendor ID     │  │                    │
+│  │  │ (4B)    │ (2B)    │ (2B)         │  │                    │
+│  │  ├─────────┴─────────┴──────────────┤  │                    │
+│  │  │      GUID Prefix (8 bytes)        │  │                    │
+│  │  └───────────────────────────────────┘  │                    │
+│  └─────────────────────────────────────────┘                    │
+│                              │                                   │
+│                              ▼                                   │
+│  ┌─────────────────────────────────────────┐                    │
+│  │      SubMessage 1 (变长)               │                    │
+│  │  ┌─────────┬─────────┬──────────────┐  │                    │
+│  │  │Header   │Flags    │Content       │  │                    │
+│  │  │(1B)     │(1B)     │(变长)        │  │                    │
+│  │  └─────────┴─────────┴──────────────┘  │                    │
+│  └─────────────────────────────────────────┘                    │
+│                              │                                   │
+│                              ▼                                   │
+│  ┌─────────────────────────────────────────┐                    │
+│  │      SubMessage 2 (变长)               │                    │
+│  │         ...                            │                    │
+│  └─────────────────────────────────────────┘                    │
+│                              │                                   │
+│                              ▼                                   │
+│  ┌─────────────────────────────────────────┐                    │
+│  │      SubMessage N (变长)               │                    │
+│  └─────────────────────────────────────────┘                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="2-rtps-header">2. RTPS Header 结构</h2>
+<h3 id="21-header">2.1 Header 字段详解</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// RTPS Header - 固定 12 字节</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">RTPSHeader</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 偏移 0-3: 协议标识 (Magic Number)</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">magic</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span><span class="w">           </span><span class="c1">// "RTPS" (0x52 0x54 0x50 0x53)</span>
+
+<span class="w">    </span><span class="c1">// 偏移 4-5: 协议版本</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">major</span><span class="p">;</span><span class="w">           </span><span class="c1">// 主版本 (2 for RTPS 2.x)</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">minor</span><span class="p">;</span><span class="w">           </span><span class="c1">// 次版本 (1 for RTPS 2.1)</span>
+
+<span class="w">    </span><span class="c1">// 偏移 6-7: 厂商 ID</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">vendorId</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span><span class="w">     </span><span class="c1">// eProsima = 0x01 0x5F</span>
+
+<span class="w">    </span><span class="c1">// 偏移 8-15: GUID Prefix (前 8 字节)</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">guidPrefix</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span><span class="w">   </span><span class="c1">// 参与者 GUID 的前 8 字节</span>
+<span class="p">};</span>
+
+<span class="c1">// 总大小: 4 + 2 + 2 + 8 = 16? </span>
+<span class="c1">// 注意: 实际 RTPS 2.2 后 Header 是 12 字节:</span>
+<span class="c1">// - magic (4)</span>
+<span class="c1">// - version (2) </span>
+<span class="c1">// - vendor (2)</span>
+<span class="c1">// - guidPrefix (4) ← 这里只有 4 字节！</span>
+</code></pre></div>
+<p><strong>Wireshark 显示示例</strong>:</p>
+<div class="codehilite"><pre><span></span><code>Real-Time Publish Subscribe Protocol
+    RTPS Header
+        Magic: RTPS
+        Protocol Version: 2.1
+        Vendor ID: eProsima Fast-RTPS (0x015f)
+        GUID Prefix: 01.0f.03.00
+</code></pre></div>
+<h3 id="22-vendor-id">2.2 Vendor ID 列表</h3>
+<table>
+<thead>
+<tr>
+<th>Vendor ID</th>
+<th>厂商</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x0000</td>
+<td>未指定</td>
+<td>-</td>
+</tr>
+<tr>
+<td>0x0101</td>
+<td>RTI</td>
+<td>Connext DDS</td>
+</tr>
+<tr>
+<td>0x015f</td>
+<td>eProsima</td>
+<td>Fast-DDS</td>
+</tr>
+<tr>
+<td>0x013f</td>
+<td>ADLINK</td>
+<td>OpenSplice</td>
+</tr>
+<tr>
+<td>0x0140</td>
+<td>PrismTech</td>
+<td>Vortex DDS</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-guid-prefix">2.3 GUID Prefix</h3>
+<div class="codehilite"><pre><span></span><code>GUID (Globally Unique Identifier) = 16 bytes
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     GUID 结构 (16 bytes)                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Header.guidPrefix (4 bytes)                                     │
+│  ├── 参与者在网络中的唯一标识前缀                                │
+│  └── 同一个参与者的所有实体共享相同前缀                          │
+│                                                                  │
+│  Entity ID (4 bytes)                                             │
+│  ├── 实体特定标识 (Writer/Reader)                                │
+│  └── 组合后形成完整的 12-byte GUID?                              │
+│                                                                  │
+│  注意: RTPS 2.x 中实际是:                                        │
+│  GUID = guidPrefix (12 bytes) + EntityId (4 bytes) = 16 bytes    │
+│  Header 中只有前 4 字节，完整 prefix 在后续获取                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="3-submessage">3. SubMessage 通用结构</h2>
+<h3 id="31-submessage-header">3.1 SubMessage Header</h3>
+<p>每个 SubMessage 都以 4 字节的 Header 开头：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SubmessageHeader</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="p">;</span><span class="w">     </span><span class="c1">// SubMessage 类型标识</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span><span class="w">            </span><span class="c1">// 标志位</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span><span class="w"> </span><span class="c1">// 内容长度（不含 header）</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="32-submessage-id">3.2 SubMessage ID 列表</h3>
+<table>
+<thead>
+<tr>
+<th>ID (Hex)</th>
+<th>名称</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td>PAD</td>
+<td>填充</td>
+</tr>
+<tr>
+<td>0x01</td>
+<td>ACKNACK</td>
+<td>确认/否认</td>
+</tr>
+<tr>
+<td>0x06</td>
+<td>HEARTBEAT</td>
+<td>心跳</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>GAP</td>
+<td>间隙（表示某些序列号不再发送）</td>
+</tr>
+<tr>
+<td>0x12</td>
+<td>ACKNACK_BATCH</td>
+<td>批量确认</td>
+</tr>
+<tr>
+<td>0x15</td>
+<td>DATA</td>
+<td>数据（内嵌序列化数据）</td>
+</tr>
+<tr>
+<td>0x16</td>
+<td>DATA_FRAG</td>
+<td>数据分片</td>
+</tr>
+<tr>
+<td>0x1A</td>
+<td>HEARTBEAT_BATCH</td>
+<td>批量心跳</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-flags">3.3 Flags 字段</h3>
+<div class="codehilite"><pre><span></span><code>Flags (1 byte):
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ E  │    │    │    │    │    │    │ F  │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+  │                                        │
+  │                                        └── Final Flag
+  │                                           (某些消息表示"最终"状态)
+  │
+  └── Endianness Flag
+      1 = 小端序 (Little Endian)
+      0 = 大端序 (Big Endian)
+
+注意: 其他位根据 SubMessage 类型有不同含义
+</code></pre></div>
+<hr/>
+<h2 id="4-data-submessage">4. DATA SubMessage</h2>
+<h3 id="41-data-submessage">4.1 DATA SubMessage 结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">DATA_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// === SubMessage Header (4 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x15</span><span class="p">;</span><span class="w">  </span><span class="c1">// DATA</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span><span class="w">                 </span><span class="c1">// 标志位</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span><span class="w">     </span><span class="c1">// 后续内容长度</span>
+
+<span class="w">    </span><span class="c1">// === Extra Flags (2 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">extraFlags</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 位 0: Data present (inline_qos + data)</span>
+<span class="w">    </span><span class="c1">// 位 1: Key present (inline_qos + key hash)</span>
+<span class="w">    </span><span class="c1">// 位 2: Status info present</span>
+
+<span class="w">    </span><span class="c1">// === Octets to Inline QoS (2 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">octetsToInlineQoS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Reader ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span><span class="w">      </span><span class="c1">// 目标 Reader (0 = 所有 Reader)</span>
+
+<span class="w">    </span><span class="c1">// === Writer ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span><span class="w">      </span><span class="c1">// 源 Writer</span>
+
+<span class="w">    </span><span class="c1">// === Writer Sequence Number (8 bytes) ===</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">writerSN</span><span class="p">;</span><span class="w">         </span><span class="c1">// 序列号 (高32位 + 低32位)</span>
+
+<span class="w">    </span><span class="c1">// === Inline QoS (变长，可选) ===</span>
+<span class="w">    </span><span class="c1">// - PID_STATUS_INFO (实例状态)</span>
+<span class="w">    </span><span class="c1">// - PID_KEY_HASH (实例 key)</span>
+<span class="w">    </span><span class="c1">// - PID_SENTINEL (结束标记)</span>
+
+<span class="w">    </span><span class="c1">// === Serialized Payload (变长，可选) ===</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">encapsulationId</span><span class="p">;</span><span class="w">  </span><span class="c1">// 0x0000 (CDR BE) 或 0x0001 (CDR LE)</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">encapsulationOptions</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">serializedData</span><span class="p">[];</span><span class="w">  </span><span class="c1">// CDR 编码的数据</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="42-data-submessage">4.2 DATA SubMessage 图示</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                     </span><span class="n">DATA</span><span class="w"> </span><span class="n">SubMessage</span><span class="w">                             </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Header</span><span class="w"> </span><span class="p">(</span><span class="mi">4</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="mh">0x15</span><span class="w"> </span><span class="err">│</span><span class="w"> </span><span class="n">Flags</span><span class="w"> </span><span class="err">│</span><span class="w"> </span><span class="n">Length</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">        </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Extra</span><span class="w"> </span><span class="n">Flags</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Bits</span><span class="p">:</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="n">K</span><span class="w"> </span><span class="n">S</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="n">R</span><span class="w">                   </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">D</span><span class="o">=</span><span class="n">Data</span><span class="w"> </span><span class="n">present</span><span class="p">,</span><span class="w"> </span><span class="n">K</span><span class="o">=</span><span class="n">Key</span><span class="w"> </span><span class="n">present</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="o">=</span><span class="n">Status</span><span class="w"> </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Octets</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">Inline</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">从当前位置到</span><span class="w"> </span><span class="n">Inline</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="err">的字节偏移</span><span class="w">      </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Reader</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="n">ID</span><span class="w"> </span><span class="p">(</span><span class="mi">4</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="mh">0x00000000</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">所有</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="p">(</span><span class="err">广播</span><span class="p">)</span><span class="w">         </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="mh">0x00</span><span class="n">XXYYC7</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">特定</span><span class="w"> </span><span class="n">Reader</span><span class="w">                </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Writer</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="n">ID</span><span class="w"> </span><span class="p">(</span><span class="mi">4</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="mh">0x00</span><span class="n">XXYYC2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Writer</span><span class="w"> </span><span class="n">ID</span><span class="w">                  </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Sequence</span><span class="w"> </span><span class="n">Number</span><span class="w"> </span><span class="p">(</span><span class="mi">8</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">high</span><span class="w"> </span><span class="p">(</span><span class="mi">4</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w"> </span><span class="err">│</span><span class="w"> </span><span class="n">low</span><span class="w"> </span><span class="p">(</span><span class="mi">4</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">通常为</span><span class="w"> </span><span class="mi">0</span><span class="w">      </span><span class="err">│</span><span class="w"> </span><span class="err">序列号值</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mf">3.</span><span class="o">..</span><span class="p">)</span><span class="w">    </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Inline</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="p">(</span><span class="err">变长，可选</span><span class="p">)</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">PID_STATUS_INFO</span><span class="w"> </span><span class="p">(</span><span class="mh">0x0071</span><span class="p">):</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="n">bytes</span><span class="w">       </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="err">实例状态</span><span class="w"> </span><span class="p">(</span><span class="n">REGISTER</span><span class="o">/</span><span class="n">DISPOSE</span><span class="o">/...</span><span class="p">)</span><span class="w">      </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">PID_KEY_HASH</span><span class="w"> </span><span class="p">(</span><span class="mh">0x0070</span><span class="p">):</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="n">bytes</span><span class="w">         </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="err">实例</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="nb">hash</span><span class="w">                        </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">PID_SENTINEL</span><span class="w"> </span><span class="p">(</span><span class="mh">0x0001</span><span class="p">):</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="n">bytes</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="err">参数结束标记</span><span class="w">                     </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Serialized</span><span class="w"> </span><span class="n">Payload</span><span class="w"> </span><span class="p">(</span><span class="err">变长，可选</span><span class="p">)</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Encapsulation</span><span class="w"> </span><span class="n">ID</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">              </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="mh">0x0000</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CDR</span><span class="w"> </span><span class="n">Big</span><span class="w"> </span><span class="n">Endian</span><span class="w">               </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="mh">0x0001</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CDR</span><span class="w"> </span><span class="n">Little</span><span class="w"> </span><span class="n">Endian</span><span class="w">            </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Encapsulation</span><span class="w"> </span><span class="n">Options</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="w">         </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Serialized</span><span class="w"> </span><span class="n">Data</span><span class="w"> </span><span class="p">(</span><span class="n">CDR</span><span class="w"> </span><span class="err">编码</span><span class="p">)</span><span class="w">              </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="43-data">4.3 DATA 消息示例</h3>
+<div class="codehilite"><pre><span></span><code>Wireshark 捕获:
+
+Real-Time Publish Subscribe Protocol
+    RTPS Header
+        Magic: RTPS
+        Protocol Version: 2.1
+        Vendor ID: eProsima (0x015f)
+    Submessage: DATA
+        Submessage ID: 0x15 (DATA)
+        Flags: 0x05 (Endian: Little, Data present, Inline QoS)
+        Octets to inline QoS: 16
+        Reader Entity ID: 0x00000000 (unknown)
+        Writer Entity ID: 0x000003c2 (SEDPPubWriter)
+        Writer Sequence Number: 4
+        Inline QoS:
+            PID_STATUS_INFO: DISPOSE
+            PID_SENTINEL
+        Serialized Data:
+            Encapsulation ID: 0x0001 (CDR Little Endian)
+            Data (42 bytes): ...
+</code></pre></div>
+<hr/>
+<h2 id="5-heartbeat-submessage">5. HEARTBEAT SubMessage</h2>
+<h3 id="51-heartbeat">5.1 HEARTBEAT 结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">HEARTBEAT_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// === SubMessage Header (4 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x06</span><span class="p">;</span><span class="w">  </span><span class="c1">// HEARTBEAT</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Reader ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Writer ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === First Available SN (8 bytes) ===</span>
+<span class="w">    </span><span class="c1">// "我拥有的第一个序列号"</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">firstSN</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Last Available SN (8 bytes) ===</span>
+<span class="w">    </span><span class="c1">// "我拥有的最后一个序列号"</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">lastSN</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Count (4 bytes) ===</span>
+<span class="w">    </span><span class="c1">// 心跳计数器，用于去重</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="52-heartbeat">5.2 HEARTBEAT 语义</h3>
+<div class="codehilite"><pre><span></span><code>Writer 发送 HEARTBEAT(firstSN=1, lastSN=10):
+
+"我已经发送了序列号 1 到 10 的所有数据。
+ 如果你缺了哪些，请回复 ACKNACK 告诉我。"
+
+Reader 收到后的响应：
+
+场景 A: 全部收到
+  ACKNACK(bitmap=0, base=11, final=true)
+  "1-10 都收到了，继续发 11 及以后吧"
+
+场景 B: 缺失 Seq#5
+  ACKNACK(bitmap=10111110111, base=1, final=false)
+  "收到了 1-4, 6-10，缺失 5，请重发"
+</code></pre></div>
+<h3 id="53-heartbeat-flags">5.3 HEARTBEAT Flags</h3>
+<div class="codehilite"><pre><span></span><code>Flags 字段:
+  Bit 0 (E): Endianness (1 = Little Endian)
+  Bit 1 (F): Final Flag
+      1 = 不要求回复 ACKNACK（Final=true）
+      0 = 要求回复 ACKNACK
+  Bit 2 (L): Liveliness Flag
+      1 = 维持活跃状态（不关联具体数据）
+</code></pre></div>
+<hr/>
+<h2 id="6-acknack-submessage">6. ACKNACK SubMessage</h2>
+<h3 id="61-acknack">6.1 ACKNACK 结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">ACKNACK_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// === SubMessage Header (4 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x01</span><span class="p">;</span><span class="w">  </span><span class="c1">// ACKNACK</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Reader ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Writer ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Reader SN State (变长) ===</span>
+<span class="w">    </span><span class="c1">// 位图表示哪些序列号已收到/缺失</span>
+<span class="w">    </span><span class="n">SequenceNumberSet</span><span class="w"> </span><span class="n">snState</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Count (4 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">count</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="62-sequencenumberset">6.2 SequenceNumberSet（位图）</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SequenceNumberSet</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">base</span><span class="p">;</span><span class="w">           </span><span class="c1">// 基准序列号</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">numBits</span><span class="p">;</span><span class="w">       </span><span class="c1">// 位图中的位数（最大 256）</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">bitmap</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span><span class="w">     </span><span class="c1">// 256 位 = 32 字节</span>
+<span class="p">};</span>
+
+<span class="c1">// 位图语义:</span>
+<span class="c1">// bit[i] = 1: base + i 已收到 (ACK)</span>
+<span class="c1">// bit[i] = 0: base + i 缺失 (NACK)</span>
+</code></pre></div>
+<h3 id="63">6.3 位图示例</h3>
+<div class="codehilite"><pre><span></span><code>场景: Reader 收到 HEARTBEAT(1-10)
+实际状态:
+  已收到: 1, 2, 3, 4, 6, 7, 8, 9, 10
+  缺失: 5
+
+ACKNACK:
+  base = 1
+  numBits = 10
+  bitmap = [0b11101111, 0b10000000, 0x00, ...]
+            ││││││││││
+            12345678910
+                │
+                └── 5 是 0，表示缺失
+
+详细:
+  Byte 0: 0b11101111 = 0xEF
+          bit0=1 (Seq#1 ✓)
+          bit1=1 (Seq#2 ✓)
+          bit2=1 (Seq#3 ✓)
+          bit3=1 (Seq#4 ✓)
+          bit4=0 (Seq#5 ✗)
+          bit5=1 (Seq#6 ✓)
+          bit6=1 (Seq#7 ✓)
+          bit7=1 (Seq#8 ✓)
+
+  Byte 1: 0b10000000 = 0x80
+          bit0=1 (Seq#9 ✓)
+          bit1=1 (Seq#10 ✓)
+          ...
+</code></pre></div>
+<hr/>
+<h2 id="7-gap-submessage">7. GAP SubMessage</h2>
+<h3 id="71-gap">7.1 GAP 结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GAP_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// === SubMessage Header (4 bytes) ===</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x07</span><span class="p">;</span><span class="w">  </span><span class="c1">// GAP</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Reader ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Writer ID (4 bytes) ===</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Gap Start SN (8 bytes) ===</span>
+<span class="w">    </span><span class="c1">// 间隙开始的序列号</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">gapStart</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === Gap List (变长，可选) ===</span>
+<span class="w">    </span><span class="c1">// 如果有特定序列号需要标记为不可用</span>
+<span class="w">    </span><span class="n">SequenceNumberSet</span><span class="w"> </span><span class="n">gapList</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="72-gap">7.2 GAP 语义</h3>
+<div class="codehilite"><pre><span></span><code>Writer 发送 GAP(gapStart=5, gapEnd=5):
+
+"序列号 5 不会再发送了，别等了。
+ (可能是数据过期被丢弃了)"
+
+Reader 收到 GAP 后的处理:
+1. 将 Seq#5 标记为"永久缺失"
+2. 不再请求重传 Seq#5
+3. 如果应用层要求严格顺序，可能需要处理"空洞"
+</code></pre></div>
+<h3 id="73-gap">7.3 GAP 使用场景</h3>
+<div class="codehilite"><pre><span></span><code>场景 1: History QoS = KEEP_LAST(depth=1)
+
+Writer 发送:
+  Seq#1: "温度=25°C"
+  Seq#2: "温度=26°C"
+  Seq#3: "温度=27°C" ← 只保留最新
+
+如果 Reader 错过了 Seq#2，但 Writer 已经用 Seq#3 覆盖了它:
+  Writer 发送 GAP(2, 2):
+    "Seq#2 已经没有了，直接看 Seq#3 吧"
+
+场景 2: 数据过期
+
+Writer 发送:
+  "心跳包需要及时，过期的就不要了"
+  如果 Reader 没有及时确认，旧的心跳会被丢弃
+  通过 GAP 告知 Reader 别等了
+</code></pre></div>
+<hr/>
+<h2 id="8-submessage">8. 其他 SubMessage 类型</h2>
+<h3 id="81-data_frag">8.1 DATA_FRAG（分片数据）</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 用于传输大于 UDP MTU 的数据（&gt; 64KB）</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">DATA_FRAG_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x16</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">readerId</span><span class="p">;</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">writerId</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">writerSN</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 分片特定字段</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">fragmentStartingNum</span><span class="p">;</span><span class="w">   </span><span class="c1">// 起始分片号</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">fragmentsInSubmessage</span><span class="p">;</span><span class="w"> </span><span class="c1">// 本消息包含的分片数</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">fragmentSize</span><span class="p">;</span><span class="w">          </span><span class="c1">// 每个分片大小</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">sampleSize</span><span class="p">;</span><span class="w">            </span><span class="c1">// 原始数据总大小</span>
+
+<span class="w">    </span><span class="c1">// Inline QoS (可选)</span>
+<span class="w">    </span><span class="c1">// Serialized Payload Fragments</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="82-pad">8.2 PAD（填充）</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 用于对齐，无实际内容</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">PAD_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x00</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span><span class="w">  </span><span class="c1">// 通常为 0</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="83-info_ts">8.3 INFO_TS（时间戳）</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 为后续 SubMessage 提供时间戳</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">INFO_TS_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x09</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">timestamp</span><span class="p">;</span><span class="w">  </span><span class="c1">// NTP 格式时间戳 (8 bytes)</span>
+<span class="p">};</span>
+
+<span class="c1">// 用法: INFO_TS + DATA</span>
+<span class="c1">// "以下数据的源时间戳是 XXX"</span>
+</code></pre></div>
+<h3 id="84-info_dst">8.4 INFO_DST（目标）</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 指定后续 SubMessage 的目标参与者</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">INFO_DST_Submessage</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">submessageId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0e</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">flags</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">submessageLength</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">GuidPrefix_t</span><span class="w"> </span><span class="n">guidPrefix</span><span class="p">;</span><span class="w">  </span><span class="c1">// 8 bytes</span>
+<span class="p">};</span>
+
+<span class="c1">// 用法: INFO_DST + HEARTBEAT</span>
+<span class="c1">// "以下心跳是给特定参与者的"</span>
+</code></pre></div>
+<hr/>
+<h2 id="9-wireshark">9. Wireshark 抓包分析</h2>
+<h3 id="91-wireshark-rtps">9.1 配置 Wireshark 解析 RTPS</h3>
+<div class="codehilite"><pre><span></span><code><span class="mf">1.</span><span class="w"> </span><span class="n">安装</span><span class="w"> </span><span class="n">Wireshark</span><span class="w"> </span><span class="p">(</span><span class="mf">3.0</span><span class="o">+</span><span class="p">)</span>
+<span class="mf">2.</span><span class="w"> </span><span class="n">确保启用</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">解析器</span><span class="p">:</span>
+<span class="w">   </span><span class="n">Edit</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Preferences</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Protocols</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">RTPS</span>
+<span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="n">启用</span><span class="w"> </span><span class="s">"Decode RTPS 2.x"</span>
+<span class="mf">3.</span><span class="w"> </span><span class="n">设置</span><span class="w"> </span><span class="n">UDP</span><span class="w"> </span><span class="n">端口</span><span class="p">:</span>
+<span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="n">默认</span><span class="p">:</span><span class="w"> </span><span class="mf">7400</span><span class="o">-</span><span class="mf">7410</span>
+<span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="n">手动添加</span><span class="p">:</span><span class="w"> </span><span class="n">Edit</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Preferences</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Protocols</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">RTPS</span>
+</code></pre></div>
+<h3 id="92">9.2 典型通信流程抓包</h3>
+<div class="codehilite"><pre><span></span><code><span class="nx">发现阶段</span><span class="w"> </span><span class="p">(</span><span class="nx">PDP</span><span class="p">):</span>
+<span class="err">────────────────────────────────────────</span>
+<span class="w">  </span><span class="mi">1</span><span class="p">.</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="nx">广播</span><span class="w"> </span><span class="nx">SPDP</span><span class="w"> </span><span class="p">(</span><span class="nx">Simple</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="nx">Discovery</span><span class="p">)</span>
+<span class="w">     </span><span class="nx">UDP</span><span class="w"> </span><span class="nx">Src</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">192.168.1.10</span><span class="p">:</span><span class="mi">7410</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">Dst</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">239.255.0.1</span><span class="p">:</span><span class="mi">7400</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="nx">Data</span>
+
+<span class="w">  </span><span class="mi">2</span><span class="p">.</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="nx">B</span><span class="w"> </span><span class="nx">接收后回应</span><span class="w"> </span><span class="nx">SPDP</span>
+<span class="w">     </span><span class="nx">UDP</span><span class="w"> </span><span class="nx">Src</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">192.168.1.20</span><span class="p">:</span><span class="mi">7410</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">Dst</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">239.255.0.1</span><span class="p">:</span><span class="mi">7400</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="nx">Data</span>
+
+<span class="w">  </span><span class="mi">3</span><span class="p">.</span><span class="w"> </span><span class="nx">交换</span><span class="w"> </span><span class="nx">SEDP</span><span class="w"> </span><span class="p">(</span><span class="nx">Simple</span><span class="w"> </span><span class="nx">Endpoint</span><span class="w"> </span><span class="nx">Discovery</span><span class="p">)</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="p">(</span><span class="nx">w</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="nx">Data</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">Reader</span><span class="w"> </span><span class="nx">Data</span>
+
+<span class="nx">数据传输阶段</span><span class="p">:</span>
+<span class="err">────────────────────────────────────────</span>
+<span class="w">  </span><span class="mi">4</span><span class="p">.</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="nx">发送数据</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="w"> </span><span class="p">(</span><span class="nx">Seq</span><span class="err">#</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="w"> </span><span class="p">(</span><span class="nx">Seq</span><span class="err">#</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="w">  </span><span class="mi">5</span><span class="p">.</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="nx">发送心跳</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">HEARTBEAT</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="w">  </span><span class="mi">6</span><span class="p">.</span><span class="w"> </span><span class="nx">Reader</span><span class="w"> </span><span class="nx">确认</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">ACKNACK</span><span class="w"> </span><span class="p">(</span><span class="nx">ACK到3</span><span class="p">)</span>
+
+<span class="w">  </span><span class="mi">7</span><span class="p">.</span><span class="w"> </span><span class="nx">丢包重传</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">ACKNACK</span><span class="w"> </span><span class="p">(</span><span class="nx">NACK</span><span class="err">#</span><span class="mi">3</span><span class="p">)</span>
+<span class="w">     </span><span class="nx">RTPS</span><span class="p">:</span><span class="w"> </span><span class="nx">DATA</span><span class="w"> </span><span class="p">(</span><span class="nx">Seq</span><span class="err">#</span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="p">[</span><span class="nx">重传</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="93">9.3 分析示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Frame</span><span class="w"> </span><span class="mh">100</span><span class="o">:</span><span class="w"> </span><span class="mh">142</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="kt">wire</span>
+<span class="n">Ethernet</span><span class="w"> </span><span class="n">II</span>
+<span class="n">Internet</span><span class="w"> </span><span class="n">Protocol</span><span class="w"> </span><span class="n">Version</span><span class="w"> </span><span class="mh">4</span>
+<span class="n">User</span><span class="w"> </span><span class="n">Datagram</span><span class="w"> </span><span class="n">Protocol</span>
+<span class="w">    </span><span class="n">Src</span><span class="w"> </span><span class="nl">Port:</span><span class="w"> </span><span class="mh">7410</span>
+<span class="w">    </span><span class="n">Dst</span><span class="w"> </span><span class="nl">Port:</span><span class="w"> </span><span class="mh">7410</span>
+<span class="w">    </span><span class="nl">Length:</span><span class="w"> </span><span class="mh">108</span>
+<span class="n">Real</span><span class="o">-</span><span class="n">Time</span><span class="w"> </span><span class="n">Publish</span><span class="w"> </span><span class="n">Subscribe</span><span class="w"> </span><span class="n">Protocol</span>
+<span class="w">    </span><span class="n">RTPS</span><span class="w"> </span><span class="n">Header</span>
+<span class="w">        </span><span class="nl">Magic:</span><span class="w"> </span><span class="n">RTPS</span>
+<span class="w">        </span><span class="n">Protocol</span><span class="w"> </span><span class="nl">Version:</span><span class="w"> </span><span class="mf">2.1</span>
+<span class="w">        </span><span class="n">Vendor</span><span class="w"> </span><span class="nl">ID:</span><span class="w"> </span><span class="n">eProsima</span><span class="w"> </span><span class="p">(</span><span class="mh">0</span><span class="n">x015f</span><span class="p">)</span>
+<span class="w">        </span><span class="n">GUID</span><span class="w"> </span><span class="nl">Prefix:</span><span class="w"> </span><span class="mf">01.0f.03.00.00.00.00.00</span>
+<span class="w">    </span><span class="nl">Submessage:</span><span class="w"> </span><span class="n">INFO_TS</span>
+<span class="w">        </span><span class="n">Submessage</span><span class="w"> </span><span class="nl">ID:</span><span class="w"> </span><span class="mh">0</span><span class="n">x09</span><span class="w"> </span><span class="p">(</span><span class="n">INFO_TS</span><span class="p">)</span>
+<span class="w">        </span><span class="nl">Flags:</span><span class="w"> </span><span class="mh">0</span><span class="n">x01</span><span class="w"> </span><span class="p">(</span><span class="nl">Endian:</span><span class="w"> </span><span class="n">Little</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Octets</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">next</span><span class="w"> </span><span class="nl">header:</span><span class="w"> </span><span class="mh">8</span>
+<span class="w">        </span><span class="nl">Timestamp:</span><span class="w"> </span><span class="n">Mar</span><span class="w"> </span><span class="mh">11</span><span class="p">,</span><span class="w"> </span><span class="mh">2025</span><span class="w"> </span><span class="mh">15</span><span class="o">:</span><span class="mh">30</span><span class="o">:</span><span class="mf">25.123456789</span>
+<span class="w">    </span><span class="nl">Submessage:</span><span class="w"> </span><span class="n">DATA</span>
+<span class="w">        </span><span class="n">Submessage</span><span class="w"> </span><span class="nl">ID:</span><span class="w"> </span><span class="mh">0</span><span class="n">x15</span><span class="w"> </span><span class="p">(</span><span class="n">DATA</span><span class="p">)</span>
+<span class="w">        </span><span class="nl">Flags:</span><span class="w"> </span><span class="mh">0</span><span class="n">x05</span><span class="w"> </span><span class="p">(</span><span class="nl">Endian:</span><span class="w"> </span><span class="n">Little</span><span class="p">,</span><span class="w"> </span><span class="n">Inline</span><span class="w"> </span><span class="n">QoS</span><span class="p">,</span><span class="w"> </span><span class="n">Data</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Octets</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">inline</span><span class="w"> </span><span class="nl">QoS:</span><span class="w"> </span><span class="mh">16</span>
+<span class="w">        </span><span class="n">Reader</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="nl">ID:</span><span class="w"> </span><span class="mh">0</span><span class="n">x000004c7</span><span class="w"> </span><span class="p">(</span><span class="n">SubReader</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Writer</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="nl">ID:</span><span class="w"> </span><span class="mh">0</span><span class="n">x000003c2</span><span class="w"> </span><span class="p">(</span><span class="n">PubWriter</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Writer</span><span class="w"> </span><span class="n">Sequence</span><span class="w"> </span><span class="nl">Number:</span><span class="w"> </span><span class="mh">42</span>
+<span class="w">        </span><span class="n">Inline</span><span class="w"> </span><span class="nl">QoS:</span>
+<span class="w">            </span><span class="nl">PID_STATUS_INFO:</span><span class="w"> </span><span class="mh">0</span><span class="n">x00000001</span><span class="w"> </span><span class="p">(</span><span class="n">Key</span><span class="p">)</span>
+<span class="w">            </span><span class="n">PID_SENTINEL</span>
+<span class="w">        </span><span class="n">Serialized</span><span class="w"> </span><span class="nl">Data:</span>
+<span class="w">            </span><span class="nl">Encapsulation:</span><span class="w"> </span><span class="n">CDR</span><span class="w"> </span><span class="n">Little</span><span class="w"> </span><span class="n">Endian</span><span class="w"> </span><span class="p">(</span><span class="mh">0</span><span class="n">x0001</span><span class="p">)</span>
+<span class="w">            </span><span class="n">Data</span><span class="w"> </span><span class="p">(</span><span class="mh">28</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span><span class="o">:</span>
+<span class="w">                </span><span class="mh">00</span><span class="w"> </span><span class="mh">00</span><span class="w"> </span><span class="mh">00</span><span class="w"> </span><span class="mh">05</span><span class="w"> </span><span class="mh">48</span><span class="w"> </span><span class="mh">65</span><span class="w"> </span><span class="mh">6</span><span class="n">c</span><span class="w"> </span><span class="mh">6</span><span class="n">c</span><span class="w"> </span><span class="mf">6f</span><span class="w"> </span><span class="mh">00</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">(</span><span class="s">"Hello"</span><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="10-rtps">10. 实战：手动解析 RTPS 包</h2>
+<h3 id="101-tcpdump">10.1 使用 tcpdump 捕获</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 捕获 RTPS 流量</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>any<span class="w"> </span>udp<span class="w"> </span>portrange<span class="w"> </span><span class="m">7400</span>-7410<span class="w"> </span>-w<span class="w"> </span>rtps.pcap
+
+<span class="c1"># 实时显示十六进制</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>any<span class="w"> </span>udp<span class="w"> </span>port<span class="w"> </span><span class="m">7400</span><span class="w"> </span>-X
+</code></pre></div>
+<h3 id="102-python">10.2 Python 解析脚本示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">struct</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RTPSHeader</span><span class="p">:</span>
+    <span class="n">magic</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">version</span><span class="p">:</span> <span class="nb">tuple</span>
+    <span class="n">vendor_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">guid_prefix</span><span class="p">:</span> <span class="nb">bytes</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_rtps_header</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RTPSHeader</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""解析 RTPS Header (12 bytes)"""</span>
+    <span class="n">magic</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">'ascii'</span><span class="p">)</span>
+    <span class="n">major</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+    <span class="n">minor</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+    <span class="n">vendor_id</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&gt;H'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">8</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">guid_prefix</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">16</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">RTPSHeader</span><span class="p">(</span>
+        <span class="n">magic</span><span class="o">=</span><span class="n">magic</span><span class="p">,</span>
+        <span class="n">version</span><span class="o">=</span><span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">),</span>
+        <span class="n">vendor_id</span><span class="o">=</span><span class="n">vendor_id</span><span class="p">,</span>
+        <span class="n">guid_prefix</span><span class="o">=</span><span class="n">guid_prefix</span>
+    <span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_submessage_header</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""解析 SubMessage Header (4 bytes)"""</span>
+    <span class="n">submessage_id</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">offset</span><span class="p">]</span>
+    <span class="n">flags</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">offset</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&lt;H'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">offset</span><span class="o">+</span><span class="mi">2</span><span class="p">:</span><span class="n">offset</span><span class="o">+</span><span class="mi">4</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">submessage_types</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="mh">0x00</span><span class="p">:</span> <span class="s1">'PAD'</span><span class="p">,</span>
+        <span class="mh">0x01</span><span class="p">:</span> <span class="s1">'ACKNACK'</span><span class="p">,</span>
+        <span class="mh">0x06</span><span class="p">:</span> <span class="s1">'HEARTBEAT'</span><span class="p">,</span>
+        <span class="mh">0x07</span><span class="p">:</span> <span class="s1">'GAP'</span><span class="p">,</span>
+        <span class="mh">0x15</span><span class="p">:</span> <span class="s1">'DATA'</span><span class="p">,</span>
+        <span class="mh">0x16</span><span class="p">:</span> <span class="s1">'DATA_FRAG'</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">'id'</span><span class="p">:</span> <span class="n">submessage_id</span><span class="p">,</span>
+        <span class="s1">'type'</span><span class="p">:</span> <span class="n">submessage_types</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">submessage_id</span><span class="p">,</span> <span class="s1">'UNKNOWN'</span><span class="p">),</span>
+        <span class="s1">'flags'</span><span class="p">:</span> <span class="n">flags</span><span class="p">,</span>
+        <span class="s1">'length'</span><span class="p">:</span> <span class="n">length</span>
+    <span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_data_submessage</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""解析 DATA SubMessage"""</span>
+    <span class="c1"># Skip header (4 bytes)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">offset</span> <span class="o">+</span> <span class="mi">4</span>
+
+    <span class="n">extra_flags</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&lt;H'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="p">:</span><span class="n">pos</span><span class="o">+</span><span class="mi">2</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">pos</span> <span class="o">+=</span> <span class="mi">2</span>
+
+    <span class="n">octets_to_qos</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&lt;H'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="p">:</span><span class="n">pos</span><span class="o">+</span><span class="mi">2</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">pos</span> <span class="o">+=</span> <span class="mi">2</span>
+
+    <span class="n">reader_id</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="p">:</span><span class="n">pos</span><span class="o">+</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">hex</span><span class="p">()</span>
+    <span class="n">pos</span> <span class="o">+=</span> <span class="mi">4</span>
+
+    <span class="n">writer_id</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="p">:</span><span class="n">pos</span><span class="o">+</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">hex</span><span class="p">()</span>
+    <span class="n">pos</span> <span class="o">+=</span> <span class="mi">4</span>
+
+    <span class="n">seq_num_high</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&lt;I'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="p">:</span><span class="n">pos</span><span class="o">+</span><span class="mi">4</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">seq_num_low</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s1">'&lt;I'</span><span class="p">,</span> <span class="n">data</span><span class="p">[</span><span class="n">pos</span><span class="o">+</span><span class="mi">4</span><span class="p">:</span><span class="n">pos</span><span class="o">+</span><span class="mi">8</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">seq_num</span> <span class="o">=</span> <span class="p">(</span><span class="n">seq_num_high</span> <span class="o">&lt;&lt;</span> <span class="mi">32</span><span class="p">)</span> <span class="o">|</span> <span class="n">seq_num_low</span>
+    <span class="n">pos</span> <span class="o">+=</span> <span class="mi">8</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">'extra_flags'</span><span class="p">:</span> <span class="n">extra_flags</span><span class="p">,</span>
+        <span class="s1">'reader_id'</span><span class="p">:</span> <span class="n">reader_id</span><span class="p">,</span>
+        <span class="s1">'writer_id'</span><span class="p">:</span> <span class="n">writer_id</span><span class="p">,</span>
+        <span class="s1">'sequence_number'</span><span class="p">:</span> <span class="n">seq_num_low</span><span class="p">,</span>  <span class="c1"># 通常高32位为0</span>
+    <span class="p">}</span>
+
+<span class="c1"># 使用示例</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">'__main__'</span><span class="p">:</span>
+    <span class="c1"># 示例 RTPS 包 (十六进制)</span>
+    <span class="n">sample_packet</span> <span class="o">=</span> <span class="nb">bytes</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span>
+        <span class="s1">'52545053'</span>      <span class="c1"># Magic: "RTPS"</span>
+        <span class="s1">'0201'</span>          <span class="c1"># Version: 2.1</span>
+        <span class="s1">'015f'</span>          <span class="c1"># Vendor: eProsima</span>
+        <span class="s1">'010f030000000000'</span>  <span class="c1"># GUID Prefix</span>
+        <span class="s1">'15'</span>            <span class="c1"># SubMessage ID: DATA</span>
+        <span class="s1">'05'</span>            <span class="c1"># Flags</span>
+        <span class="s1">'2a00'</span>          <span class="c1"># Length: 42</span>
+        <span class="s1">'0000'</span>          <span class="c1"># Extra Flags</span>
+        <span class="s1">'1000'</span>          <span class="c1"># Octets to QoS: 16</span>
+        <span class="s1">'00000000'</span>      <span class="c1"># Reader ID</span>
+        <span class="s1">'000003c2'</span>      <span class="c1"># Writer ID</span>
+        <span class="s1">'00000000'</span>      <span class="c1"># Seq High</span>
+        <span class="s1">'2a000000'</span>      <span class="c1"># Seq Low: 42</span>
+    <span class="p">)</span>
+
+    <span class="n">header</span> <span class="o">=</span> <span class="n">parse_rtps_header</span><span class="p">(</span><span class="n">sample_packet</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"RTPS Header: </span><span class="si">{</span><span class="n">header</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="n">submsg</span> <span class="o">=</span> <span class="n">parse_submessage_header</span><span class="p">(</span><span class="n">sample_packet</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"SubMessage: </span><span class="si">{</span><span class="n">submsg</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">submsg</span><span class="p">[</span><span class="s1">'type'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'DATA'</span><span class="p">:</span>
+        <span class="n">data_info</span> <span class="o">=</span> <span class="n">parse_data_submessage</span><span class="p">(</span><span class="n">sample_packet</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">submsg</span><span class="p">[</span><span class="s1">'length'</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"DATA Info: </span><span class="si">{</span><span class="n">data_info</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="103">10.3 常用分析命令</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 统计 RTPS 包数量</span>
+tshark<span class="w"> </span>-r<span class="w"> </span>rtps.pcap<span class="w"> </span>-Y<span class="w"> </span><span class="s2">"rtps"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
+
+<span class="c1"># 提取所有 HEARTBEAT</span>
+tshark<span class="w"> </span>-r<span class="w"> </span>rtps.pcap<span class="w"> </span>-Y<span class="w"> </span><span class="s2">"rtps.sm.id == 0x06"</span><span class="w"> </span>-V
+
+<span class="c1"># 提取特定 Writer 的数据</span>
+tshark<span class="w"> </span>-r<span class="w"> </span>rtps.pcap<span class="w"> </span>-Y<span class="w"> </span><span class="s2">"rtps.writerEntityId == 0x000003c2"</span>
+
+<span class="c1"># 显示 RTPS 包统计</span>
+tshark<span class="w"> </span>-r<span class="w"> </span>rtps.pcap<span class="w"> </span>-q<span class="w"> </span>-z<span class="w"> </span>io,phs
+
+<span class="c1"># 导出 RTPS 数据到 JSON</span>
+tshark<span class="w"> </span>-r<span class="w"> </span>rtps.pcap<span class="w"> </span>-T<span class="w"> </span>json<span class="w"> </span>-Y<span class="w"> </span><span class="s2">"rtps"</span><span class="w"> </span>&gt;<span class="w"> </span>rtps.json
+</code></pre></div>
+<hr/>
+<h2 id="_2">总结</h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                    RTPS 协议消息格式总结                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  RTPS Header (12 bytes)                                         │
+│  ├── Magic: "RTPS" (4 bytes)                                    │
+│  ├── Version: 2.x (2 bytes)                                     │
+│  ├── Vendor ID (2 bytes)                                        │
+│  └── GUID Prefix (4 bytes)                                      │
+│                                                                  │
+│  SubMessage 通用结构 (4 + N bytes)                              │
+│  ├── ID: 消息类型 (DATA/HEARTBEAT/ACKNACK/GAP)                  │
+│  ├── Flags: 字节序 + 特定标志                                   │
+│  └── Length: 内容长度                                           │
+│                                                                  │
+│  核心 SubMessage                                                 │
+│  ├── DATA: 传输实际数据 + Inline QoS                            │
+│  ├── HEARTBEAT: 声明可用序列号范围                              │
+│  ├── ACKNACK: 位图确认/请求重传                                 │
+│  └── GAP: 声明某些序列号不再可用                                │
+│                                                                  │
+│  调试工具                                                        │
+│  ├── Wireshark: 图形化解析                                      │
+│  ├── tcpdump: 命令行捕获                                        │
+│  └── 自定义脚本: 程序化分析                                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 RTPS 2.2 规范</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

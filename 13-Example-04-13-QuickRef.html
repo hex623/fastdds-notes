@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example 04-13: 其他示例快速参考 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item active" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 13-Example-04-13-QuickRef</div>
+        <h1 id="example-04-13">Example 04-13: 其他示例快速参考</h1>
+<p><strong>学习目标</strong>: 快速了解剩余 10 个示例的核心概念和用法<br/>
+<strong>难度</strong>: ⭐⭐⭐-⭐⭐⭐⭐⭐<br/>
+<strong>预计时长</strong>: 每个示例 30-60 分钟</p>
+<hr/>
+<h2 id="example-04-static-edp-discovery">Example 04: Static EDP Discovery</h2>
+<p><strong>路径</strong>: <code>examples/cpp/static_edp_discovery/</code><br/>
+<strong>核心概念</strong>: 静态端点发现，禁用动态发现，预先配置对端信息<br/>
+<strong>适用场景</strong>: 嵌入式系统、确定性网络、安全环境</p>
+<h3 id="_1">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 禁用所有自动发现</span>
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="n">DiscoveryProtocol</span><span class="o">::</span><span class="n">NONE</span><span class="p">;</span>
+
+<span class="c1">// 手动配置远程 Writer 信息</span>
+<span class="n">Locator_t</span><span class="w"> </span><span class="n">writer_locator</span><span class="p">;</span>
+<span class="c1">// ... 配置 writer_locator</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">remoteLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">writer_locator</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="_2">学习要点</h3>
+<ul>
+<li>完全禁用多播/单播发现</li>
+<li>手动配置所有端点信息</li>
+<li>启动顺序无关，但配置复杂</li>
+</ul>
+<hr/>
+<h2 id="example-05-configuration">Example 05: Configuration</h2>
+<p><strong>路径</strong>: <code>examples/cpp/configuration/</code><br/>
+<strong>核心概念</strong>: XML 配置文件加载 QoS<br/>
+<strong>适用场景</strong>: 动态配置、多环境部署、运维管理</p>
+<h3 id="_3">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 从环境变量加载 XML</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">xml_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">getenv</span><span class="p">(</span><span class="s">"FASTDDS_DEFAULT_PROFILES_FILE"</span><span class="p">);</span>
+<span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">load_XML_profiles_file</span><span class="p">(</span><span class="n">xml_file</span><span class="p">);</span>
+
+<span class="c1">// 使用 XML 中的 QoS 配置</span>
+<span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">    </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant_with_profile</span><span class="p">(</span>
+<span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">"participant_profile_name"</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="xml">XML 示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="nt">&lt;dds&gt;</span>
+<span class="w">    </span><span class="nt">&lt;profiles&gt;</span>
+<span class="w">        </span><span class="nt">&lt;participant</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"participant_profile"</span><span class="nt">&gt;</span>
+<span class="w">            </span><span class="nt">&lt;rtps&gt;</span>
+<span class="w">                </span><span class="nt">&lt;builtin&gt;</span>
+<span class="w">                    </span><span class="nt">&lt;discovery_config&gt;</span>
+<span class="w">                        </span><span class="nt">&lt;discoveryProtocol&gt;</span>SIMPLE<span class="nt">&lt;/discoveryProtocol&gt;</span>
+<span class="w">                    </span><span class="nt">&lt;/discovery_config&gt;</span>
+<span class="w">                </span><span class="nt">&lt;/builtin&gt;</span>
+<span class="w">            </span><span class="nt">&lt;/rtps&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/participant&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/profiles&gt;</span>
+<span class="nt">&lt;/dds&gt;</span>
+</code></pre></div>
+<hr/>
+<h2 id="example-06-content-filter">Example 06: Content Filter</h2>
+<p><strong>路径</strong>: <code>examples/cpp/content_filter/</code><br/>
+<strong>核心概念</strong>: 内容过滤 Topic，Reader 只接收满足条件的数据<br/>
+<strong>适用场景</strong>: 大数据量场景，减少不必要的数据传输</p>
+<h3 id="_4">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 ContentFilteredTopic</span>
+<span class="n">ContentFilteredTopic</span><span class="o">*</span><span class="w"> </span><span class="n">filtered_topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">    </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_contentfilteredtopic</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"FilteredTopic"</span><span class="p">,</span>
+<span class="w">        </span><span class="n">topic</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"index &gt; %0"</span><span class="p">,</span><span class="w">    </span><span class="c1">// SQL 表达式</span>
+<span class="w">        </span><span class="p">{</span><span class="s">"100"</span><span class="p">});</span><span class="w">         </span><span class="c1">// 参数</span>
+
+<span class="c1">// 使用过滤后的 Topic 创建 Reader</span>
+<span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span>
+<span class="w">    </span><span class="n">filtered_topic</span><span class="p">,</span><span class="w">  </span><span class="c1">// 而不是原始 topic</span>
+<span class="w">    </span><span class="n">reader_qos</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="_5">学习要点</h3>
+<ul>
+<li>SQL 表达式过滤（类似 WHERE 子句）</li>
+<li>在 Reader 端过滤，减少 CPU 占用</li>
+<li>也可以配置为在 Writer 端过滤（更高效）</li>
+</ul>
+<hr/>
+<h2 id="example-07-flow-control">Example 07: Flow Control</h2>
+<p><strong>路径</strong>: <code>examples/cpp/flow_control/</code><br/>
+<strong>核心概念</strong>: 流量控制，限制 Writer 的发送速率<br/>
+<strong>适用场景</strong>: 带宽受限、接收端处理能力有限</p>
+<h3 id="_6">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置异步发送</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS_PUBLISH_MODE</span><span class="p">;</span>
+
+<span class="c1">// 配置流量控制</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">throughput_controller</span><span class="p">().</span><span class="n">bytesPerPeriod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">  </span><span class="c1">// 每秒 1KB</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">throughput_controller</span><span class="p">().</span><span class="n">periodMillisecs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+
+<span class="c1">// 或者使用带宽限制</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">throughput_controller</span><span class="p">().</span><span class="n">bytesPerPeriod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64000</span><span class="p">;</span><span class="w">  </span><span class="c1">// 64KB</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">throughput_controller</span><span class="p">().</span><span class="n">periodMillisecs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w">   </span><span class="c1">// 每 100ms</span>
+</code></pre></div>
+<h3 id="_7">学习要点</h3>
+<ul>
+<li>同步发送 vs 异步发送</li>
+<li>带宽限制（bytes/period）</li>
+<li>防止接收端缓冲区溢出</li>
+</ul>
+<hr/>
+<h2 id="example-08-delivery-mechanisms">Example 08: Delivery Mechanisms</h2>
+<p><strong>路径</strong>: <code>examples/cpp/delivery_mechanisms/</code><br/>
+<strong>核心概念</strong>: 多种传输机制对比（UDP、TCP、SHM）<br/>
+<strong>适用场景</strong>: 性能测试、传输层选型</p>
+<h3 id="_8">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置多种传输</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">udp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">UDPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">tcp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">TCPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">shm_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SharedMemTransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span>
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">udp_transport</span><span class="p">);</span>
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">tcp_transport</span><span class="p">);</span>
+
+<span class="c1">// Fast-DDS 自动选择最优传输</span>
+</code></pre></div>
+<h3 id="_9">学习要点</h3>
+<ul>
+<li>自动选择 vs 强制指定</li>
+<li>传输优先级</li>
+<li>性能对比测试</li>
+</ul>
+<hr/>
+<h2 id="example-09-topic-instances">Example 09: Topic Instances</h2>
+<p><strong>路径</strong>: <code>examples/cpp/topic_instances/</code><br/>
+<strong>核心概念</strong>: Topic 多实例，用 Key 区分不同数据流<br/>
+<strong>适用场景</strong>: 多传感器、多设备状态管理</p>
+<h3 id="_10">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 定义带 Key 的数据类型</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">ShapeType</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">color</span><span class="p">;</span><span class="w">  </span><span class="c1">// Key 字段</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 创建 Reader，接收所有实例</span>
+<span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">);</span>
+
+<span class="c1">// 或者只接收特定实例</span>
+<span class="n">SampleInfo</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+<span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take_next_sample</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ReturnCode_t</span><span class="o">::</span><span class="n">RETCODE_OK</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">instance_handle</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">specific_instance</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 处理特定实例</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="_11">学习要点</h3>
+<ul>
+<li>InstanceHandle 区分不同实例</li>
+<li>实例生命周期管理（ALIVE/NOT_ALIVE）</li>
+<li>读取特定实例的历史数据</li>
+</ul>
+<hr/>
+<h2 id="example-10-custom-payload-pool">Example 10: Custom Payload Pool</h2>
+<p><strong>路径</strong>: <code>examples/cpp/custom_payload_pool/</code><br/>
+<strong>核心概念</strong>: 自定义 Payload 内存池，零拷贝优化<br/>
+<strong>适用场景</strong>: 高性能、低延迟、大数据量</p>
+<h3 id="_12">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 创建自定义 PayloadPool</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CustomPayloadPool</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">IPayloadPool</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">get_payload</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 从内存池分配</span>
+<span class="w">        </span><span class="n">payload</span><span class="p">.</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pool_</span><span class="p">.</span><span class="n">allocate</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+<span class="w">        </span><span class="n">payload</span><span class="p">.</span><span class="n">max_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">release_payload</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 归还内存池</span>
+<span class="w">        </span><span class="n">pool_</span><span class="p">.</span><span class="n">deallocate</span><span class="p">(</span><span class="n">payload</span><span class="p">.</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 使用自定义 Pool</span>
+<span class="n">CustomPayloadPool</span><span class="w"> </span><span class="n">pool</span><span class="p">;</span>
+<span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
+<span class="w">    </span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">listener</span><span class="p">,</span><span class="w"> </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">all</span><span class="p">(),</span><span class="w"> </span><span class="o">&amp;</span><span class="n">pool</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="_13">学习要点</h3>
+<ul>
+<li>避免频繁的 new/delete</li>
+<li>内存池预分配</li>
+<li>零拷贝传输</li>
+</ul>
+<hr/>
+<h2 id="example-11-security">Example 11: Security</h2>
+<p><strong>路径</strong>: <code>examples/cpp/security/</code><br/>
+<strong>核心概念</strong>: DDS-Security，认证、加密、访问控制<br/>
+<strong>适用场景</strong>: 生产环境、跨网段、零信任网络</p>
+<h3 id="_14">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置认证</span>
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"dds.sec.auth.plugin"</span><span class="p">,</span><span class="w"> </span><span class="s">"builtin.PKI-DH"</span><span class="p">);</span>
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"dds.sec.auth.builtin.PKI-DH.identity_certificate"</span><span class="p">,</span>
+<span class="w">    </span><span class="s">"file://participant_cert.pem"</span><span class="p">);</span>
+
+<span class="c1">// 配置加密</span>
+<span class="n">participant_qos</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"dds.sec.crypto.plugin"</span><span class="p">,</span><span class="w"> </span><span class="s">"builtin.AES-GCM-GMAC"</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="_15">学习要点</h3>
+<ul>
+<li>PKI 证书体系</li>
+<li>Governance 和 Permissions 配置</li>
+<li>签名 XML 文件</li>
+</ul>
+<hr/>
+<h2 id="example-12-xtypes">Example 12: XTypes</h2>
+<p><strong>路径</strong>: <code>examples/cpp/xtypes/</code><br/>
+<strong>核心概念</strong>: 动态类型发现，类型演进<br/>
+<strong>适用场景</strong>: 版本兼容、动态系统</p>
+<h3 id="_16">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 动态类型注册</span>
+<span class="n">DynamicType_ptr</span><span class="w"> </span><span class="n">dynamic_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DynamicTypeBuilderFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_struct_builder</span><span class="p">();</span>
+<span class="n">dynamic_type</span><span class="o">-&gt;</span><span class="n">add_member</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">"id"</span><span class="p">,</span><span class="w"> </span><span class="n">DynamicTypeBuilderFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_int32_type</span><span class="p">());</span>
+<span class="n">dynamic_type</span><span class="o">-&gt;</span><span class="n">add_member</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">"name"</span><span class="p">,</span><span class="w"> </span><span class="n">DynamicTypeBuilderFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_string_type</span><span class="p">());</span>
+<span class="n">dynamic_type</span><span class="o">-&gt;</span><span class="n">build</span><span class="p">();</span>
+
+<span class="c1">// 使用动态类型创建 Topic</span>
+<span class="n">TypeSupport</span><span class="w"> </span><span class="nf">type_support</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">DynamicPubSubType</span><span class="p">(</span><span class="n">dynamic_type</span><span class="p">));</span>
+<span class="n">type_support</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant</span><span class="p">,</span><span class="w"> </span><span class="s">"DynamicType"</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="_17">学习要点</h3>
+<ul>
+<li>TypeObject 类型描述</li>
+<li>类型兼容性检查</li>
+<li>向后兼容的版本演进</li>
+</ul>
+<hr/>
+<h2 id="example-13-benchmark">Example 13: Benchmark</h2>
+<p><strong>路径</strong>: <code>examples/cpp/benchmark/</code><br/>
+<strong>核心概念</strong>: 性能基准测试，吞吐量、延迟测量<br/>
+<strong>适用场景</strong>: 性能调优、架构选型</p>
+<h3 id="_18">关键代码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置测试参数</span>
+<span class="kt">uint32_t</span><span class="w"> </span><span class="n">payload_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">      </span><span class="c1">// 1KB payload</span>
+<span class="kt">uint32_t</span><span class="w"> </span><span class="n">sample_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w">     </span><span class="c1">// 发送 10000 个样本</span>
+<span class="kt">bool</span><span class="w"> </span><span class="n">reliable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">              </span><span class="c1">// 可靠传输</span>
+
+<span class="c1">// 测量吞吐量</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">high_resolution_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">sample_count</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">high_resolution_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+
+<span class="k">auto</span><span class="w"> </span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">);</span>
+<span class="kt">double</span><span class="w"> </span><span class="n">throughput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">payload_size</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">sample_count</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">duration</span><span class="p">.</span><span class="n">count</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1000.0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="mi">1024</span><span class="o">*</span><span class="mi">1024</span><span class="p">);</span>
+<span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Throughput: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">throughput</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" MB/s"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="_19">学习要点</h3>
+<ul>
+<li>吞吐量测试方法</li>
+<li>延迟测试方法（往返时间）</li>
+<li>不同 QoS 配置的性能对比</li>
+</ul>
+<hr/>
+<h2 id="_20">📊 示例学习路线图</h2>
+<div class="codehilite"><pre><span></span><code><span class="n">Week</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="err">基础</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">hello_world</span><span class="w"> </span><span class="p">(</span><span class="n">DDS</span><span class="w"> </span><span class="err">基础</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">rtps</span><span class="w"> </span><span class="p">(</span><span class="n">RTPS</span><span class="w"> </span><span class="err">层</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">configuration</span><span class="w"> </span><span class="p">(</span><span class="n">XML</span><span class="w"> </span><span class="err">配置</span><span class="p">)</span>
+
+<span class="n">Week</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="err">发现与连接</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">discovery_server</span><span class="w"> </span><span class="p">(</span><span class="err">集中式发现</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">static_edp_discovery</span><span class="w"> </span><span class="p">(</span><span class="err">静态发现</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">delivery_mechanisms</span><span class="w"> </span><span class="p">(</span><span class="err">传输层</span><span class="p">)</span>
+
+<span class="n">Week</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="err">高级特性</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">content_filter</span><span class="w"> </span><span class="p">(</span><span class="err">过滤</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">flow_control</span><span class="w"> </span><span class="p">(</span><span class="err">流控</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">topic_instances</span><span class="w"> </span><span class="p">(</span><span class="err">多实例</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">custom_payload_pool</span><span class="w"> </span><span class="p">(</span><span class="err">内存优化</span><span class="p">)</span>
+
+<span class="n">Week</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="err">生产实战</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">security</span><span class="w"> </span><span class="p">(</span><span class="err">安全</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">xtypes</span><span class="w"> </span><span class="p">(</span><span class="err">动态类型</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">benchmark</span><span class="w"> </span><span class="p">(</span><span class="err">性能测试</span><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="_21">✅ 完整学习检查清单</h2>
+<ul>
+<li>[x] Example 01: hello_world</li>
+<li>[x] Example 02: rtps</li>
+<li>[x] Example 03: discovery_server</li>
+<li>[ ] Example 04: static_edp_discovery</li>
+<li>[ ] Example 05: configuration</li>
+<li>[ ] Example 06: content_filter</li>
+<li>[ ] Example 07: flow_control</li>
+<li>[ ] Example 08: delivery_mechanisms</li>
+<li>[ ] Example 09: topic_instances</li>
+<li>[ ] Example 10: custom_payload_pool</li>
+<li>[ ] Example 11: security</li>
+<li>[ ] Example 12: xtypes</li>
+<li>[ ] Example 13: benchmark</li>
+</ul>
+<hr/>
+<p><em>所有 13 个示例已覆盖！建议按路线图逐一学习。</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

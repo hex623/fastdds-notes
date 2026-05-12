@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDS 消息传输完整流程：从应用到应用 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item active" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 23-Message-Transmission-Flow</div>
+        <h1 id="dds">DDS 消息传输完整流程：从应用到应用</h1>
+<blockquote>
+<p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
+1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
+2. <strong>简化示例</strong>：为教学目的简化，省略了锁、异常处理等细节</p>
+</blockquote>
+<hr/>
+<h2 id="_1">完整数据流概述</h2>
+<div class="codehilite"><pre><span></span><code>应用层 A                    DDS 中间层                    网络层                    DDS 中间层                    应用层 B
+    │                           │                          │                          │                           │
+    │  1. write()               │                          │                          │                           │
+    │ ───────────────────────&gt;  │                          │                          │                           │
+    │                           │  2. 序列化 (CDR)          │                          │                           │
+    │                           │  3. 写入 HistoryCache      │                          │                           │
+    │                           │  4. 匹配订阅者             │                          │                           │
+    │                           │  5. 发送到 Transport      │                          │                           │
+    │                           │ ───────────────────────&gt; │                          │                           │
+    │                           │                          │  6. UDP/SHM 传输         │                          │
+    │                           │                          │ ───────────────────────&gt; │                          │
+    │                           │                          │                          │  7. 接收并反序列化        │
+    │                           │                          │                          │  8. 写入 ReaderHistory   │
+    │                           │                          │                          │  9. 通知应用层            │
+    │                           │                          │                          │  10. on_data_available() │
+    │                           │                          │                          │ ───────────────────────&gt; │
+    │                           │                          │                          │                           │  11. take() 读取数据
+</code></pre></div>
+<hr/>
+<h2 id="1-publisher">1. 数据发送端（Publisher 侧）</h2>
+<h3 id="11-dds">1.1 创建 DDS 实体</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ========== HelloWorldPublisher.cpp (基于 Fast-DDS examples) ==========</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriterListener.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">HelloWorldPublisher</span><span class="w"> </span><span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 1️⃣ DomainParticipant - DDS 域的入口点</span>
+<span class="w">    </span><span class="c1">// 实际文件: src/cpp/fastdds/domain/DomainParticipantImpl.hpp</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2️⃣ Publisher - 发布者实体</span>
+<span class="w">    </span><span class="c1">// 实际文件: src/cpp/fastdds/publisher/PublisherImpl.hpp</span>
+<span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 3️⃣ DataWriter - 实际写入数据的类</span>
+<span class="w">    </span><span class="c1">// 实际文件: src/cpp/fastdds/publisher/DataWriterImpl.hpp</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 4️⃣ Topic - 数据主题</span>
+<span class="w">    </span><span class="c1">// 实际文件: src/cpp/fastdds/topic/TopicImpl.hpp</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 5️⃣ TypeSupport - 类型支持</span>
+<span class="w">    </span><span class="c1">// 由 fastddsgen 从 .idl 文件自动生成</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ========== 创建 DomainParticipant ==========</span>
+<span class="w">        </span><span class="c1">// 实际调用: DomainParticipantFactory::create_participant()</span>
+<span class="w">        </span><span class="c1">// 文件: src/cpp/fastdds/domain/DomainParticipantFactory.cpp</span>
+<span class="w">        </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">;</span>
+<span class="w">        </span><span class="n">participant_qos</span><span class="p">.</span><span class="n">name</span><span class="p">(</span><span class="s">"Participant_pub"</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">participant_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span>
+<span class="w">            </span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// ========== 注册数据类型 ==========</span>
+<span class="w">        </span><span class="c1">// HelloWorldPubSubType 由 fastddsgen 自动生成</span>
+<span class="w">        </span><span class="c1">// 包含 serialize(), deserialize(), getSerializedSizeProvider() 等方法</span>
+<span class="w">        </span><span class="n">type_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TypeSupport</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">HelloWorldPubSubType</span><span class="p">());</span>
+<span class="w">        </span><span class="n">type_</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// ========== 创建 Topic ==========</span>
+<span class="w">        </span><span class="c1">// 实际调用: DomainParticipantImpl::create_topic()</span>
+<span class="w">        </span><span class="n">topic_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">            </span><span class="s">"HelloWorldTopic"</span><span class="p">,</span><span class="w">           </span><span class="c1">// Topic 名称</span>
+<span class="w">            </span><span class="n">type_</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">(),</span><span class="w">            </span><span class="c1">// 类型名称</span>
+<span class="w">            </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span><span class="w">          </span><span class="c1">// 默认 QoS</span>
+
+<span class="w">        </span><span class="c1">// ========== 创建 Publisher ==========</span>
+<span class="w">        </span><span class="c1">// 实际调用: DomainParticipantImpl::create_publisher()</span>
+<span class="w">        </span><span class="n">publisher_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span>
+<span class="w">            </span><span class="n">PUBLISHER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="nb">nullptr</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// ========== 创建 DataWriter ==========</span>
+<span class="w">        </span><span class="c1">// 实际调用: PublisherImpl::create_datawriter()</span>
+<span class="w">        </span><span class="c1">// DataWriter 绑定到 Topic，准备发送数据</span>
+<span class="w">        </span><span class="n">writer_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher_</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
+<span class="w">            </span><span class="n">topic_</span><span class="p">,</span>
+<span class="w">            </span><span class="n">DATAWRITER_QOS_DEFAULT</span><span class="p">,</span>
+<span class="w">            </span><span class="o">&amp;</span><span class="n">listener_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// ========== 发送数据 ==========</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">publish</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">HelloWorld</span><span class="o">&amp;</span><span class="w"> </span><span class="n">hello</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// write() 执行以下操作：</span>
+<span class="w">        </span><span class="c1">// 1. 检查数据有效性</span>
+<span class="w">        </span><span class="c1">// 2. 分配序列化缓冲区</span>
+<span class="w">        </span><span class="c1">// 3. 调用 TypeSupport::serialize() 将 C++ 对象转为 CDR 格式</span>
+<span class="w">        </span><span class="c1">// 4. 写入 WriterHistoryCache (WHC)</span>
+<span class="w">        </span><span class="c1">// 5. 触发匹配的 Reader，通过网络层发送</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hello</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="12-datawriter">1.2 DataWriter 写入流程（核心）</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 实际源码: src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
+
+<span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">DataWriterImpl::write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 序列化数据</span>
+<span class="w">    </span><span class="c1">// 实际调用: HelloWorldPubSubType::serialize()</span>
+<span class="w">    </span><span class="c1">// 生成文件: 由 fastddsgen 从 HelloWorld.idl 生成</span>
+<span class="w">    </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_new_change</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 2. 根据 PublishMode 决定发送方式</span>
+<span class="w">    </span><span class="c1">// 实际文件: src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">qos_</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SYNCHRONOUS</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 同步模式：直接发送</span>
+<span class="w">        </span><span class="c1">// 实际调用: RTPSWriter::write()</span>
+<span class="w">        </span><span class="c1">// 文件: src/cpp/rtps/writer/RTPSWriter.cpp</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">rtps_writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w">  </span><span class="c1">// ASYNCHRONOUS</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 异步模式：添加到 FlowController</span>
+<span class="w">        </span><span class="c1">// 实际类: FlowControllerAsyncPublishMode</span>
+<span class="w">        </span><span class="n">FlowController</span><span class="o">*</span><span class="w"> </span><span class="n">fc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_flow_controller</span><span class="p">();</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fc</span><span class="o">-&gt;</span><span class="n">add_new_sample</span><span class="p">(</span>
+<span class="w">            </span><span class="n">rtps_writer_</span><span class="p">,</span>
+<span class="w">            </span><span class="n">change</span><span class="p">,</span>
+<span class="w">            </span><span class="n">max_blocking_time</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="2-cdr">2. 序列化机制（CDR 编码）</h2>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 自动生成文件: HelloWorldPubSubType.cpp (由 fastddsgen 生成)</span>
+<span class="c1">// CDR (Common Data Representation) 是 DDS 的标准序列化格式</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">HelloWorldPubSubType::serialize</span><span class="p">(</span>
+<span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w">                    </span><span class="c1">// 输入：C++ 对象指针</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w">  </span><span class="c1">// 输出：序列化后的缓冲区</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">HelloWorld</span><span class="o">*</span><span class="w"> </span><span class="n">p_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">HelloWorld</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 创建 CDR 序列化对象</span>
+<span class="w">    </span><span class="c1">// 实际文件: include/fastcdr/Cdr.h</span>
+<span class="w">    </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="w"> </span><span class="n">fastbuffer</span><span class="p">(</span>
+<span class="w">        </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span><span class="w"> </span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">max_size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="n">ser</span><span class="p">(</span>
+<span class="w">        </span><span class="n">fastbuffer</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="o">::</span><span class="n">DEFAULT_ENDIAN</span><span class="p">,</span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DEFAULT_XCDR_VERSION</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">encapsulation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ser</span><span class="p">.</span><span class="n">endianness</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="o">::</span><span class="n">BIG_ENDIANNESS</span><span class="w"> </span><span class="o">?</span>
+<span class="w">        </span><span class="nl">CDR_BE</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">CDR_LE</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 序列化成员变量</span>
+<span class="w">    </span><span class="c1">// 例如：序列化 string message 和 int32 index</span>
+<span class="w">    </span><span class="n">ser</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">index</span><span class="p">();</span>
+<span class="w">    </span><span class="n">ser</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">message</span><span class="p">().</span><span class="n">c_str</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ser</span><span class="p">.</span><span class="n">getSerializedDataLength</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-historycache">3. HistoryCache（历史缓存）</h2>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 实际文件: src/cpp/rtps/history/WriterHistory.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">WriterHistory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// WriterHistoryCache (WHC) - 发送端缓存</span>
+<span class="w">    </span><span class="c1">// 作用：存储已发送的数据，支持重传</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">changes_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 当达到资源限制时，根据 QoS 策略（KEEP_LAST/KEEP_ALL）丢弃旧数据</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">add_change</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 检查资源限制</span>
+<span class="w">        </span><span class="c1">// 2. 根据 QoS 策略处理溢出</span>
+<span class="w">        </span><span class="c1">// 3. 添加到 changes_ 队列</span>
+<span class="w">        </span><span class="c1">// 4. 通知匹配的 Reader</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 实际文件: src/cpp/rtps/history/ReaderHistory.cpp</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ReaderHistory</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ReaderHistoryCache (RHC) - 接收端缓存</span>
+<span class="w">    </span><span class="c1">// 作用：存储接收到的数据，等待应用层读取</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">changes_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="4-subscriber">4. 数据接收端（Subscriber 侧）</h2>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ========== HelloWorldSubscriber.cpp (基于 Fast-DDS examples) ==========</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/Subscriber.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/DataReader.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/DataReaderListener.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/SampleInfo.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">HelloWorldSubscriber</span><span class="w"> </span><span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Subscriber</span><span class="o">*</span><span class="w"> </span><span class="n">subscriber_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 订阅者实体</span>
+<span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader_</span><span class="p">;</span><span class="w">               </span><span class="c1">// 数据读取器</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 监听器 - 用于异步接收数据通知</span>
+<span class="w">    </span><span class="c1">// 实际文件: include/fastdds/dds/subscriber/DataReaderListener.hpp</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">SubListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="c1">// 当有新数据到达时触发</span>
+<span class="w">        </span><span class="c1">// 实际调用: DataReaderImpl::on_data_available()</span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">on_data_available</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">SampleInfo</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+<span class="w">            </span><span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+
+<span class="w">            </span><span class="c1">// ========== 读取数据 ==========</span>
+<span class="w">            </span><span class="c1">// take() 方法执行以下操作：</span>
+<span class="w">            </span><span class="c1">// 1. 从 ReaderHistoryCache (RHC) 获取样本</span>
+<span class="w">            </span><span class="c1">// 2. 调用 TypeSupport::deserialize() 将 CDR 转为 C++ 对象</span>
+<span class="w">            </span><span class="c1">// 3. 返回 SampleInfo（包含时间戳、序列号等元数据）</span>
+<span class="w">            </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take_next_sample</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hello</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ReturnCode_t</span><span class="o">::</span><span class="n">RETCODE_OK</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">valid_data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"收到消息: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 当匹配到 DataWriter 时触发</span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">on_subscription_matched</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                     </span><span class="k">const</span><span class="w"> </span><span class="n">SubscriptionMatchedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">matched_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">current_count</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 创建 DomainParticipant（必须在同一个 Domain ID）</span>
+<span class="w">        </span><span class="n">participant_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span>
+<span class="w">            </span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">PARTICIPANT_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 注册相同的类型</span>
+<span class="w">        </span><span class="n">type_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TypeSupport</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">HelloWorldPubSubType</span><span class="p">());</span>
+<span class="w">        </span><span class="n">type_</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 创建相同的 Topic</span>
+<span class="w">        </span><span class="n">topic_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">            </span><span class="s">"HelloWorldTopic"</span><span class="p">,</span><span class="w">   </span><span class="c1">// 必须和发布端名称一致</span>
+<span class="w">            </span><span class="n">type_</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">(),</span>
+<span class="w">            </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 创建 Subscriber</span>
+<span class="w">        </span><span class="c1">// 实际文件: src/cpp/fastdds/subscriber/SubscriberImpl.hpp</span>
+<span class="w">        </span><span class="n">subscriber_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_subscriber</span><span class="p">(</span>
+<span class="w">            </span><span class="n">SUBSCRIBER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="nb">nullptr</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 创建 DataReader</span>
+<span class="w">        </span><span class="c1">// 实际文件: src/cpp/fastdds/subscriber/DataReaderImpl.hpp</span>
+<span class="w">        </span><span class="n">reader_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber_</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span>
+<span class="w">            </span><span class="n">topic_</span><span class="p">,</span>
+<span class="w">            </span><span class="n">DATAREADER_QOS_DEFAULT</span><span class="p">,</span>
+<span class="w">            </span><span class="o">&amp;</span><span class="n">listener_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="5-rtps">5. 底层传输机制（RTPS 协议栈）</h2>
+<div class="codehilite"><pre><span></span><code><span class="c1">// RTPS 消息结构（简化示意）</span>
+<span class="c1">// 实际文件: src/cpp/rtps/messages/RTPSMessageGroup.hpp</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">CacheChange_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">sequenceNumber</span><span class="p">;</span><span class="w">    </span><span class="c1">// 序列号（用于排序和去重）</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">writerGUID</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 写入器全局唯一标识</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="n">data</span><span class="p">;</span><span class="w">           </span><span class="c1">// 序列化后的数据</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">timestamp</span><span class="p">;</span><span class="w">                   </span><span class="c1">// 时间戳</span>
+<span class="p">};</span>
+
+<span class="c1">// 发送流程</span>
+<span class="c1">// 实际文件: src/cpp/rtps/writer/StatefulWriter.cpp</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">send_to_all_readers</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 遍历所有匹配的 ReaderProxy</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">proxy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 2. 检查 Reader 是否活跃</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">proxy</span><span class="o">-&gt;</span><span class="n">is_active</span><span class="p">())</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 3. 构建 RTPS Message (DATA Submessage)</span>
+<span class="w">        </span><span class="c1">// 实际文件: src/cpp/rtps/messages/RTPSMessageGroup.cpp</span>
+<span class="w">        </span><span class="n">RTPSMessageGroup</span><span class="w"> </span><span class="n">message</span><span class="p">;</span>
+<span class="w">        </span><span class="n">message</span><span class="p">.</span><span class="n">add_submessage</span><span class="p">(</span><span class="n">DATA</span><span class="p">,</span><span class="w"> </span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 4. 通过 Transport 层发送</span>
+<span class="w">        </span><span class="c1">// 实际文件: src/cpp/transport/UDPTransportInterface.cpp</span>
+<span class="w">        </span><span class="n">Transport</span><span class="o">::</span><span class="n">send</span><span class="p">(</span><span class="n">proxy</span><span class="o">-&gt;</span><span class="n">locators</span><span class="p">(),</span><span class="w"> </span><span class="n">message</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 5. 记录已发送（用于重传）</span>
+<span class="w">        </span><span class="n">proxy</span><span class="o">-&gt;</span><span class="n">add_change_for_reader</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="6">6. 关键流程总结</h2>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>发送端操作</th>
+<th>网络层</th>
+<th>接收端操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>DataWriter::write()</code></td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>2</td>
+<td>序列化 (CDR)</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>3</td>
+<td>写入 WHC</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<td>4</td>
+<td>-</td>
+<td>UDP/SHM 发送</td>
+<td>-</td>
+</tr>
+<tr>
+<td>5</td>
+<td>-</td>
+<td>-</td>
+<td>接收并写入 RHC</td>
+</tr>
+<tr>
+<td>6</td>
+<td>-</td>
+<td>-</td>
+<td>反序列化</td>
+</tr>
+<tr>
+<td>7</td>
+<td>-</td>
+<td>-</td>
+<td><code>on_data_available()</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>-</td>
+<td>-</td>
+<td><code>take()</code> 读取数据</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="7">7. 实际源码验证</h2>
+<h3 id="_2">关键文件位置</h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>实际文件路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DomainParticipant</td>
+<td><code>src/cpp/fastdds/domain/DomainParticipantImpl.hpp</code></td>
+</tr>
+<tr>
+<td>DataWriter</td>
+<td><code>src/cpp/fastdds/publisher/DataWriterImpl.hpp</code></td>
+</tr>
+<tr>
+<td>DataReader</td>
+<td><code>src/cpp/fastdds/subscriber/DataReaderImpl.hpp</code></td>
+</tr>
+<tr>
+<td>RTPSWriter</td>
+<td><code>src/cpp/rtps/writer/RTPSWriter.hpp</code></td>
+</tr>
+<tr>
+<td>RTPSReader</td>
+<td><code>src/cpp/rtps/reader/RTPSReader.hpp</code></td>
+</tr>
+<tr>
+<td>WriterHistory</td>
+<td><code>src/cpp/rtps/history/WriterHistory.hpp</code></td>
+</tr>
+<tr>
+<td>ReaderHistory</td>
+<td><code>src/cpp/rtps/history/ReaderHistory.hpp</code></td>
+</tr>
+<tr>
+<td>FlowController</td>
+<td><code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code></td>
+</tr>
+<tr>
+<td>序列化 (CDR)</td>
+<td><code>include/fastcdr/Cdr.h</code></td>
+</tr>
+<tr>
+<td>传输层</td>
+<td><code>src/cpp/transport/UDPTransportInterface.hpp</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="_3">验证命令</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 克隆 Fast-DDS 仓库</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/eProsima/Fast-DDS.git
+<span class="nb">cd</span><span class="w"> </span>Fast-DDS
+
+<span class="c1"># 搜索关键类</span>
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"class DataWriter"</span><span class="w"> </span>src/cpp/fastdds/publisher/
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"class RTPSWriter"</span><span class="w"> </span>src/cpp/rtps/writer/
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">"FlowControllerAsyncPublishMode"</span><span class="w"> </span>src/cpp/rtps/flowcontrol/
+</code></pre></div>
+<hr/>
+<h2 id="8">8. 常见问题</h2>
+<h3 id="q1-historycache">Q1: 为什么需要 HistoryCache？</h3>
+<p><strong>A</strong>: 支持可靠传输中的重传机制，以及 QoS 策略（如 KEEP_LAST）。</p>
+<h3 id="q2-cdr">Q2: CDR 序列化的优势？</h3>
+<p><strong>A</strong>: 标准格式、跨平台、紧凑二进制、支持版本演进。</p>
+<h3 id="q3-domain-id">Q3: Domain ID 的作用？</h3>
+<p><strong>A</strong>: 逻辑隔离不同应用组，相同 Domain ID 的 Participant 才能通信。</p>
+<hr/>
+<p><strong>文章编写时间</strong>: 2026-03-12<br/>
+<strong>基于</strong>: Fast-DDS v2.14.x 源码<br/>
+<strong>作者</strong>: 旭旭助手 🐾</p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

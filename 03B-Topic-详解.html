@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS Topic 详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item active" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 03B-Topic-详解</div>
+        <h1 id="fast-dds-topic">Fast-DDS Topic 详解</h1>
+<p><strong>文档编号</strong>: 03B<br/>
+<strong>难度</strong>: ⭐⭐ 中级<br/>
+<strong>前置知识</strong>: <a href="02-DDS-Layer-Architecture.html">02-DDS-Layer-Architecture.md</a></p>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#什么是-topic">什么是 Topic</a></li>
+<li><a href="#topic-的核心组件">Topic 的核心组件</a></li>
+<li><a href="#topic-的创建与销毁">Topic 的创建与销毁</a></li>
+<li><a href="#topic-与数据类型的绑定">Topic 与数据类型的绑定</a></li>
+<li><a href="#topic-的-qos-策略">Topic 的 QoS 策略</a></li>
+<li><a href="#topic-与-writerreader-的关系">Topic 与 Writer/Reader 的关系</a></li>
+<li><a href="#动态-topic">动态 Topic</a></li>
+<li><a href="#topic-匹配机制">Topic 匹配机制</a></li>
+<li><a href="#最佳实践">最佳实践</a></li>
+<li><a href="#代码示例">代码示例</a></li>
+</ol>
+<hr/>
+<h2 id="topic">什么是 Topic</h2>
+<h3 id="_2">概念理解</h3>
+<p><strong>Topic 是 DDS 中数据分发的逻辑通道</strong>，可以理解为：<br/>
+- <strong>消息队列中的队列名称</strong><br/>
+- <strong>ROS 中的 topic 名称</strong><br/>
+- <strong>MQTT 中的主题</strong></p>
+<p><strong>类比</strong>：</p>
+<div class="codehilite"><pre><span></span><code>电视频道类比：
+- Topic = 频道名称 (如 "CCTV-1", "HBO")
+- DataWriter = 电视台 (发送信号)
+- DataReader = 电视机 (接收信号)
+- 数据类型 = 视频格式 (如 4K, 1080p)
+
+只有相同频道的电视才能收到对应的节目
+</code></pre></div>
+<h3 id="topic_1">Topic 的三要素</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">TopicDefinition</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w">           </span><span class="c1">// Topic 名称 (唯一标识)</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">type_name</span><span class="p">;</span><span class="w">      </span><span class="c1">// 数据类型名称</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_support</span><span class="p">;</span><span class="w">   </span><span class="c1">// 类型支持 (序列化/反序列化)</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>示例</strong>：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">TopicDefinition</span><span class="w"> </span><span class="n">temperature_topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"sensor/temperature"</span><span class="p">,</span><span class="w">      </span><span class="c1">// Topic 名称</span>
+<span class="w">    </span><span class="p">.</span><span class="n">type_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"TemperatureData"</span><span class="p">,</span><span class="w">    </span><span class="c1">// 数据类型</span>
+<span class="w">    </span><span class="p">.</span><span class="n">type_support</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TemperatureTypeSupport</span><span class="w">  </span><span class="c1">// 类型支持</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="topic_2">Topic 的核心组件</h2>
+<h3 id="1-topic">1. Topic 类层次结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="nx">DomainParticipant</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">Topic</span><span class="w"> </span><span class="p">(</span><span class="nx">多个</span><span class="p">)</span>
+<span class="w">            </span><span class="err">├──</span><span class="w"> </span><span class="nx">TopicDescription</span>
+<span class="w">            </span><span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="s">"sensor/temp"</span>
+<span class="w">            </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="nx">type_name</span><span class="p">:</span><span class="w"> </span><span class="s">"Temperature"</span>
+<span class="w">            </span><span class="err">│</span>
+<span class="w">            </span><span class="err">├──</span><span class="w"> </span><span class="nx">TypeSupport</span>
+<span class="w">            </span><span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="nx">serialize</span><span class="p">()</span><span class="w">    </span><span class="c1">// 序列化</span>
+<span class="w">            </span><span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="nx">deserialize</span><span class="p">()</span><span class="w">  </span><span class="c1">// 反序列化</span>
+<span class="w">            </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="nx">get_type_name</span><span class="p">()</span>
+<span class="w">            </span><span class="err">│</span>
+<span class="w">            </span><span class="err">└──</span><span class="w"> </span><span class="nx">TopicListener</span><span class="w"> </span><span class="p">(</span><span class="nx">可选</span><span class="p">)</span>
+<span class="w">                    </span><span class="err">└──</span><span class="w"> </span><span class="nx">on_inconsistent_topic</span><span class="p">()</span><span class="w">  </span><span class="c1">// 类型不一致回调</span>
+</code></pre></div>
+<h3 id="2-topicdescription">2. TopicDescription</h3>
+<p><strong>作用</strong>：描述 Topic 的元数据</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 获取 Topic 描述</span>
+<span class="n">TopicDescription</span><span class="o">*</span><span class="w"> </span><span class="n">desc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">topic</span><span class="o">-&gt;</span><span class="n">get_description</span><span class="p">();</span>
+
+<span class="c1">// 获取信息</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">desc</span><span class="o">-&gt;</span><span class="n">get_name</span><span class="p">();</span><span class="w">        </span><span class="c1">// "sensor/temperature"</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">desc</span><span class="o">-&gt;</span><span class="n">get_type_name</span><span class="p">();</span><span class="w">   </span><span class="c1">// "TemperatureData"</span>
+</code></pre></div>
+<h3 id="3-typesupport">3. TypeSupport</h3>
+<p><strong>核心职责</strong>：<br/>
+- <strong>序列化</strong>：将 C++ 对象转为字节流<br/>
+- <strong>反序列化</strong>：将字节流转为 C++ 对象<br/>
+- <strong>类型注册</strong>：向 DDS 注册数据类型</p>
+<p><strong>示例</strong>（HelloWorld）：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 定义数据类型</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">HelloWorld</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">index</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">message</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 生成 TypeSupport (通过 Fast DDS-Gen 或手动)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HelloWorldTypeSupport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TypeSupport</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 序列化</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">HelloWorld</span><span class="o">*</span><span class="w"> </span><span class="n">hw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">HelloWorld</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="c1">// 将 index 和 message 写入 payload</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">hw</span><span class="o">-&gt;</span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">));</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">hw</span><span class="o">-&gt;</span><span class="n">message</span><span class="p">.</span><span class="n">c_str</span><span class="p">(),</span><span class="w"> </span><span class="n">hw</span><span class="o">-&gt;</span><span class="n">message</span><span class="p">.</span><span class="n">length</span><span class="p">());</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 反序列化</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">deserialize</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">HelloWorld</span><span class="o">*</span><span class="w"> </span><span class="n">hw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">HelloWorld</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hw</span><span class="o">-&gt;</span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">));</span>
+<span class="w">        </span><span class="n">hw</span><span class="o">-&gt;</span><span class="n">message</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">((</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="topic_3">Topic 的创建与销毁</h2>
+<h3 id="_3">创建流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Step 1: 创建 Participant</span>
+<span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">    </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">PARTICIPANT_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="c1">// Step 2: 注册数据类型</span>
+<span class="n">HelloWorldTypeSupport</span><span class="w"> </span><span class="n">type_support</span><span class="p">;</span>
+<span class="n">type_support</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+
+<span class="c1">// Step 3: 创建 Topic</span>
+<span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"HelloWorldTopic"</span><span class="p">,</span><span class="w">           </span><span class="c1">// Topic 名称</span>
+<span class="w">    </span><span class="s">"HelloWorld"</span><span class="p">,</span><span class="w">                </span><span class="c1">// 类型名称 (必须与 register_type 一致)</span>
+<span class="w">    </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="w">            </span><span class="c1">// QoS 配置</span>
+<span class="p">);</span>
+
+<span class="c1">// 错误检查</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">topic</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Failed to create topic"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="_4">销毁流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 销毁顺序：先 Writer/Reader，再 Topic，最后 Participant</span>
+
+<span class="c1">// Step 1: 删除 Writer/Reader</span>
+<span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_datawriter</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+<span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_datareader</span><span class="p">(</span><span class="n">reader</span><span class="p">);</span>
+
+<span class="c1">// Step 2: 删除 Topic</span>
+<span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_topic</span><span class="p">(</span><span class="n">topic</span><span class="p">);</span>
+
+<span class="c1">// Step 3: 注销类型 (可选)</span>
+<span class="n">type_support</span><span class="p">.</span><span class="n">unregister_type</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+
+<span class="c1">// Step 4: 删除 Participant</span>
+<span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">delete_participant</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>重要</strong>：销毁顺序不能错，否则会导致内存泄漏或崩溃！</p>
+<hr/>
+<h2 id="topic_4">Topic 与数据类型的绑定</h2>
+<h3 id="fast-dds-gen">方式一：Fast DDS-Gen 自动生成（推荐）</h3>
+<p><strong>步骤</strong>：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 定义 IDL 文件</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>HelloWorld.idl<span class="w"> </span><span class="s">&lt;&lt; 'EOF'</span>
+<span class="s">struct HelloWorld {</span>
+<span class="s">    unsigned long index;</span>
+<span class="s">    string message;</span>
+<span class="s">};</span>
+<span class="s">EOF</span>
+
+<span class="c1"># 2. 使用 Fast DDS-Gen 生成代码</span>
+fastddsgen<span class="w"> </span>HelloWorld.idl
+
+<span class="c1"># 生成文件：</span>
+<span class="c1"># - HelloWorld.h/cxx          (数据类型定义)</span>
+<span class="c1"># - HelloWorldPubSubTypes.h/cxx  (TypeSupport 实现)</span>
+<span class="c1"># - HelloWorldTypeObject.h/cxx   (类型对象)</span>
+</code></pre></div>
+<p><strong>使用</strong>：</p>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">"HelloWorldPubSubTypes.h"</span>
+
+<span class="c1">// 自动生成 HelloWorldPubSubType</span>
+<span class="n">HelloWorldPubSubType</span><span class="w"> </span><span class="n">type_support</span><span class="p">;</span>
+<span class="n">participant</span><span class="o">-&gt;</span><span class="n">register_type</span><span class="p">(</span><span class="o">&amp;</span><span class="n">type_support</span><span class="p">);</span>
+
+<span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"HelloWorldTopic"</span><span class="p">,</span>
+<span class="w">    </span><span class="n">type_support</span><span class="p">.</span><span class="n">get_type_name</span><span class="p">(),</span><span class="w">  </span><span class="c1">// 自动获取 "HelloWorld"</span>
+<span class="w">    </span><span class="n">TOPIC_QOS_DEFAULT</span>
+<span class="p">);</span>
+</code></pre></div>
+<h3 id="typesupport">方式二：手动实现 TypeSupport</h3>
+<p><strong>适用场景</strong>：<br/>
+- 简单数据类型<br/>
+- 需要自定义序列化逻辑<br/>
+- 与第三方系统集成</p>
+<p><strong>示例</strong>：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RawBufferTypeSupport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TypeSupport</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">RawBufferTypeSupport</span><span class="p">()</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">TypeSupport</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">set_name</span><span class="p">(</span><span class="s">"RawBuffer"</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;*</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">();</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">buffer</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">());</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">deserialize</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;*</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="n">buffer</span><span class="o">-&gt;</span><span class="n">resize</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">);</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">buffer</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="topic-qos">Topic 的 QoS 策略</h2>
+<h3 id="topic-qos_1">Topic 级别的 QoS</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">TopicQos</span><span class="w"> </span><span class="n">topic_qos</span><span class="p">;</span>
+
+<span class="c1">// 1. 可靠性</span>
+<span class="n">topic_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+<span class="c1">// 或 BEST_EFFORT_RELIABILITY_QOS (传感器数据)</span>
+
+<span class="c1">// 2. 持久性</span>
+<span class="n">topic_qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">;</span>
+<span class="c1">// 新订阅者能收到历史数据</span>
+
+<span class="c1">// 3. 历史缓存</span>
+<span class="n">topic_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="n">topic_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">  </span><span class="c1">// 保留最近 10 条</span>
+
+<span class="c1">// 4. 生命周期</span>
+<span class="n">topic_qos</span><span class="p">.</span><span class="n">lifespan</span><span class="p">().</span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">  </span><span class="c1">// 数据有效期 5 秒</span>
+
+<span class="c1">// 5. 截止期限</span>
+<span class="n">topic_qos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">  </span><span class="c1">// 期望每秒发布一次</span>
+
+<span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"SensorData"</span><span class="p">,</span>
+<span class="w">    </span><span class="s">"Sensor"</span><span class="p">,</span>
+<span class="w">    </span><span class="n">topic_qos</span><span class="w">  </span><span class="c1">// 使用自定义 QoS</span>
+<span class="p">);</span>
+</code></pre></div>
+<h3 id="qos">QoS 匹配规则</h3>
+<p><strong>重要</strong>：Writer 和 Reader 的 QoS 必须兼容才能匹配！</p>
+<div class="codehilite"><pre><span></span><code>匹配规则表：
+
+Writer QoS        Reader QoS         是否匹配
+─────────────────────────────────────────────────
+RELIABLE          RELIABLE           ✅ 匹配
+RELIABLE          BEST_EFFORT        ✅ 匹配 (降级)
+BEST_EFFORT       RELIABLE           ❌ 不匹配
+BEST_EFFORT       BEST_EFFORT        ✅ 匹配
+
+KEEP_ALL          KEEP_LAST(depth=10) ❌ 不匹配 (writer 要求更多)
+KEEP_LAST(10)     KEEP_LAST(5)       ✅ 匹配 (reader 接受更少)
+</code></pre></div>
+<p><strong>最佳实践</strong>：Topic 上设置默认 QoS，Writer/Reader 可以覆盖。</p>
+<hr/>
+<h2 id="topic-writerreader">Topic 与 Writer/Reader 的关系</h2>
+<h3 id="_5">一对多关系</h3>
+<div class="codehilite"><pre><span></span><code>Topic: "sensor/temperature"
+├── DataWriter (Publisher A)
+├── DataWriter (Publisher B)
+├── DataReader (Subscriber X)
+└── DataReader (Subscriber Y)
+
+多个 Writer 可以写入同一个 Topic
+多个 Reader 可以从同一个 Topic 读取
+</code></pre></div>
+<h3 id="writerreader-topic">创建 Writer/Reader 时绑定 Topic</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 Publisher</span>
+<span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span><span class="n">PUBLISHER_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="c1">// 创建 DataWriter，绑定到 Topic</span>
+<span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
+<span class="w">    </span><span class="n">topic</span><span class="p">,</span><span class="w">                    </span><span class="c1">// 绑定到已创建的 Topic</span>
+<span class="w">    </span><span class="n">DATAWRITER_QOS_DEFAULT</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">nullptr</span><span class="w">                   </span><span class="c1">// Listener (可选)</span>
+<span class="p">);</span>
+
+<span class="c1">// 同理创建 DataReader</span>
+<span class="n">Subscriber</span><span class="o">*</span><span class="w"> </span><span class="n">subscriber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_subscriber</span><span class="p">(</span><span class="n">SUBSCRIBER_QOS_DEFAULT</span><span class="p">);</span>
+<span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span>
+<span class="w">    </span><span class="n">topic</span><span class="p">,</span><span class="w">                    </span><span class="c1">// 同一个 Topic</span>
+<span class="w">    </span><span class="n">DATAREADER_QOS_DEFAULT</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">nullptr</span>
+<span class="p">);</span>
+</code></pre></div>
+<h3 id="writer">多 Writer 竞争</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 多个 Writer 写入同一个 Topic</span>
+<span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher1</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+<span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher2</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+
+<span class="c1">// 写入数据 (会竞争)</span>
+<span class="n">writer1</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data1</span><span class="p">);</span>
+<span class="n">writer2</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data2</span><span class="p">);</span>
+
+<span class="c1">// Reader 会收到来自两个 Writer 的数据</span>
+</code></pre></div>
+<p><strong>注意</strong>：如果有多个 Writer，Reader 需要区分数据来源！</p>
+<hr/>
+<h2 id="topic_5">动态 Topic</h2>
+<h3 id="topic_6">场景：运行时创建 Topic</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DynamicTopicManager</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 根据配置动态创建 Topic</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">create_topic_by_config</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">topic_name</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">type_name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 检查是否已存在</span>
+<span class="w">        </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">existing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">lookup_topicdescription</span><span class="p">(</span><span class="n">topic_name</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">existing</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">Topic</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">existing</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 动态注册类型</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">is_type_registered</span><span class="p">(</span><span class="n">type_name</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">register_type_dynamically</span><span class="p">(</span><span class="n">type_name</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 创建 Topic</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span><span class="n">topic_name</span><span class="p">,</span><span class="w"> </span><span class="n">type_name</span><span class="p">,</span><span class="w"> </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="topic_7">Topic 查找</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 在 Domain 中查找 Topic</span>
+<span class="n">TopicDescription</span><span class="o">*</span><span class="w"> </span><span class="n">desc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">lookup_topicdescription</span><span class="p">(</span><span class="s">"HelloWorldTopic"</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">desc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">Topic</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">desc</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// 使用已存在的 Topic</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="topic_8">Topic 匹配机制</h2>
+<h3 id="_6">匹配条件</h3>
+<p>两个 Endpoint (Writer &amp; Reader) 匹配的条件：</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">bool</span><span class="w"> </span><span class="nf">match</span><span class="p">(</span><span class="n">WriterAttributes</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">ReaderAttributes</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. Topic 名称必须相同</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer</span><span class="p">.</span><span class="n">topic_name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">topic_name</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. 数据类型必须兼容</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">types_compatible</span><span class="p">(</span><span class="n">writer</span><span class="p">.</span><span class="n">type</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">type</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 3. QoS 必须兼容</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">qos_compatible</span><span class="p">(</span><span class="n">writer</span><span class="p">.</span><span class="n">qos</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">qos</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 4. 分区匹配 (如果配置了分区)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">partitions_intersect</span><span class="p">(</span><span class="n">writer</span><span class="p">.</span><span class="n">partitions</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">partitions</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="_7">监听匹配事件</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MyWriterListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_publication_matched</span><span class="p">(</span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                 </span><span class="k">const</span><span class="w"> </span><span class="n">PublicationMatchedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">current_count_change</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"New reader matched! Total: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">current_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Reader disconnected"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_8">最佳实践</h2>
+<h3 id="1-topic_1">1. Topic 命名规范</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ✅ 好的命名：层次化、清晰</span>
+<span class="s">"sensor/temperature/living_room"</span>
+<span class="s">"robot/cmd_vel"</span>
+<span class="s">"system/log/error"</span>
+
+<span class="c1">// ❌ 差的命名：模糊、易冲突</span>
+<span class="s">"temp"</span>
+<span class="s">"data"</span>
+<span class="s">"topic1"</span>
+</code></pre></div>
+<h3 id="2">2. 数据类型版本管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 使用命名空间区分版本</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorData_v1</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">};</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorData_v2</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">};</span>
+
+<span class="c1">// Topic 名称体现版本</span>
+<span class="s">"sensor/data/v1"</span>
+<span class="s">"sensor/data/v2"</span>
+</code></pre></div>
+<h3 id="3-topic">3. Topic 生命周期管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 使用智能指针模式管理 Topic 生命周期</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TopicManager</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TopicHandle</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">topics</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">TopicHandle</span><span class="o">&gt;</span><span class="w"> </span><span class="n">get_or_create_topic</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">topics</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">topics</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">;</span><span class="w">  </span><span class="c1">// 返回已存在的</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 创建新的</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_topic</span><span class="p">(</span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="n">topics</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">topic</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">topic</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="4">4. 监控和调试</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 获取 Topic 统计信息</span>
+<span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...;</span>
+
+<span class="c1">// 打印 Topic 信息</span>
+<span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Topic: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">topic</span><span class="o">-&gt;</span><span class="n">get_name</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Type: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">topic</span><span class="o">-&gt;</span><span class="n">get_type_name</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="c1">// 检查匹配的 Reader 数量</span>
+<span class="c1">// (通过 WriterListener 的回调统计)</span>
+</code></pre></div>
+<hr/>
+<h2 id="_9">代码示例</h2>
+<h3 id="_10">完整示例：传感器数据发布</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/topic/TypeSupport.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="c1">// 1. 定义数据类型 (通过 IDL 生成或手动)</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">humidity</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int64_t</span><span class="w"> </span><span class="n">timestamp</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 2. 主程序</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 创建 Participant</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span>
+<span class="w">            </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">PARTICIPANT_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 注册类型</span>
+<span class="w">    </span><span class="n">SensorDataTypeSupport</span><span class="w"> </span><span class="n">type_support</span><span class="p">;</span>
+<span class="w">    </span><span class="n">type_support</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 创建 Topic (关键步骤)</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"sensor/environment"</span><span class="p">,</span><span class="w">        </span><span class="c1">// Topic 名称</span>
+<span class="w">        </span><span class="n">type_support</span><span class="p">.</span><span class="n">get_type_name</span><span class="p">(),</span><span class="w"> </span><span class="c1">// 类型名称</span>
+<span class="w">        </span><span class="n">TOPIC_QOS_DEFAULT</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">topic</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Failed to create topic"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 创建 Publisher</span>
+<span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span>
+<span class="w">        </span><span class="n">PUBLISHER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 创建 DataWriter (绑定到 Topic)</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
+<span class="w">        </span><span class="n">topic</span><span class="p">,</span><span class="w">  </span><span class="c1">// 绑定 Topic</span>
+<span class="w">        </span><span class="n">DATAWRITER_QOS_DEFAULT</span><span class="p">,</span>
+<span class="w">        </span><span class="nb">nullptr</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 发布数据</span>
+<span class="w">    </span><span class="n">SensorData</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">    </span><span class="n">data</span><span class="p">.</span><span class="n">sensor_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">data</span><span class="p">.</span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">25.5</span><span class="p">;</span>
+<span class="w">    </span><span class="n">data</span><span class="p">.</span><span class="n">humidity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">60.0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">data</span><span class="p">.</span><span class="n">timestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">system_clock</span><span class="o">::</span><span class="n">now</span><span class="p">().</span><span class="n">time_since_epoch</span><span class="p">().</span><span class="n">count</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 清理</span>
+<span class="w">    </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_datawriter</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+<span class="w">    </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_publisher</span><span class="p">(</span><span class="n">publisher</span><span class="p">);</span>
+<span class="w">    </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">delete_topic</span><span class="p">(</span><span class="n">topic</span><span class="p">);</span>
+<span class="w">    </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">delete_participant</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="topic_9">多 Topic 管理示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MultiTopicPublisher</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">DataWriter</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">writers_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">participant_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span>
+<span class="w">            </span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">PARTICIPANT_QOS_DEFAULT</span><span class="p">);</span>
+<span class="w">        </span><span class="n">publisher_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span><span class="n">PUBLISHER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">register_topic</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">topic_name</span><span class="p">,</span><span class="w"> </span><span class="n">TypeSupport</span><span class="o">*</span><span class="w"> </span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">type</span><span class="o">-&gt;</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">            </span><span class="n">topic_name</span><span class="p">,</span><span class="w"> </span><span class="n">type</span><span class="o">-&gt;</span><span class="n">get_type_name</span><span class="p">(),</span><span class="w"> </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher_</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
+<span class="w">            </span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">DATAWRITER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">writers_</span><span class="p">[</span><span class="n">topic_name</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">publish</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">topic_name</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writers_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">topic_name</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">writers_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">it</span><span class="o">-&gt;</span><span class="n">second</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 使用</span>
+<span class="n">MultiTopicPublisher</span><span class="w"> </span><span class="n">pub</span><span class="p">;</span>
+<span class="n">pub</span><span class="p">.</span><span class="n">init</span><span class="p">();</span>
+<span class="n">pub</span><span class="p">.</span><span class="n">register_topic</span><span class="o">&lt;</span><span class="n">SensorData</span><span class="o">&gt;</span><span class="p">(</span><span class="s">"sensor/temp"</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sensor_type</span><span class="p">);</span>
+<span class="n">pub</span><span class="p">.</span><span class="n">register_topic</span><span class="o">&lt;</span><span class="n">ImageData</span><span class="o">&gt;</span><span class="p">(</span><span class="s">"camera/image"</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">image_type</span><span class="p">);</span>
+
+<span class="n">SensorData</span><span class="w"> </span><span class="n">temp_data</span><span class="p">{...};</span>
+<span class="n">pub</span><span class="p">.</span><span class="n">publish</span><span class="p">(</span><span class="s">"sensor/temp"</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">temp_data</span><span class="p">);</span>
+</code></pre></div>
+<hr/>
+<h2 id="_11">总结</h2>
+<h3 id="topic_10">Topic 核心要点</h3>
+<ol>
+<li><strong>Topic 是数据通道</strong>：名称 + 数据类型唯一标识</li>
+<li><strong>必须先注册类型</strong>：TypeSupport 负责序列化</li>
+<li><strong>QoS 影响匹配</strong>：Writer 和 Reader 的 QoS 必须兼容</li>
+<li><strong>生命周期管理</strong>：注意创建和销毁顺序</li>
+<li><strong>支持动态创建</strong>：运行时可以根据需要创建 Topic</li>
+</ol>
+<h3 id="_12">常见错误</h3>
+<table>
+<thead>
+<tr>
+<th>错误</th>
+<th>原因</th>
+<th>解决</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>create_topic 返回 null</td>
+<td>类型未注册</td>
+<td>先调用 register_type()</td>
+</tr>
+<tr>
+<td>Writer/Reader 无法匹配</td>
+<td>Topic 名称不一致</td>
+<td>检查字符串是否完全相同</td>
+</tr>
+<tr>
+<td>类型不匹配错误</td>
+<td>类型名称拼写错误</td>
+<td>使用 type_support.get_type_name()</td>
+</tr>
+<tr>
+<td>内存泄漏</td>
+<td>销毁顺序错误</td>
+<td>先 Writer/Reader，再 Topic，最后 Participant</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_13">学习路径</h3>
+<div class="codehilite"><pre><span></span><code>了解概念 → 创建 Topic → 绑定 Writer/Reader → 配置 QoS → 动态管理 → 性能优化
+   ↑                                                               ↓
+   └──────────────── 实践和调试 ← 监控和日志 ← 异常处理 ──────────┘
+</code></pre></div>
+<hr/>
+<p><strong>相关文档</strong>:<br/>
+- <a href="02-DDS-Layer-Architecture.html">02-DDS-Layer-Architecture.md</a> - DDS 层架构<br/>
+- <a href="04-QoS-Implementation.html">04-QoS-Implementation.md</a> - QoS 详解<br/>
+- <a href="13-Example-01-HelloWorld.html">13-Example-01-HelloWorld.md</a> - 完整示例</p>
+<p><strong>最后更新</strong>: 2026-03-05<br/>
+<strong>文档版本</strong>: v1.0</p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

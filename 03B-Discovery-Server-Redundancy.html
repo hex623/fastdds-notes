@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS Discovery Server 双 Server 冗余架构原理 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item active" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 03B-Discovery-Server-Redundancy</div>
+        <h1 id="fast-dds-discovery-server-server">Fast-DDS Discovery Server 双 Server 冗余架构原理</h1>
+<p><strong>文档编号</strong>: 03B<br/>
+<strong>难度</strong>: ⭐⭐⭐⭐ 高级<br/>
+<strong>前置知识</strong>: <a href="03A-Discovery-Server-Detail.html">03A-Discovery-Server-Detail.md</a></p>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#为什么需要双-server-冗余">为什么需要双 Server 冗余</a></li>
+<li><a href="#两种冗余架构">两种冗余架构</a></li>
+<li><a href="#client-多归属架构详解">Client 多归属架构详解</a></li>
+<li><a href="#原理解析">原理解析</a></li>
+<li><a href="#配置实现">配置实现</a></li>
+<li><a href="#故障场景分析">故障场景分析</a></li>
+<li><a href="#性能与资源分析">性能与资源分析</a></li>
+</ol>
+<hr/>
+<h2 id="server">为什么需要双 Server 冗余</h2>
+<h3 id="server_1">单 Server 的风险</h3>
+<div class="codehilite"><pre><span></span><code>单 Server 故障场景：
+┌─────────────────┐
+│     Server      │◄── 宕机/网络中断
+│   (单点故障)     │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌───────┐ ┌───────┐
+│ClientA│ │ClientB│ ◄── 无法发现新节点
+└───────┘ └───────┘     已有连接可能维持，但新节点加入失败
+</code></pre></div>
+<p><strong>关键问题</strong>:<br/>
+1. 新启动的 Client 无法注册<br/>
+2. 现有 Client 无法发现新 Topic<br/>
+3. 网络分区后无法恢复<br/>
+4. Server 维护需要停机</p>
+<h3 id="server_2">双 Server 解决的问题</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>单 Server 风险</th>
+<th>双 Server 解决</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>单点故障</strong></td>
+<td>Server 宕机，整个系统无法发现新节点</td>
+<td>任意一个 Server 可用，系统正常工作</td>
+</tr>
+<tr>
+<td><strong>网络分区</strong></td>
+<td>部分 Client 与 Server 断开即隔离</td>
+<td>Client 可连接任一 Server</td>
+</tr>
+<tr>
+<td><strong>维护窗口</strong></td>
+<td>升级 Server 需停服</td>
+<td>可滚动升级，零停机</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_2">两种冗余架构</h2>
+<h3 id="aclient-fast-dds">架构 A：Client 多归属（Fast-DDS 实现）</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────┐
+│                                             │
+│    ┌─────────┐         ┌─────────┐         │
+│    │ Server1 │         │ Server2 │         │
+│    │(主)      │         │(备)      │         │
+│    │ 独立运行 │         │ 独立运行 │         │
+│    └────┬────┘         └────┬────┘         │
+│         │                   │               │
+│         └─────────┬─────────┘               │
+│                   │                         │
+│              ┌────┴────┐                    │
+│              │ Client  │                    │
+│              │         │                    │
+│              │ • 维护两个 │                  │
+│              │   Server  │                  │
+│              │   连接句柄 │                  │
+│              │           │                  │
+│              │ • 优先连S1 │                  │
+│              │ • S1故障   │                  │
+│              │   切S2     │                  │
+│              │           │                  │
+│              │ • 同时向   │                  │
+│              │   两者宣告   │                  │
+│              │   (可选)     │                  │
+│              └─────────┘                    │
+│                                             │
+│  特点：Server 之间不通信，Client 自己处理冗余   │
+│  优势：简单，无 Server 间同步问题              │
+│  劣势：Client 逻辑稍复杂                      │
+└─────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="bserver">架构 B：Server 共享状态（理论模型）</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────┐
+│                                             │
+│    ┌─────────┐◄─────────►┌─────────┐       │
+│    │ Server1 │   状态同步  │ Server2 │       │
+│    │         │◄─────────►│         │       │
+│    │ 共享发现 │            │ 共享发现 │       │
+│    │ 数据库   │            │ 数据库   │       │
+│    └────┬────┘            └────┬────┘       │
+│         │                      │            │
+│    ┌────┴────┐            ┌────┴────┐       │
+│    │ ClientA │            │ ClientB │       │
+│    │ 只连S1   │            │ 只连S2   │       │
+│    └─────────┘            └─────────┘       │
+│                                             │
+│  同步机制：                                  │
+│  • 文件共享 (NFS)                           │
+│  • 数据库复制                               │
+│  • Raft/Paxos 共识                          │
+│                                             │
+│  Fast-DDS 2.3+ 支持备份文件，但非实时同步     │
+└─────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="client">Client 多归属架构详解</h2>
+<h3 id="_3">发现数据库结构</h3>
+<div class="codehilite"><pre><span></span><code>Server 维护的发现数据库 (Discovery Database)
+┌────────────────────────────────────────────────────┐
+│                                                    │
+│  ┌─────────────────┐  ┌─────────────────┐         │
+│  │   Participants  │  │    Topics       │         │
+│  │  (参与者列表)    │  │   (主题列表)     │         │
+│  │                  │  │                  │         │
+│  │  • P1: GUID_01   │  │  • /topic/A      │         │
+│  │  • P2: GUID_02   │  │  • /topic/B      │         │
+│  │  • P3: GUID_03   │  │                  │         │
+│  └─────────────────┘  └─────────────────┘         │
+│                                                    │
+│  ┌─────────────────┐  ┌─────────────────┐         │
+│  │    Writers      │  │    Readers      │         │
+│  │   (写入者)       │  │   (读取者)       │         │
+│  │                  │  │                  │         │
+│  │  • W1: P1/topic/A│  │  • R1: P2/topic/A│         │
+│  │  • W2: P3/topic/B│  │  • R2: P3/topic/B│         │
+│  │                  │  │                  │         │
+│  │  包含: QoS配置   │  │  包含: QoS配置   │         │
+│  │      定位器信息  │  │      定位器信息  │         │
+│  └─────────────────┘  └─────────────────┘         │
+│                                                    │
+│  关键：Server 是发现信息的"路由器"                   │
+└────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="client-server">Client-Server 通信流程</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────┐                              ┌─────────┐
+│ Client  │                              │ Server  │
+└────┬────┘                              └────┬────┘
+     │                                         │
+     │  1. PDP 宣告 (Participant Data)         │
+     │ ──────► │                               │
+     │         │  "我是 Client，GUID=0x1234"    │
+     │                                         │
+     │         │  2. Server 记录 Client 信息    │
+     │         │  添加到 Participants 列表       │
+     │                                         │
+     │  3. 返回其他 Participant 信息            │
+     │ ◄────── │                               │
+     │         │  "已知的其他节点：..."         │
+     │                                         │
+     │  4. SEDP 宣告 (Endpoints Data)          │
+     │ ──────► │                               │
+     │         │  "我有 Writer: /topic/A"       │
+     │                                         │
+     │         │  5. Server 匹配 Writer/Reader  │
+     │         │  更新 Topics/Writers/Readers   │
+     │                                         │
+     │  6. 通知匹配的 Reader 端                 │
+     │         │────► 转发给相关 Client         │
+     │                                         │
+     │  7. 周期性保活 (KeepAlive)               │
+     │ «══════»                                │
+     │    每 5-10 秒一次                        │
+     │                                         │
+</code></pre></div>
+<hr/>
+<h2 id="_4">原理解析</h2>
+<h3 id="_5">心跳检测状态机</h3>
+<div class="codehilite"><pre><span></span><code>┌────────────────────────────────────────────────┐
+│           Client 的心跳检测状态机               │
+│                                                │
+│     ┌─────────┐                                │
+│     │  INIT   │◄────────────────────┐          │
+│     │ 初始化  │                      │          │
+│     └────┬────┘                      │          │
+│          │ 尝试连接 Server1           │          │
+│          ▼                          │          │
+│     ┌─────────┐    超时/失败          │          │
+│     │CONNECTING│──────────────────┐  │          │
+│     │   S1    │                   │  │          │
+│     └────┬────┘                   │  │          │
+│          │ 成功                    │  │          │
+│          ▼                        │  │          │
+│     ┌─────────┐   心跳超时          │  │          │
+│  ┌─►│ CONNECTED│─────────────────┐ │  │          │
+│  │  │   S1    │                 │ │  │          │
+│  │  └────┬────┘                 │ │  │          │
+│  │       │ 定期心跳 (5s间隔)      │ │  │          │
+│  │       │ «═══════════════════»│ │  │          │
+│  │       │                      │ │  │          │
+│  │  收到 │                      │ │  │          │
+│  │  响应 │◄─────────────────────┘ │  │          │
+│  │       │                        │  │          │
+│  └───────┘                        │  │          │
+│          │ 连续3次超时             │  │          │
+│          ▼                        │  │          │
+│     ┌─────────┐                   │  │          │
+│     │CONNECTING│──────────────────┘  │          │
+│     │   S2    │                      │          │
+│     └────┬────┘                      │          │
+│          │ 成功                       │          │
+│          ▼                           │          │
+│     ┌─────────┐   S1 恢复时可切回     │          │
+│     │ CONNECTED│─────────────────────┘          │
+│     │   S2    │                                │
+│     └─────────┘                                │
+│                                                │
+│  关键参数：                                     │
+│  • 心跳间隔：5s (clientAnnouncementPeriod)      │
+│  • 超时重试：3次                                │
+│  • 保活周期：10s (keepAliveDuration)            │
+└────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="guid-prefix">GUID Prefix 的作用</h3>
+<div class="codehilite"><pre><span></span><code>GUID 结构 (16字节)
+┌─────────────────────────────────────────────────────────────┐
+│  GUID Prefix (12字节)        │ Entity ID (4字节)            │
+│  ┌────────────────────────┐  │  ┌────────────────────────┐   │
+│  │ Vendor │   Unique ID   │  │  │ Kind │   Instance     │   │
+│  │ 2字节   │    10字节     │  │  │ 1字节 │     3字节      │   │
+│  └────────────────────────┘  │  └────────────────────────┘   │
+│                              │                               │
+│  0x44 0x53 0x01 ... 0x41    │  0x00 0x00 0x01 0xC1          │
+│  │   │   │                   │   │   │   │   │              │
+│  │   │   └─── Server ID      │   │   └───┴───┴── Participant │
+│  │   │       (区分不同Server) │   │                          │
+│  │   └────── "DS" = Discovery│   └── 0x01 = 参与者            │
+│  │           Server 标识      │       0x02 = Writer           │
+│  └────────── 厂商特定         │       0x04 = Reader           │
+│                             │       0xC1 = 内置Reader        │
+└─────────────────────────────────────────────────────────────┘
+
+Server Prefix 生成规则：
+<span class="k">-</span> 固定头部：0x44 0x53 (ASCII 'D''S')
+<span class="k">-</span> Server ID：0x01, 0x02, 0x03... (区分不同Server)
+<span class="k">-</span> 固定尾部：0x5f 0x45 0x50 0x52 0x4f 0x53 0x49 0x4d 0x41 ("_EPROSIMA")
+</code></pre></div>
+<h3 id="_6">数据一致性保证</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                 发现数据的一致性策略                          │
+│                                                             │
+│  问题：Client 从两个 Server 收到不同的发现信息怎么办？         │
+│                                                             │
+│  解决方案：                                                   │
+│                                                             │
+│  1. 时间戳机制                                               │
+│     • 每条发现数据包含时间戳                                  │
+│     • 使用较新的数据覆盖旧数据                                │
+│                                                             │
+│  2. 租约机制 (Lease Duration)                                │
+│     • Participant 有有效期（默认130秒）                       │
+│     • 超过租约未刷新 = 认为离线                               │
+│                                                             │
+│  3. 数据合并策略                                             │
+│     ┌────────────────────────────────────────────┐           │
+│     │  DiscoveryDatabase::add_or_update()        │           │
+│     │                                            │           │
+│     │  输入: 新数据 (来自 Server A 或 B)          │           │
+│     │                                            │           │
+│     │  1. 检查 GUID 是否已存在                    │           │
+│     │     - 不存在 → 直接添加                     │           │
+│     │     - 存在   → 比较时间戳                   │           │
+│     │                                            │           │
+│     │  2. 时间戳较新？                           │           │
+│     │     - 是 → 更新数据                        │           │
+│     │     - 否 → 忽略                            │           │
+│     │                                            │           │
+│     │  3. 触发匹配逻辑                            │           │
+│     │     - 检查是否有匹配的 Writer/Reader        │           │
+│     │     - 通知本地 Endpoints                    │           │
+│     └────────────────────────────────────────────┘           │
+│                                                             │
+│  4. 最终一致性                                               │
+│     • 允许短暂的不一致                                       │
+│     • 通过周期性宣告收敛                                     │
+│     • 新节点最终会被所有 Client 发现                         │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="_7">配置实现</h2>
+<h3 id="xml">XML 配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
+<span class="nt">&lt;dds</span><span class="w"> </span><span class="na">xmlns=</span><span class="s">"http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles"</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;profiles&gt;</span>
+<span class="w">        </span><span class="cm">&lt;!-- Client 配置 --&gt;</span>
+<span class="w">        </span><span class="nt">&lt;participant</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"client_participant"</span><span class="nt">&gt;</span>
+<span class="w">            </span><span class="nt">&lt;rtps&gt;</span>
+<span class="w">                </span><span class="nt">&lt;builtin&gt;</span>
+<span class="w">                    </span><span class="nt">&lt;discovery_config&gt;</span>
+<span class="w">                        </span><span class="nt">&lt;discoveryProtocol&gt;</span>CLIENT<span class="nt">&lt;/discoveryProtocol&gt;</span>
+
+<span class="w">                        </span><span class="cm">&lt;!-- 配置两个 Discovery Server --&gt;</span>
+<span class="w">                        </span><span class="nt">&lt;discoveryServersList&gt;</span>
+<span class="w">                            </span><span class="cm">&lt;!-- Server 1 --&gt;</span>
+<span class="w">                            </span><span class="nt">&lt;RemoteServer</span><span class="w"> </span><span class="na">prefix=</span><span class="s">"44.53.01.5f.45.50.52.4f.53.49.4d.41"</span><span class="nt">&gt;</span>
+<span class="w">                                </span><span class="nt">&lt;metatrafficUnicastLocatorList&gt;</span>
+<span class="w">                                    </span><span class="nt">&lt;locator&gt;</span>
+<span class="w">                                        </span><span class="nt">&lt;udpv4&gt;</span>
+<span class="w">                                            </span><span class="nt">&lt;address&gt;</span>192.168.1.100<span class="nt">&lt;/address&gt;</span>
+<span class="w">                                            </span><span class="nt">&lt;port&gt;</span>56542<span class="nt">&lt;/port&gt;</span>
+<span class="w">                                        </span><span class="nt">&lt;/udpv4&gt;</span>
+<span class="w">                                    </span><span class="nt">&lt;/locator&gt;</span>
+<span class="w">                                </span><span class="nt">&lt;/metatrafficUnicastLocatorList&gt;</span>
+<span class="w">                            </span><span class="nt">&lt;/RemoteServer&gt;</span>
+
+<span class="w">                            </span><span class="cm">&lt;!-- Server 2 --&gt;</span>
+<span class="w">                            </span><span class="nt">&lt;RemoteServer</span><span class="w"> </span><span class="na">prefix=</span><span class="s">"44.53.02.5f.45.50.52.4f.53.49.4d.41"</span><span class="nt">&gt;</span>
+<span class="w">                                </span><span class="nt">&lt;metatrafficUnicastLocatorList&gt;</span>
+<span class="w">                                    </span><span class="nt">&lt;locator&gt;</span>
+<span class="w">                                        </span><span class="nt">&lt;udpv4&gt;</span>
+<span class="w">                                            </span><span class="nt">&lt;address&gt;</span>192.168.1.101<span class="nt">&lt;/address&gt;</span>
+<span class="w">                                            </span><span class="nt">&lt;port&gt;</span>56542<span class="nt">&lt;/port&gt;</span>
+<span class="w">                                        </span><span class="nt">&lt;/udpv4&gt;</span>
+<span class="w">                                    </span><span class="nt">&lt;/locator&gt;</span>
+<span class="w">                                </span><span class="nt">&lt;/metatrafficUnicastLocatorList&gt;</span>
+<span class="w">                            </span><span class="nt">&lt;/RemoteServer&gt;</span>
+<span class="w">                        </span><span class="nt">&lt;/discoveryServersList&gt;</span>
+
+<span class="w">                        </span><span class="cm">&lt;!-- 客户端重连配置 --&gt;</span>
+<span class="w">                        </span><span class="nt">&lt;clientAnnouncementPeriod&gt;</span>
+<span class="w">                            </span><span class="nt">&lt;sec&gt;</span>5<span class="nt">&lt;/sec&gt;</span>
+<span class="w">                        </span><span class="nt">&lt;/clientAnnouncementPeriod&gt;</span>
+<span class="w">                    </span><span class="nt">&lt;/discovery_config&gt;</span>
+<span class="w">                </span><span class="nt">&lt;/builtin&gt;</span>
+<span class="w">            </span><span class="nt">&lt;/rtps&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/participant&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/profiles&gt;</span>
+<span class="nt">&lt;/dds&gt;</span>
+</code></pre></div>
+<h3 id="c">C++ 代码配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/attributes/ServerAttributes.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">rtps</span><span class="p">;</span>
+
+<span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">client_qos</span><span class="p">;</span>
+
+<span class="c1">// 设置为 CLIENT 模式</span>
+<span class="n">client_qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">    </span><span class="n">DiscoveryProtocol_t</span><span class="o">::</span><span class="n">CLIENT</span><span class="p">;</span>
+
+<span class="c1">// 配置 Server 1</span>
+<span class="n">RemoteServerAttributes</span><span class="w"> </span><span class="n">server1</span><span class="p">;</span>
+<span class="n">server1</span><span class="p">.</span><span class="n">guidPrefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GuidPrefix_t</span><span class="p">({</span><span class="mh">0x44</span><span class="p">,</span><span class="w"> </span><span class="mh">0x53</span><span class="p">,</span><span class="w"> </span><span class="mh">0x01</span><span class="p">,</span><span class="w"> </span><span class="mh">0x5f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x45</span><span class="p">,</span><span class="w"> </span><span class="mh">0x50</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                   </span><span class="mh">0x52</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x53</span><span class="p">,</span><span class="w"> </span><span class="mh">0x49</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4d</span><span class="p">,</span><span class="w"> </span><span class="mh">0x41</span><span class="p">});</span>
+<span class="n">Locator_t</span><span class="w"> </span><span class="n">locator1</span><span class="p">;</span>
+<span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">locator1</span><span class="p">,</span><span class="w"> </span><span class="s">"192.168.1.100"</span><span class="p">);</span>
+<span class="n">locator1</span><span class="p">.</span><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">56542</span><span class="p">;</span>
+<span class="n">server1</span><span class="p">.</span><span class="n">metatrafficUnicastLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">locator1</span><span class="p">);</span>
+<span class="n">client_qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">m_DiscoveryServers</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">server1</span><span class="p">);</span>
+
+<span class="c1">// 配置 Server 2</span>
+<span class="n">RemoteServerAttributes</span><span class="w"> </span><span class="n">server2</span><span class="p">;</span>
+<span class="n">server2</span><span class="p">.</span><span class="n">guidPrefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GuidPrefix_t</span><span class="p">({</span><span class="mh">0x44</span><span class="p">,</span><span class="w"> </span><span class="mh">0x53</span><span class="p">,</span><span class="w"> </span><span class="mh">0x02</span><span class="p">,</span><span class="w"> </span><span class="mh">0x5f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x45</span><span class="p">,</span><span class="w"> </span><span class="mh">0x50</span><span class="p">,</span>
+<span class="w">                                   </span><span class="mh">0x52</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x53</span><span class="p">,</span><span class="w"> </span><span class="mh">0x49</span><span class="p">,</span><span class="w"> </span><span class="mh">0x4d</span><span class="p">,</span><span class="w"> </span><span class="mh">0x41</span><span class="p">});</span>
+<span class="n">Locator_t</span><span class="w"> </span><span class="n">locator2</span><span class="p">;</span>
+<span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">locator2</span><span class="p">,</span><span class="w"> </span><span class="s">"192.168.1.101"</span><span class="p">);</span>
+<span class="n">locator2</span><span class="p">.</span><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">56542</span><span class="p">;</span>
+<span class="n">server2</span><span class="p">.</span><span class="n">metatrafficUnicastLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">locator2</span><span class="p">);</span>
+<span class="n">client_qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">m_DiscoveryServers</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">server2</span><span class="p">);</span>
+
+<span class="c1">// 创建 Participant</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span>
+<span class="w">    </span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">client_qos</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="ros2">ROS2 环境变量配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 同时指定两个 Server，用分号分隔</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">ROS_DISCOVERY_SERVER</span><span class="o">=</span><span class="s2">"192.168.1.100:56542;192.168.1.101:56542"</span>
+
+<span class="c1"># 启动 ROS2 节点</span>
+ros2<span class="w"> </span>run<span class="w"> </span>demo_nodes_cpp<span class="w"> </span>talker
+</code></pre></div>
+<hr/>
+<h2 id="_8">故障场景分析</h2>
+<h3 id="server_3">Server 故障切换完整流程</h3>
+<div class="codehilite"><pre><span></span><code>时间轴 ───────────────────────────────────────────────────────►
+
+T0: 正常运行
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ Client  │◄───────►│ Server1 │         │ Server2 │
+│         │  主连接  │ (Primary)│         │(Standby)│
+└─────────┘         └─────────┘         └─────────┘
+      │                    ▲                  │
+      │                    │                  │
+      │              心跳5s │                  │
+      │              超时10s│                  │
+      │                    │                  │
+      └────────────────────┘                  │
+      保活连接                                  │
+      (定期发送 DATA(p), HEARTBEAT)            │
+                                               │
+      (同时向S2发送，但S2是备用状态)            │
+      └──────────────────────────────────────►│
+
+T1: Server1 故障 (网络中断/宕机)
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ Client  │    ✗    │ Server1 │         │ Server2 │
+│         │◄──断开──│(Down)   │         │(Standby)│
+└─────────┘         └─────────┘         └─────────┘
+      │                                      │
+      │     心跳超时检测 (约10-15s)           │
+      │◄────────────────────────────────────►│
+      │     向S1发送3次心跳无响应             │
+      │                                      │
+      ▼                                      │
+  状态变更: PRIMARY_FAILED                   │
+  触发: 切换到 Server2                       │
+      │                                      │
+      │─────────────────────────────────────►│
+      │     将S2提升为 PRIMARY               │
+      │     增加向S2的发送频率                │
+      │                                      │
+
+T2: 切换到 Server2
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ Client  │         │ Server1 │         │ Server2 │
+│         │         │(Down)   │◄───────►│(Primary)│
+└─────────┘         └─────────┘         └─────────┘
+      │◄─────────────────────────────────────│
+      │         新的主连接                    │
+      │                                      │
+      • 继续周期性宣告                        │
+      • 发现数据库保持一致（已合并S1和S2数据）  │
+      • 新节点通过S2注册，能被Client发现        │
+
+T3: Server1 恢复
+┌─────────┐         ┌─────────┐         ┌─────────┐
+│ Client  │◄───────►│ Server1 │         │ Server2 │
+│         │  可选切回 │(Standby)│         │(Primary)│
+│         │         │         │         │         │
+│         │◄───────►│         │         │         │
+│         │  保持现状 │         │         │         │
+└─────────┘         └─────────┘         └─────────┘
+      │
+      • 可配置是否切回 (通常不频繁切换，避免振荡)
+      • Server1 恢复后自动同步发现数据
+</code></pre></div>
+<h3 id="_9">网络分区场景</h3>
+<div class="codehilite"><pre><span></span><code>场景：Client 与 Server1 网络隔离，但与 Server2 连通
+
+正常时：
+    Subnet A              Subnet B
+┌───────────────┐      ┌───────────────┐
+│  Client       │◄────►│  Server1      │
+│               │      │  Server2      │
+└───────────────┘      └───────────────┘
+
+分区后：
+    Subnet A              Subnet B
+┌───────────────┐      ┌───────────────┐
+│  Client       │  ✗   │  Server1      │
+│  (孤立)        │      │  Server2      │
+└───────────────┘      └───────────────┘
+       │
+       ▼
+  检测：无法连接 Server1
+       │
+       ▼
+  尝试：连接 Server2 ✓ (通过其他路由可达)
+       │
+       ▼
+  结果：恢复正常发现功能
+
+关键：只要至少一个 Server 可达，Client 就能正常工作
+</code></pre></div>
+<hr/>
+<h2 id="_10">性能与资源分析</h2>
+<h3 id="_11">网络开销对比</h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>单 Server</th>
+<th>双 Server</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>发现流量</strong></td>
+<td>N × 5s 心跳</td>
+<td>N × 5s × 2 (向两个Server发送)</td>
+</tr>
+<tr>
+<td><strong>发现延迟</strong></td>
+<td>1-2 RTT</td>
+<td>1-2 RTT (并行发送)</td>
+</tr>
+<tr>
+<td><strong>故障切换时间</strong></td>
+<td>N/A (无冗余)</td>
+<td>10-15s (3次心跳超时)</td>
+</tr>
+<tr>
+<td><strong>内存占用</strong></td>
+<td>1个连接句柄</td>
+<td>2个连接句柄</td>
+</tr>
+<tr>
+<td><strong>CPU 开销</strong></td>
+<td>低</td>
+<td>略高 (维护两个连接)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_12">关键参数调优</h3>
+<div class="codehilite"><pre><span></span><code><span class="nt">&lt;discovery_config&gt;</span>
+<span class="w">    </span><span class="cm">&lt;!-- 客户端重试间隔 --&gt;</span>
+<span class="w">    </span><span class="nt">&lt;clientAnnouncementPeriod&gt;</span>
+<span class="w">        </span><span class="nt">&lt;sec&gt;</span>5<span class="nt">&lt;/sec&gt;</span>
+<span class="w">        </span><span class="nt">&lt;nanosec&gt;</span>0<span class="nt">&lt;/nanosec&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/clientAnnouncementPeriod&gt;</span>
+
+<span class="w">    </span><span class="cm">&lt;!-- 心跳保活周期 --&gt;</span>
+<span class="w">    </span><span class="nt">&lt;keepAliveDuration&gt;</span>
+<span class="w">        </span><span class="nt">&lt;sec&gt;</span>10<span class="nt">&lt;/sec&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/keepAliveDuration&gt;</span>
+
+<span class="w">    </span><span class="cm">&lt;!-- PDP 宣告周期 --&gt;</span>
+<span class="w">    </span><span class="nt">&lt;leaseDuration&gt;</span>
+<span class="w">        </span><span class="nt">&lt;sec&gt;</span>130<span class="nt">&lt;/sec&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/leaseDuration&gt;</span>
+
+<span class="w">    </span><span class="cm">&lt;!-- 是否自动重新加载备份 --&gt;</span>
+<span class="w">    </span><span class="nt">&lt;ignoreParticipantFlags&gt;</span>NO_FILTER<span class="nt">&lt;/ignoreParticipantFlags&gt;</span>
+<span class="nt">&lt;/discovery_config&gt;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>默认值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clientAnnouncementPeriod</code></td>
+<td>5s</td>
+<td>Client 向 Server 宣告自己的间隔</td>
+</tr>
+<tr>
+<td><code>keepAliveDuration</code></td>
+<td>10s</td>
+<td>检测 Server 是否存活的心跳周期</td>
+</tr>
+<tr>
+<td><code>leaseDuration</code></td>
+<td>130s</td>
+<td>Participant 租约有效期，超时则移除</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_13">最佳实践建议</h3>
+<div class="codehilite"><pre><span></span><code><span class="mf">1.</span><span class="w"> </span><span class="n">心跳间隔调优</span>
+<span class="w">   </span><span class="err">┌──────────────────────────────────────┐</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">局域网内</span><span class="p">:</span><span class="w"> </span><span class="mf">5</span><span class="n">s</span><span class="w"> </span><span class="n">正常</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">15</span><span class="n">s</span><span class="w"> </span><span class="n">故障检测</span><span class="w">    </span><span class="err">│</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">广域网</span><span class="p">:</span><span class="w">   </span><span class="mf">10</span><span class="n">s</span><span class="w"> </span><span class="n">正常</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">30</span><span class="n">s</span><span class="w"> </span><span class="n">故障检测</span><span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">高可用场景</span><span class="p">:</span><span class="w"> </span><span class="mf">3</span><span class="n">s</span><span class="w"> </span><span class="n">正常</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">9</span><span class="n">s</span><span class="w"> </span><span class="n">故障检测</span><span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">└──────────────────────────────────────┘</span>
+
+<span class="mf">2.</span><span class="w"> </span><span class="n">Server</span><span class="w"> </span><span class="n">部署位置</span>
+<span class="w">   </span><span class="err">┌──────────────────────────────────────┐</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">同一机房</span><span class="p">:</span><span class="w"> </span><span class="n">两个</span><span class="w"> </span><span class="n">Server</span><span class="w"> </span><span class="n">不同机架</span><span class="w">      </span><span class="err">│</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">跨机房</span><span class="p">:</span><span class="w">   </span><span class="n">每个可用区一个</span><span class="w"> </span><span class="n">Server</span><span class="w">     </span><span class="err">│</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">跨地域</span><span class="p">:</span><span class="w">   </span><span class="n">考虑延迟</span><span class="err">，</span><span class="n">可能需要更多</span><span class="w">     </span><span class="err">│</span>
+<span class="w">   </span><span class="err">└──────────────────────────────────────┘</span>
+
+<span class="mf">3.</span><span class="w"> </span><span class="n">避免脑裂</span>
+<span class="w">   </span><span class="err">┌──────────────────────────────────────┐</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="n">两个</span><span class="w"> </span><span class="n">Server</span><span class="w"> </span><span class="n">需要能互相通信</span><span class="w">        </span><span class="err">│</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="n">或使用共享存储保持状态一致</span><span class="w">         </span><span class="err">│</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="n">Client</span><span class="w"> </span><span class="n">优先使用延迟最低的</span><span class="w"> </span><span class="n">Server</span><span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">└──────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="_14">总结</h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                    双 Server 核心要点                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. 冗余原理                                                 │
+│     • Client 同时维护多个 Server 连接                        │
+│     • 主 Server 故障时自动切换到备用                         │
+│     • 发现数据通过时间戳机制保持一致                          │
+│                                                             │
+│  2. 故障检测                                                 │
+│     • 基于心跳超时 (默认10-15s)                              │
+│     • 连续3次无响应判定故障                                  │
+│     • 自动重连和状态恢复                                     │
+│                                                             │
+│  3. 数据一致性                                               │
+│     • 最终一致性模型                                         │
+│     • 时间戳优先策略                                         │
+│     • 租约过期清理                                           │
+│                                                             │
+│  4. 适用场景                                                 │
+│     • 生产环境高可用要求                                     │
+│     • 跨网络部署                                             │
+│     • 关键任务系统                                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<p><strong>最后更新</strong>: 2026-03-23<br/>
+<strong>文档版本</strong>: v1.0</p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 传输层 (Transport) 实现详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item active" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 05-Transport-Layer</div>
+        <h1 id="fast-dds-transport">Fast-DDS 传输层 (Transport) 实现详解</h1>
+<h2 id="1">1. 概述</h2>
+<p>Fast-DDS 传输层负责 RTPS 消息在网络中的实际收发。它提供了一个可扩展的架构，支持多种底层传输协议，包括 UDPv4、UDPv6、TCPv4、TCPv6 以及共享内存 (SHM) 传输。本章将深入分析传输层的架构设计、核心接口实现以及各种传输协议的特点和配置方法。</p>
+<hr/>
+<h2 id="2">2. 传输层架构</h2>
+<h3 id="21">2.1 整体架构图</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│<span class="w">                         </span><span class="nv">Fast</span><span class="o">-</span><span class="nv">DDS</span><span class="w"> </span>传输层架构<span class="w">                                   </span>│
+├─────────────────────────────────────────────────────────────────────────────┤
+│<span class="w">                                                                             </span>│
+│<span class="w">   </span>┌─────────────────────────────────────────────────────────────────────┐<span class="w">  </span>│
+│<span class="w">   </span>│<span class="w">                    </span><span class="nv">TransportInterface</span><span class="w"> </span><span class="ss">(</span>抽象接口<span class="ss">)</span><span class="w">                     </span>│<span class="w">  </span>│
+│<span class="w">   </span>│<span class="w">  </span>┌──────────────┐<span class="w"> </span>┌──────────────┐<span class="w"> </span>┌──────────────┐<span class="w"> </span>┌─────────────┐<span class="w"> </span>│<span class="w">  </span>│
+│<span class="w">   </span>│<span class="w">  </span>│<span class="w">  </span><span class="nv">OpenInput</span><span class="w">   </span>│<span class="w"> </span>│<span class="w"> </span><span class="nv">OpenOutput</span><span class="w">   </span>│<span class="w"> </span>│<span class="w">    </span><span class="k">Send</span><span class="w">      </span>│<span class="w"> </span>│<span class="w">   </span><span class="nv">Receive</span><span class="w">   </span>│<span class="w"> </span>│<span class="w">  </span>│
+│<span class="w">   </span>│<span class="w">  </span>│<span class="w">   </span><span class="nv">Channel</span><span class="w">    </span>│<span class="w"> </span>│<span class="w">   </span><span class="nv">Channel</span><span class="w">    </span>│<span class="w"> </span>│<span class="w">              </span>│<span class="w"> </span>│<span class="w">             </span>│<span class="w"> </span>│<span class="w">  </span>│
+│<span class="w">   </span>│<span class="w">  </span>└──────────────┘<span class="w"> </span>└──────────────┘<span class="w"> </span>└──────────────┘<span class="w"> </span>└─────────────┘<span class="w"> </span>│<span class="w">  </span>│
+│<span class="w">   </span>└─────────────────────────────────────────────────────────────────────┘<span class="w">  </span>│
+│<span class="w">                              </span>▲<span class="w">                                              </span>│
+│<span class="w">           </span>┌──────────────────┼──────────────────┐<span class="w">                          </span>│
+│<span class="w">           </span>│<span class="w">                  </span>│<span class="w">                  </span>│<span class="w">                          </span>│
+│<span class="w">   </span>┌───────┴───────┐<span class="w">  </span>┌───────┴───────┐<span class="w">  </span>┌───────┴───────┐<span class="w">                  </span>│
+│<span class="w">   </span>│<span class="w"> </span><span class="nv">UDPTransport</span><span class="w">  </span>│<span class="w">  </span>│<span class="w"> </span><span class="nv">TCPTransport</span><span class="w">  </span>│<span class="w">  </span>│<span class="w">  </span><span class="nv">SharedMem</span><span class="w">    </span>│<span class="w">                  </span>│
+│<span class="w">   </span>│<span class="w">  </span><span class="nv">Interface</span><span class="w">    </span>│<span class="w">  </span>│<span class="w">  </span><span class="nv">Interface</span><span class="w">    </span>│<span class="w">  </span>│<span class="w">   </span><span class="nv">Transport</span><span class="w">   </span>│<span class="w">                  </span>│
+│<span class="w">   </span>└───────┬───────┘<span class="w">  </span>└───────┬───────┘<span class="w">  </span>└───────┬───────┘<span class="w">                  </span>│
+│<span class="w">           </span>│<span class="w">                  </span>│<span class="w">                  </span>│<span class="w">                          </span>│
+│<span class="w">      </span>┌────┴────┐<span class="w">        </span>┌────┴────┐<span class="w">            </span>│<span class="w">                          </span>│
+│<span class="w">      </span>│<span class="w">         </span>│<span class="w">        </span>│<span class="w">         </span>│<span class="w">            </span>│<span class="w">                          </span>│
+│<span class="w">   </span>┌──┴──┐<span class="w">   </span>┌──┴──┐<span class="w">  </span>┌──┴──┐<span class="w">   </span>┌──┴──┐<span class="w">    </span>┌───┴────┐<span class="w">                     </span>│
+│<span class="w">   </span>│<span class="nv">UDPv4</span>│<span class="w">   </span>│<span class="nv">UDPv6</span>│<span class="w">  </span>│<span class="nv">TCPv4</span>│<span class="w">   </span>│<span class="nv">TCPv6</span>│<span class="w">    </span>│<span class="w">  </span><span class="nv">SHM</span><span class="w">   </span>│<span class="w">                     </span>│
+│<span class="w">   </span>└─────┘<span class="w">   </span>└─────┘<span class="w">  </span>└─────┘<span class="w">   </span>└─────┘<span class="w">    </span>└────────┘<span class="w">                     </span>│
+│<span class="w">                                                                             </span>│
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="22">2.2 核心组件说明</h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TransportInterface</code></td>
+<td>所有传输层的抽象基类，定义统一接口</td>
+</tr>
+<tr>
+<td><code>UDPTransportInterface</code></td>
+<td>UDP 传输的抽象基类，实现 UDP 通用逻辑</td>
+</tr>
+<tr>
+<td><code>TCPTransportInterface</code></td>
+<td>TCP 传输的抽象基类，实现 TCP 通用逻辑</td>
+</tr>
+<tr>
+<td><code>SharedMemTransport</code></td>
+<td>共享内存传输实现，用于本机高性能通信</td>
+</tr>
+<tr>
+<td><code>UDPv4Transport</code> / <code>UDPv6Transport</code></td>
+<td>UDP 传输的具体实现</td>
+</tr>
+<tr>
+<td><code>TCPv4Transport</code> / <code>TCPv6Transport</code></td>
+<td>TCP 传输的具体实现</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="3-transportinterface">3. TransportInterface 设计</h2>
+<h3 id="31">3.1 核心接口定义</h3>
+<p><code>TransportInterface</code> 是所有传输层的抽象基类，定义了传输层必须实现的核心方法：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TransportInterface</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 初始化传输层</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">init</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">PropertyPolicy</span><span class="o">*</span><span class="w"> </span><span class="n">properties</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                      </span><span class="k">const</span><span class="w"> </span><span class="kt">uint32_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">max_msg_size_no_frag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 输入通道管理</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">OpenInputChannel</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="p">,</span><span class="w"> </span><span class="n">TransportReceiverInterface</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">CloseInputChannel</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsInputChannelOpen</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 输出通道管理</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">OpenOutputChannel</span><span class="p">(</span><span class="n">SendResourceList</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sender_resource_list</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Locator 相关操作</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">IsLocatorSupported</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="n">Locator</span><span class="w"> </span><span class="nf">RemoteToMainLocal</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">remote</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">is_local_locator</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">locator</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 发送和接收</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="nf">max_recv_buffer_size</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 关闭和清理</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">shutdown</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="32">3.2 关键常量定义</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 默认最大消息大小 (65KB - 36字节 UDP 头)</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">s_maximumMessageSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65500</span><span class="p">;</span>
+
+<span class="c1">// 默认初始 peers 范围</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">s_maximumInitialPeersRange</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+
+<span class="c1">// 默认地址</span>
+<span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">s_IPv4AddressAny</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"0.0.0.0"</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">s_IPv6AddressAny</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"::"</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="33-locator-channel">3.3 Locator 与 Channel 映射</h3>
+<p>传输层建立了 Locator（定位器）与 Channel（通道）之间的映射关系：</p>
+<div class="codehilite"><pre><span></span><code>Locator (逻辑地址)          Channel (物理通道)
+     │                            │
+     ├─ IP 地址 ─────────────────┤
+     ├─ 端口 ────────────────────┤
+     └─ Kind (UDP/TCP/SHM) ─────┘
+</code></pre></div>
+<p>在 UDP 中，一个端口对应一个 Channel；在 TCP 中，一个连接对应一个 Channel；在 SHM 中，一个共享内存端口对应一个 Channel。</p>
+<hr/>
+<h2 id="4-udptransport">4. UDPTransport 实现详解</h2>
+<h3 id="41-udp">4.1 UDP 架构特点</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                    UDPTransportInterface                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌─────────────────┐        ┌─────────────────────────┐   │
+│   │   Input Sockets │        │   Output Sockets        │   │
+│   │   (监听端口)     │        │   (发送端口)             │   │
+│   │                 │        │                         │   │
+│   │  • Port 7400    │        │  • 0.0.0.0:random       │   │
+│   │  • Port 7401    │        │  • Interface-specific   │   │
+│   │  • Multicast    │        │                         │   │
+│   └─────────────────┘        └─────────────────────────┘   │
+│                                                             │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │                ASIO io_context                       │   │
+│   │         (异步 I/O 事件循环)                          │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="42-udp">4.2 UDP 关键特性</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>无连接</strong></td>
+<td>UDP 是无连接协议，发送前不需要建立连接</td>
+</tr>
+<tr>
+<td><strong>多播支持</strong></td>
+<td>天然支持多播通信，适合 DDS 的发现机制</td>
+</tr>
+<tr>
+<td><strong>端口复用</strong></td>
+<td>通过 <code>SO_REUSEADDR</code> 支持多个进程监听同一端口</td>
+</tr>
+<tr>
+<td><strong>非阻塞发送</strong></td>
+<td>可配置 <code>non_blocking_send</code> 避免发送阻塞</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-udpv4transport">4.3 UDPv4Transport 核心实现</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UDPv4Transport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">UDPTransportInterface</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 打开输入通道：监听指定端口，加入多播组</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">OpenInputChannel</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="p">,</span><span class="w"> </span><span class="n">TransportReceiverInterface</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 创建和绑定输入 Socket</span>
+<span class="w">    </span><span class="n">eProsimaUDPSocket</span><span class="w"> </span><span class="nf">OpenAndBindInputSocket</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sIp</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                              </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">port</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                                              </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_multicast</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 生成端点</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">ip</span><span class="o">::</span><span class="n">udp</span><span class="o">::</span><span class="n">endpoint</span><span class="w"> </span><span class="nf">generate_endpoint</span><span class="p">(</span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">port</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">ip</span><span class="o">::</span><span class="n">udp</span><span class="o">::</span><span class="n">endpoint</span><span class="w"> </span><span class="nf">generate_endpoint</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator</span><span class="o">&amp;</span><span class="w"> </span><span class="n">loc</span><span class="p">,</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">port</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">UDPv4TransportDescriptor</span><span class="w"> </span><span class="n">configuration_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">asio</span><span class="o">::</span><span class="n">ip</span><span class="o">::</span><span class="n">address_v4</span><span class="o">&gt;</span><span class="w"> </span><span class="n">interface_whitelist_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 接口白名单</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="44-udp">4.4 UDP 配置参数</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">UDPTransportDescriptor</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">SocketTransportDescriptor</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">m_output_udp_socket</span><span class="p">;</span><span class="w">  </span><span class="c1">// 源端口（0 表示随机）</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">non_blocking_send</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w"> </span><span class="c1">// 是否使用非阻塞发送</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="45-udp">4.5 UDP 数据发送流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="mf">1.</span><span class="w"> </span><span class="n">应用层调用</span><span class="w"> </span><span class="n">write</span><span class="p">()</span>
+<span class="w">        </span><span class="err">│</span>
+<span class="w">        </span><span class="err">▼</span>
+<span class="mf">2.</span><span class="w"> </span><span class="kr">Open</span><span class="n">OutputChannel</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">打开输出通道</span>
+<span class="w">        </span><span class="err">│</span>
+<span class="w">        </span><span class="err">▼</span>
+<span class="mf">3.</span><span class="w"> </span><span class="n">send</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">通过</span><span class="w"> </span><span class="n">ASIO</span><span class="w"> </span><span class="n">发送数据报</span>
+<span class="w">        </span><span class="err">│</span>
+<span class="w">        </span><span class="err">▼</span>
+<span class="mf">4.</span><span class="w"> </span><span class="n">底层</span><span class="w"> </span><span class="n">Socket</span><span class="w"> </span><span class="n">send_to</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">发送到目标地址</span>
+</code></pre></div>
+<hr/>
+<h2 id="5-tcptransport">5. TCPTransport 特点与配置</h2>
+<h3 id="51-tcp">5.1 TCP 架构特点</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                     TCPTransportInterface                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────────────┐      ┌──────────────────────────────┐   │
+│   │   Acceptor       │      │   Channel Resources          │   │
+│   │   (监听连接)      │      │   (已建立的连接)              │   │
+│   │                  │      │                              │   │
+│   │  • 监听端口 7400  │─────▶│  • Channel 1 (192.168.1.10)  │   │
+│   │  • 监听端口 7401  │      │  • Channel 2 (192.168.1.11)  │   │
+│   └──────────────────┘      │  • ...                       │   │
+│                             └──────────────────────────────┘   │
+│                                                                  │
+│   ┌──────────────────────────────────────────────────────────┐  │
+│   │              RTCP Message Manager (RTCP 协议管理)          │  │
+│   │     • Keep-alive 检测                                     │  │
+│   │     • Logical Port 协商                                   │  │
+│   │     • CRC 校验                                            │  │
+│   └──────────────────────────────────────────────────────────┘  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="52-tcp">5.2 TCP 关键特性</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>面向连接</strong></td>
+<td>需要建立 TCP 连接后才能通信</td>
+</tr>
+<tr>
+<td><strong>可靠性</strong></td>
+<td>内置重传机制，保证数据可靠到达</td>
+</tr>
+<tr>
+<td><strong>大消息支持</strong></td>
+<td>支持大于 64KB 的消息传输</td>
+</tr>
+<tr>
+<td><strong>NAT 穿透</strong></td>
+<td>支持 WAN 地址配置，可用于跨 NAT 通信</td>
+</tr>
+<tr>
+<td><strong>TLS 安全</strong></td>
+<td>支持 TLS/SSL 加密传输</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-tcp">5.3 TCP 连接管理</h3>
+<p>TCP 传输使用 <strong>逻辑端口 (Logical Port)</strong> 机制来管理多路复用：</p>
+<div class="codehilite"><pre><span></span><code>Physical Connection (TCP Socket)
+         │
+         ├─ Logical Port 7400 ──▶ DomainParticipant 1
+         ├─ Logical Port 7401 ──▶ DomainParticipant 2
+         ├─ Logical Port 7402 ──▶ DomainParticipant 3
+         └─ ...
+</code></pre></div>
+<h3 id="54-tcp">5.4 TCP 配置参数详解</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">TCPTransportDescriptor</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">SocketTransportDescriptor</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 监听端口列表</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint16_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">listening_ports</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Keep-alive 配置</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">keep_alive_frequency_ms</span><span class="p">;</span><span class="w">      </span><span class="c1">// Keep-alive 发送频率</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">keep_alive_timeout_ms</span><span class="p">;</span><span class="w">        </span><span class="c1">// 连接超时时间</span>
+
+<span class="w">    </span><span class="c1">// Logical Port 配置</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">max_logical_port</span><span class="p">;</span><span class="w">             </span><span class="c1">// 最大逻辑端口</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">logical_port_range</span><span class="p">;</span><span class="w">           </span><span class="c1">// 逻辑端口范围</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">logical_port_increment</span><span class="p">;</span><span class="w">       </span><span class="c1">// 逻辑端口增量</span>
+
+<span class="w">    </span><span class="c1">// TCP 选项</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">enable_tcp_nodelay</span><span class="p">;</span><span class="w">               </span><span class="c1">// 启用 TCP_NODELAY</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">calculate_crc</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 计算 CRC</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">check_crc</span><span class="p">;</span><span class="w">                        </span><span class="c1">// 检查 CRC</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">non_blocking_send</span><span class="p">;</span><span class="w">                </span><span class="c1">// 非阻塞发送</span>
+
+<span class="w">    </span><span class="c1">// TLS 配置</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">apply_security</span><span class="p">;</span><span class="w">                   </span><span class="c1">// 启用 TLS</span>
+<span class="w">    </span><span class="n">TLSConfig</span><span class="w"> </span><span class="n">tls_config</span><span class="p">;</span><span class="w">                  </span><span class="c1">// TLS 详细配置</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="55-tcpv4-wan">5.5 TCPv4 WAN 支持</h3>
+<p>TCPv4 支持配置 WAN 地址用于 NAT 穿透：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">TCPv4TransportDescriptor</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TCPTransportDescriptor</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span><span class="w"> </span><span class="n">wan_addr</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span><span class="w">  </span><span class="c1">// 公网 IP 地址</span>
+
+<span class="w">    </span><span class="c1">// 设置 WAN 地址</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">set_WAN_address</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">in_address</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 解析 IP 字符串 (如 "203.0.113.1")</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="nf">get_WAN_address</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 返回格式: "203.0.113.1"</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="56-tcp-tls">5.6 TCP TLS 配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">TLSConfig</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">password</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 私钥密码</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">private_key_file</span><span class="p">;</span><span class="w">          </span><span class="c1">// 私钥文件路径</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">rsa_private_key_file</span><span class="p">;</span><span class="w">      </span><span class="c1">// RSA 私钥文件路径</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">cert_chain_file</span><span class="p">;</span><span class="w">           </span><span class="c1">// 证书链文件</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">tmp_dh_file</span><span class="p">;</span><span class="w">               </span><span class="c1">// DH 参数文件</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">verify_file</span><span class="p">;</span><span class="w">               </span><span class="c1">// CA 证书文件</span>
+
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">options</span><span class="p">;</span><span class="w">                      </span><span class="c1">// SSL 选项 (TLSOptions 枚举)</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">verify_mode</span><span class="p">;</span><span class="w">                   </span><span class="c1">// 验证模式 (TLSVerifyMode 枚举)</span>
+<span class="w">    </span><span class="n">TLSHandShakeRole</span><span class="w"> </span><span class="n">handshake_role</span><span class="p">;</span><span class="w">       </span><span class="c1">// 握手角色 (CLIENT/SERVER/DEFAULT)</span>
+
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="nc">TLSOptions</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">NONE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="n">DEFAULT_WORKAROUNDS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_COMPRESSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_SSLV2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_SSLV3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_TLSV1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_TLSV1_1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_TLSV1_2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span>
+<span class="w">        </span><span class="n">NO_TLSV1_3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SINGLE_DH_USE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="nc">TLSVerifyMode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">UNUSED</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="n">VERIFY_NONE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">        </span><span class="n">VERIFY_PEER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">        </span><span class="n">VERIFY_FAIL_IF_NO_PEER_CERT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">        </span><span class="n">VERIFY_CLIENT_ONCE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">3</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="6-shm">6. 共享内存 (SHM) 传输优化</h2>
+<h3 id="61-shm">6.1 SHM 架构特点</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│<span class="w">                    </span><span class="nv">SharedMemTransport</span><span class="w">                            </span>│
+├─────────────────────────────────────────────────────────────────┤
+│<span class="w">                                                                  </span>│
+│<span class="w">  </span>┌───────────────────────────────────────────────────────────┐<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">                  </span><span class="nv">Shared</span><span class="w"> </span><span class="nv">Memory</span><span class="w"> </span><span class="nv">Segment</span><span class="w">                     </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>┌─────────────────┐<span class="w">  </span>┌─────────────────┐<span class="w">  </span>┌───────────┐<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w">   </span><span class="nv">Segment</span><span class="w"> </span><span class="mi">1</span><span class="w">     </span>│<span class="w">  </span>│<span class="w">   </span><span class="nv">Segment</span><span class="w"> </span><span class="mi">2</span><span class="w">     </span>│<span class="w">  </span>│<span class="w">    </span>...<span class="w">    </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w">  </span><span class="ss">(</span><span class="mi">512</span><span class="nv">KB</span><span class="o">-</span><span class="mi">64</span><span class="nv">MB</span><span class="ss">)</span><span class="w">   </span>│<span class="w">  </span>│<span class="w">  </span><span class="ss">(</span><span class="mi">512</span><span class="nv">KB</span><span class="o">-</span><span class="mi">64</span><span class="nv">MB</span><span class="ss">)</span><span class="w">   </span>│<span class="w">  </span>│<span class="w">           </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w">                 </span>│<span class="w">  </span>│<span class="w">                 </span>│<span class="w">  </span>│<span class="w">           </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w"> </span>┌─────────────┐<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>┌─────────────┐<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>┌───────┐<span class="w"> </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w"> </span>│<span class="w">   </span><span class="nv">Buffer</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>│<span class="w">   </span><span class="nv">Buffer</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>...<span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w"> </span>├─────────────┤<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>├─────────────┤<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>├───────┤<span class="w"> </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w"> </span>│<span class="w">   </span><span class="nv">Buffer</span><span class="w"> </span><span class="mi">2</span><span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>│<span class="w">   </span><span class="nv">Buffer</span><span class="w"> </span><span class="mi">2</span><span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>...<span class="w">  </span>│<span class="w"> </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>│<span class="w"> </span>└─────────────┘<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>└─────────────┘<span class="w"> </span>│<span class="w">  </span>│<span class="w"> </span>└───────┘<span class="w"> </span>│<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>│<span class="w">  </span>└─────────────────┘<span class="w">  </span>└─────────────────┘<span class="w">  </span>└───────────┘<span class="w">  </span>│<span class="w">  </span>│
+│<span class="w">  </span>└───────────────────────────────────────────────────────────┘<span class="w">  </span>│
+│<span class="w">                                                                  </span>│
+│<span class="w">  </span>┌──────────────────┐<span class="w">      </span>┌──────────────────┐<span class="w">                 </span>│
+│<span class="w">  </span>│<span class="w">   </span><span class="nv">Input</span><span class="w"> </span><span class="nv">Ports</span><span class="w">    </span>│<span class="w">      </span>│<span class="w">   </span><span class="nv">Output</span><span class="w"> </span><span class="nv">Ports</span><span class="w">   </span>│<span class="w">                 </span>│
+│<span class="w">  </span>│<span class="w">  </span><span class="ss">(</span>监听端口<span class="ss">)</span><span class="w">       </span>│<span class="w">      </span>│<span class="w">  </span><span class="ss">(</span>发送端口<span class="ss">)</span><span class="w">       </span>│<span class="w">                 </span>│
+│<span class="w">  </span>│<span class="w">                  </span>│<span class="w">      </span>│<span class="w">                  </span>│<span class="w">                 </span>│
+│<span class="w">  </span>│<span class="w">  </span>•<span class="w"> </span><span class="nv">Port</span><span class="w"> </span><span class="mi">0</span><span class="w">        </span>│<span class="w">      </span>│<span class="w">  </span>•<span class="w"> </span><span class="nv">Dynamic</span><span class="w"> </span><span class="nv">open</span><span class="w">  </span>│<span class="w">                 </span>│
+│<span class="w">  </span>│<span class="w">  </span>•<span class="w"> </span><span class="nv">Port</span><span class="w"> </span><span class="mi">1</span><span class="w">        </span>│<span class="w">      </span>│<span class="w">  </span>•<span class="w"> </span><span class="nv">On</span><span class="w"> </span><span class="k">send</span><span class="w">       </span>│<span class="w">                 </span>│
+│<span class="w">  </span>└──────────────────┘<span class="w">      </span>└──────────────────┘<span class="w">                 </span>│
+│<span class="w">                                                                  </span>│
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="62-shm">6.2 SHM 核心优势</h3>
+<table>
+<thead>
+<tr>
+<th>优势</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>零拷贝</strong></td>
+<td>消息直接写入共享内存，无需内核态/用户态拷贝</td>
+</tr>
+<tr>
+<td><strong>极低延迟</strong></td>
+<td>比 UDP/TCP 快 10-100 倍，微秒级延迟</td>
+</tr>
+<tr>
+<td><strong>高吞吐</strong></td>
+<td>适合大消息传输，可达 GB/s 级别</td>
+</tr>
+<tr>
+<td><strong>CPU 友好</strong></td>
+<td>减少系统调用和中断处理开销</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63-shm">6.3 SHM 端口机制</h3>
+<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────────────┐
+│                    Shared Memory Port                         │
+├──────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │              Port Queue (环形缓冲区)                     │  │
+│  │                                                         │  │
+│  │   ┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐   ┌─────┐     │  │
+│  │   │ Msg │ → │ Msg │ → │ Msg │ → │ Msg │ → │ Msg │     │  │
+│  │   │  1  │   │  2  │   │  3  │   │  4  │   │  5  │     │  │
+│  │   └─────┘   └─────┘   └─────┘   └─────┘   └─────┘     │  │
+│  │                                                         │  │
+│  │  • 容量: port_queue_capacity (默认 512 消息)            │  │
+│  │  • 机制: 多生产者单消费者 (MPSC)                        │  │
+│  │  • 阻塞: 可配置超时等待                                  │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │              Segment Reference                         │  │
+│  │                                                         │  │
+│  │  消息体存储在 Shared Memory Segment 中，Port 只保存      │  │
+│  │  指向实际数据的引用 (BufferDescriptor)                   │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+└──────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="64-shm">6.4 SHM 配置参数</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SharedMemTransportDescriptor</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">PortBasedTransportDescriptor</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">shm_default_segment_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">           </span><span class="c1">// 默认段大小</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">shm_default_port_queue_capacity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="p">;</span><span class="w">  </span><span class="c1">// 默认端口队列容量</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">shm_default_healthy_check_timeout_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="c1">// 健康检查超时</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">shm_implicit_segment_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w"> </span><span class="c1">// 隐式段大小 (512KB)</span>
+
+<span class="w">    </span><span class="c1">// 配置方法</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">segment_size</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">segment_size</span><span class="p">);</span><span class="w">        </span><span class="c1">// 设置段大小</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">max_message_size</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">max_message_size</span><span class="p">);</span><span class="w"> </span><span class="c1">// 设置最大消息大小</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">port_queue_capacity</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">capacity</span><span class="p">);</span><span class="w">     </span><span class="c1">// 设置端口队列容量</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">healthy_check_timeout_ms</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">timeout</span><span class="p">);</span><span class="w"> </span><span class="c1">// 设置健康检查超时</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">rtps_dump_file</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">path</span><span class="p">);</span><span class="w">    </span><span class="c1">// 设置协议转储文件</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="65-shm">6.5 SHM 健康检查机制</h3>
+<p>共享内存传输实现了健康检查机制来处理进程崩溃：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 健康检查超时配置 (默认 1000ms)</span>
+<span class="kt">uint32_t</span><span class="w"> </span><span class="n">healthy_check_timeout_ms_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+
+<span class="c1">// 健康检查流程:</span>
+<span class="c1">// 1. 发送方写入消息后，等待接收方确认</span>
+<span class="c1">// 2. 接收方处理完消息后，释放共享缓冲区</span>
+<span class="c1">// 3. 如果发送方在超时时间内未收到确认，触发健康检查</span>
+<span class="c1">// 4. 检测到对端进程崩溃后，清理相关资源</span>
+</code></pre></div>
+<hr/>
+<h2 id="7">7. 代码示例：配置不同传输层</h2>
+<h3 id="71-udpv4">7.1 配置 UDPv4 传输</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/transport/UDPv4TransportDescriptor.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">rtps</span><span class="p">;</span>
+
+<span class="c1">// 创建 UDPv4 传输描述符</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">udp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">UDPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+
+<span class="c1">// 配置发送缓冲区大小 (字节)</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">sendBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65536</span><span class="p">;</span><span class="w">     </span><span class="c1">// 64KB</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">receiveBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">524288</span><span class="p">;</span><span class="w">  </span><span class="c1">// 512KB</span>
+
+<span class="c1">// 配置输出 UDP Socket 源端口 (0 表示随机)</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">m_output_udp_socket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="c1">// 启用非阻塞发送 (高频写入场景推荐)</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">non_blocking_send</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="c1">// 配置接口白名单 (可选，限制允许的网络接口)</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">interfaceWhiteList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="s">"192.168.1.100"</span><span class="p">);</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">interfaceWhiteList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="s">"127.0.0.1"</span><span class="p">);</span>
+
+<span class="c1">// 禁用多播 (纯单播场景)</span>
+<span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">TTL</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// 生存时间</span>
+
+<span class="c1">// 创建 Participant QoS</span>
+<span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">pqos</span><span class="p">;</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">udp_transport</span><span class="p">);</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w">  </span><span class="c1">// 禁用默认传输</span>
+
+<span class="c1">// 创建 Participant</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span>
+<span class="w">    </span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">pqos</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="72-tcpv4">7.2 配置 TCPv4 传输</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/transport/TCPv4TransportDescriptor.hpp&gt;</span>
+
+<span class="c1">// 创建 TCPv4 传输描述符</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">tcp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">TCPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+
+<span class="c1">// 配置监听端口</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">add_listener_port</span><span class="p">(</span><span class="mi">5100</span><span class="p">);</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">add_listener_port</span><span class="p">(</span><span class="mi">5101</span><span class="p">);</span>
+
+<span class="c1">// 配置 WAN 地址 (用于 NAT 穿越)</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">set_WAN_address</span><span class="p">(</span><span class="s">"203.0.113.1"</span><span class="p">);</span>
+
+<span class="c1">// 配置 Keep-alive</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">keep_alive_frequency_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span><span class="p">;</span><span class="w">   </span><span class="c1">// 5 秒发送一次 keep-alive</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">keep_alive_timeout_ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15000</span><span class="p">;</span><span class="w">    </span><span class="c1">// 15 秒超时断开</span>
+
+<span class="c1">// 配置 Logical Port</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">max_logical_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w">           </span><span class="c1">// 最大逻辑端口数</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">logical_port_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">          </span><span class="c1">// 每次尝试范围</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">logical_port_increment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">       </span><span class="c1">// 端口增量</span>
+
+<span class="c1">// 启用 TCP_NODELAY (减少延迟)</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">enable_tcp_nodelay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="c1">// 启用 CRC 校验</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">calculate_crc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">check_crc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="c1">// 配置非阻塞发送</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">non_blocking_send</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="c1">// 配置 TLS (可选)</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">apply_security</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">tls_config</span><span class="p">.</span><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"password"</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">tls_config</span><span class="p">.</span><span class="n">cert_chain_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"server.crt"</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">tls_config</span><span class="p">.</span><span class="n">private_key_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"server.key"</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">tls_config</span><span class="p">.</span><span class="n">verify_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"ca.crt"</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">tls_config</span><span class="p">.</span><span class="n">verify_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TCPTransportDescriptor</span><span class="o">::</span><span class="n">TLSConfig</span><span class="o">::</span><span class="n">VERIFY_PEER</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">tls_config</span><span class="p">.</span><span class="n">add_option</span><span class="p">(</span>
+<span class="w">    </span><span class="n">TCPTransportDescriptor</span><span class="o">::</span><span class="n">TLSConfig</span><span class="o">::</span><span class="n">TLSOptions</span><span class="o">::</span><span class="n">NO_TLSV1</span><span class="p">);</span>
+
+<span class="c1">// 创建 Participant QoS</span>
+<span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">pqos</span><span class="p">;</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">tcp_transport</span><span class="p">);</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="c1">// 配置初始 Peers (TCP 需要显式指定)</span>
+<span class="n">Locator_t</span><span class="w"> </span><span class="n">initial_peer</span><span class="p">;</span>
+<span class="n">initial_peer</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LOCATOR_KIND_TCPv4</span><span class="p">;</span>
+<span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">initial_peer</span><span class="p">,</span><span class="w"> </span><span class="s">"192.168.1.100"</span><span class="p">);</span>
+<span class="n">IPLocator</span><span class="o">::</span><span class="n">setPhysicalPort</span><span class="p">(</span><span class="n">initial_peer</span><span class="p">,</span><span class="w"> </span><span class="mi">5100</span><span class="p">);</span>
+<span class="n">IPLocator</span><span class="o">::</span><span class="n">setLogicalPort</span><span class="p">(</span><span class="n">initial_peer</span><span class="p">,</span><span class="w"> </span><span class="mi">7400</span><span class="p">);</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">initialPeersList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">initial_peer</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="73">7.3 配置共享内存传输</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.hpp&gt;</span>
+
+<span class="c1">// 创建 SHM 传输描述符</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">shm_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SharedMemTransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+
+<span class="c1">// 配置共享内存段大小</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">segment_size</span><span class="p">(</span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span><span class="w">  </span><span class="c1">// 1MB</span>
+
+<span class="c1">// 配置端口队列容量</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">port_queue_capacity</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span><span class="w">   </span><span class="c1">// 1024 条消息</span>
+
+<span class="c1">// 配置健康检查超时</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">healthy_check_timeout_ms</span><span class="p">(</span><span class="mi">2000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 2 秒</span>
+
+<span class="c1">// 配置最大消息大小</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">max_message_size</span><span class="p">(</span><span class="mi">65536</span><span class="p">);</span><span class="w">  </span><span class="c1">// 64KB</span>
+
+<span class="c1">// 配置协议转储 (调试用)</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">rtps_dump_file</span><span class="p">(</span><span class="s">"/tmp/fastdds_shm_dump.log"</span><span class="p">);</span>
+
+<span class="c1">// 创建 Participant QoS</span>
+<span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">pqos</span><span class="p">;</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="74">7.4 混合传输配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 同时配置 SHM + UDP，实现同机高速 + 跨机通信</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">shm_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SharedMemTransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">udp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">UDPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+
+<span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">pqos</span><span class="p">;</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span><span class="w">  </span><span class="c1">// 优先使用 SHM</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">udp_transport</span><span class="p">);</span><span class="w">  </span><span class="c1">// 跨机使用 UDP</span>
+<span class="n">pqqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="c1">// Fast-DDS 会自动选择最优传输:</span>
+<span class="c1">// - 同机通信: 使用 SHM (延迟最低)</span>
+<span class="c1">// - 跨机通信: 使用 UDP (网络可达)</span>
+</code></pre></div>
+<h3 id="75-large_data">7.5 大型数据传输配置 (LARGE_DATA)</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 使用 SHM + TCP 模式传输大消息 (如视频流、点云)</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">shm_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SharedMemTransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">segment_size</span><span class="p">(</span><span class="mi">64</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span><span class="w">  </span><span class="c1">// 64MB 段大小</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">max_message_size</span><span class="p">(</span><span class="mi">16</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span><span class="w">  </span><span class="c1">// 支持 16MB 消息</span>
+
+<span class="k">auto</span><span class="w"> </span><span class="n">tcp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">TCPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">add_listener_port</span><span class="p">(</span><span class="mi">5100</span><span class="p">);</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">enable_tcp_nodelay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">sendBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">  </span><span class="c1">// 16MB 发送缓冲</span>
+<span class="n">tcp_transport</span><span class="o">-&gt;</span><span class="n">receiveBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">  </span><span class="c1">// 16MB 接收缓冲</span>
+
+<span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">pqos</span><span class="p">;</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">tcp_transport</span><span class="p">);</span>
+<span class="n">pqos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+</code></pre></div>
+<hr/>
+<h2 id="8">8. 传输层选择建议</h2>
+<h3 id="81">8.1 场景对比</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐传输</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>同机通信</td>
+<td>SHM</td>
+<td>零拷贝，最低延迟</td>
+</tr>
+<tr>
+<td>局域网通信</td>
+<td>UDPv4</td>
+<td>简单高效，支持多播</td>
+</tr>
+<tr>
+<td>跨网段/NAT</td>
+<td>TCPv4</td>
+<td>支持 WAN 地址，NAT 穿透</td>
+</tr>
+<tr>
+<td>互联网传输</td>
+<td>TCPv4 + TLS</td>
+<td>安全可靠，防火墙友好</td>
+</tr>
+<tr>
+<td>大消息传输</td>
+<td>SHM + TCP</td>
+<td>大缓冲区，零拷贝</td>
+</tr>
+<tr>
+<td>高安全要求</td>
+<td>TCP + TLS</td>
+<td>加密传输，证书认证</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82">8.2 性能对比</h3>
+<div class="codehilite"><pre><span></span><code>延迟对比 (同机通信):
+SHM      &lt; 1 μs
+UDP      ~10-50 μs
+TCP      ~50-100 μs
+
+吞吐量对比:
+SHM      &gt; 10 GB/s
+UDP      ~1-3 GB/s
+TCP      ~1-2 GB/s
+</code></pre></div>
+<hr/>
+<h2 id="9">9. 总结</h2>
+<p>Fast-DDS 传输层提供了灵活可扩展的架构，支持多种底层传输协议：</p>
+<ol>
+<li><strong>TransportInterface</strong> 定义了统一的抽象接口，便于扩展新的传输类型</li>
+<li><strong>UDP 传输</strong> 简单高效，适合局域网多播场景</li>
+<li><strong>TCP 传输</strong> 可靠稳定，支持大消息和 NAT 穿透</li>
+<li><strong>共享内存传输</strong> 提供零拷贝高性能，是同机通信的最佳选择</li>
+</ol>
+<p>在实际应用中，可以根据部署环境和性能需求选择合适的传输协议，也可以组合多种传输实现最优的通信效果。</p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

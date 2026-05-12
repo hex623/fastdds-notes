@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 序列化机制详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item active" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 18-Serialization</div>
+        <h1 id="fast-dds">Fast-DDS 序列化机制详解</h1>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-序列化概述">序列化概述</a></li>
+<li><a href="#2-cdr-编码规范">CDR 编码规范</a></li>
+<li><a href="#3-fast-dds-序列化架构">Fast-DDS 序列化架构</a></li>
+<li><a href="#4-typesupport-详解">TypeSupport 详解</a></li>
+<li><a href="#5-封装格式与版本">封装格式与版本</a></li>
+<li><a href="#6-动态类型序列化">动态类型序列化</a></li>
+<li><a href="#7-源码实现分析">源码实现分析</a></li>
+<li><a href="#8-性能优化">性能优化</a></li>
+<li><a href="#9-实战示例">实战示例</a></li>
+</ol>
+<hr/>
+<h2 id="1">1. 序列化概述</h2>
+<h3 id="11">1.1 为什么需要序列化？</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                     </span><span class="nt">序列化的必要性</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">内存中的</span><span class="w"> </span><span class="nt">C</span><span class="o">++</span><span class="w"> </span><span class="nt">对象</span><span class="w">                                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">struct</span><span class="w"> </span><span class="nt">SensorData</span><span class="w"> </span><span class="p">{</span><span class="w">                     </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="err">string</span><span class="w"> </span><span class="err">sensor_id</span><span class="p">;</span><span class="w">    </span><span class="err">────┐</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="err">double</span><span class="w"> </span><span class="err">temperature</span><span class="p">;</span><span class="w"> </span><span class="err">──┐</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="err">timestamp</span><span class="w"> </span><span class="err">time</span><span class="p">;</span><span class="w">   </span><span class="err">──┐</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">}</span><span class="o">;</span><span class="w">                      </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                         </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">内存布局</span><span class="o">:</span><span class="w">               </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">指针地址</span><span class="w"> </span><span class="o">(</span><span class="nt">64-bit</span><span class="o">)</span><span class="w">     </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">double</span><span class="w"> </span><span class="o">(</span><span class="nt">8-byte</span><span class="o">)</span><span class="w">       </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">int64</span><span class="w"> </span><span class="o">(</span><span class="nt">8-byte</span><span class="o">)</span><span class="w">        </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                         </span><span class="err">▼</span><span class="w"> </span><span class="err">▼</span><span class="w">  </span><span class="err">▼</span><span class="w">          </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">无法直接通过网络传输</span><span class="err">！</span><span class="w">                   </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                              </span><span class="err">│</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                              </span><span class="err">▼</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">序列化</span><span class="w"> </span><span class="o">(</span><span class="nt">Serialization</span><span class="o">)</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">0x00</span><span class="w"> </span><span class="nt">0x0A</span><span class="w"> </span><span class="nt">0x00</span><span class="w"> </span><span class="o">...</span><span class="w">                      </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">标准字节流</span><span class="w"> </span><span class="o">(</span><span class="nt">网络可传输</span><span class="o">)</span><span class="w">                  </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">长度前缀</span><span class="w"> </span><span class="o">(</span><span class="nt">4-byte</span><span class="o">)</span><span class="w">                     </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">UTF-8</span><span class="w"> </span><span class="nt">字符串内容</span><span class="w">                      </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">IEEE</span><span class="w"> </span><span class="nt">754</span><span class="w"> </span><span class="nt">double</span><span class="w"> </span><span class="o">(</span><span class="nt">8-byte</span><span class="o">)</span><span class="w">              </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nt">int64</span><span class="w"> </span><span class="o">(</span><span class="nt">8-byte</span><span class="o">,</span><span class="w"> </span><span class="nt">小端序</span><span class="o">)</span><span class="w">                </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                              </span><span class="err">│</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                              </span><span class="err">▼</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">网络传输</span><span class="w"> </span><span class="o">(</span><span class="nt">UDP</span><span class="o">/</span><span class="nt">TCP</span><span class="o">/</span><span class="nt">SHM</span><span class="o">)</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                              </span><span class="err">│</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                              </span><span class="err">▼</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">反序列化</span><span class="w"> </span><span class="o">(</span><span class="nt">Deserialization</span><span class="o">)</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────┐</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">struct</span><span class="w"> </span><span class="nt">SensorData</span><span class="w"> </span><span class="p">{</span><span class="w">                     </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="err">string</span><span class="w"> </span><span class="err">sensor_id</span><span class="p">;</span><span class="w">    </span><span class="err">←</span><span class="w"> </span><span class="err">重建对象</span><span class="w">      </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="err">double</span><span class="w"> </span><span class="err">temperature</span><span class="p">;</span><span class="w">                  </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="err">timestamp</span><span class="w"> </span><span class="err">time</span><span class="p">;</span><span class="w">                      </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">}</span><span class="o">;</span><span class="w">                                       </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────┘</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="12-dds">1.2 DDS 序列化标准</h3>
+<table>
+<thead>
+<tr>
+<th>标准</th>
+<th>全称</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CDR</strong></td>
+<td>Common Data Representation</td>
+<td>OMG IDL 编码规范</td>
+</tr>
+<tr>
+<td><strong>XCDR</strong></td>
+<td>Extended CDR</td>
+<td>DDS-XTYPES 扩展</td>
+</tr>
+<tr>
+<td><strong>XCDR2</strong></td>
+<td>Extended CDR v2</td>
+<td>更紧凑的编码</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-dds">1.3 序列化在 DDS 中的位置</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">graph</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">App</span><span class="p">[</span><span class="s2">"应用程序"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">Obj</span><span class="p">[</span><span class="s2">"C++ 对象"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">DDS</span><span class="p">[</span><span class="s2">"DDS 中间件"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TW</span><span class="p">[</span><span class="s2">"TypeSupport"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">SP</span><span class="p">[</span><span class="s2">"SerializedPayload"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">CH</span><span class="p">[</span><span class="s2">"HistoryCache"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">RTPS</span><span class="p">[</span><span class="s2">"RTPS 协议"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">CDR</span><span class="p">[</span><span class="s2">"CDR 编码"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">SubMsg</span><span class="p">[</span><span class="s2">"RTPS SubMessage"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Net</span><span class="p">[</span><span class="s2">"网络层"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">UDP</span><span class="p">[</span><span class="s2">"UDP Packet"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">Obj</span><span class="w"> </span><span class="o">--</span><span class="s2">"write()"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">TW</span>
+<span class="w">    </span><span class="n">TW</span><span class="w"> </span><span class="o">--</span><span class="s2">"serialize()"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SP</span>
+<span class="w">    </span><span class="n">SP</span><span class="w"> </span><span class="o">--</span><span class="s2">"封装"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">CDR</span>
+<span class="w">    </span><span class="n">CDR</span><span class="w"> </span><span class="o">--</span><span class="s2">"打包"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SubMsg</span>
+<span class="w">    </span><span class="n">SubMsg</span><span class="w"> </span><span class="o">--</span><span class="s2">"发送"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">UDP</span>
+
+<span class="w">    </span><span class="n">UDP</span><span class="w"> </span><span class="o">--</span><span class="s2">"接收"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SubMsg</span>
+<span class="w">    </span><span class="n">SubMsg</span><span class="w"> </span><span class="o">--</span><span class="s2">"解包"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">CDR</span>
+<span class="w">    </span><span class="n">CDR</span><span class="w"> </span><span class="o">--</span><span class="s2">"解封装"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SP</span>
+<span class="w">    </span><span class="n">SP</span><span class="w"> </span><span class="o">--</span><span class="s2">"deserialize()"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">TW</span>
+<span class="w">    </span><span class="n">TW</span><span class="w"> </span><span class="o">--</span><span class="s2">"read()"</span><span class="o">--&gt;</span><span class="w"> </span><span class="n">Obj</span>
+</code></pre></div>
+<hr/>
+<h2 id="2-cdr">2. CDR 编码规范</h2>
+<h3 id="21-cdr">2.1 CDR 基本规则</h3>
+<p>CDR (Common Data Representation) 是 OMG 定义的标准二进制编码：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// CDR 编码核心原则</span>
+
+<span class="c1">// 1. 对齐规则 - 数据按自然边界对齐</span>
+<span class="c1">//    1-byte: 任意地址</span>
+<span class="c1">//    2-byte: 偶数地址</span>
+<span class="c1">//    4-byte: 4的倍数地址</span>
+<span class="c1">//    8-byte: 8的倍数地址</span>
+
+<span class="c1">// 2. 字节序 - 默认大端序 (Big Endian)</span>
+<span class="c1">//    可通过封装头指定小端序</span>
+
+<span class="c1">// 3. 填充 - 不满足对齐时插入填充字节</span>
+</code></pre></div>
+<h3 id="22">2.2 基本类型编码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === 整数编码 ===</span>
+
+<span class="c1">// int32 (4-byte, 大端序示例)</span>
+<span class="kt">int32_t</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x12345678</span><span class="p">;</span>
+<span class="c1">// 编码: [0x12 0x34 0x56 0x78]</span>
+
+<span class="c1">// int16 (2-byte, 大端序)</span>
+<span class="kt">int16_t</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x1234</span><span class="p">;</span>
+<span class="c1">// 编码: [0x12 0x34] + [填充 0x00 0x00]  // 对齐到4字节</span>
+
+<span class="c1">// === 浮点数编码 (IEEE 754) ===</span>
+
+<span class="c1">// double (8-byte)</span>
+<span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3.14159</span><span class="p">;</span>
+<span class="c1">// 编码: 8字节 IEEE 754 格式</span>
+
+<span class="c1">// float (4-byte)</span>
+<span class="kt">float</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3.14f</span><span class="p">;</span>
+<span class="c1">// 编码: 4字节 IEEE 754 格式</span>
+
+<span class="c1">// === 布尔编码 ===</span>
+<span class="kt">bool</span><span class="w"> </span><span class="n">flag</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="c1">// 编码: [0x01] + [填充到4字节: 0x00 0x00 0x00]</span>
+
+<span class="c1">// === 字符编码 ===</span>
+<span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">'A'</span><span class="p">;</span>
+<span class="c1">// 编码: [0x41] + [填充到4字节]</span>
+</code></pre></div>
+<h3 id="23">2.3 字符串编码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// CDR 字符串格式:</span>
+<span class="c1">// [长度(4-byte, 含null终止符)] [内容] [null终止符] [填充]</span>
+
+<span class="c1">// 示例: "Hello"</span>
+<span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Hello"</span><span class="p">;</span>
+<span class="c1">// 编码:</span>
+<span class="c1">// [0x00 0x00 0x00 0x06]  // 长度 = 6 (5字符 + 1 null)</span>
+<span class="c1">// [0x48 0x65 0x6C 0x6C 0x6F 0x00]  // "Hello\0"</span>
+<span class="c1">// (无需填充，已对齐)</span>
+
+<span class="c1">// 示例: "Hi"</span>
+<span class="n">string</span><span class="w"> </span><span class="n">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Hi"</span><span class="p">;</span>
+<span class="c1">// 编码:</span>
+<span class="c1">// [0x00 0x00 0x00 0x03]  // 长度 = 3</span>
+<span class="c1">// [0x48 0x69 0x00]       // "Hi\0"</span>
+<span class="c1">// [0x00]                 // 填充到4字节对齐</span>
+</code></pre></div>
+<h3 id="24">2.4 结构体编码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// IDL</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span><span class="w">      </span><span class="c1">// @key</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// C++ 数据</span>
+<span class="n">SensorData</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="n">data</span><span class="p">.</span><span class="n">sensor_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"TEMP001"</span><span class="p">;</span><span class="w">  </span><span class="c1">// 8字符 + null = 9</span>
+<span class="n">data</span><span class="p">.</span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">25.5</span><span class="p">;</span>
+<span class="n">data</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="c1">// CDR 编码结果:</span>
+<span class="c1">// Offset  Content                         Size  Alignment</span>
+<span class="c1">// 0x00    [0x00 0x00 0x00 0x09]          4     length</span>
+<span class="c1">// 0x04    "TEMP001\0"                     9     string</span>
+<span class="c1">// 0x0D    [0x00 0x00 0x00]               3     padding</span>
+<span class="c1">// 0x10    [temperature: 8 bytes]         8     double</span>
+<span class="c1">// 0x18    [status: 4 bytes]              4     int32</span>
+<span class="c1">// Total: 28 bytes</span>
+
+<span class="c1">// 内存布局可视化:</span>
+<span class="c1">// 00: 00 00 00 09    &lt;- 字符串长度 (9)</span>
+<span class="c1">// 04: 54 45 4D 50    &lt;- "TEMP"</span>
+<span class="c1">// 08: 30 30 31 00    &lt;- "001\0"</span>
+<span class="c1">// 0C: 00 00 00       &lt;- padding (对齐到 0x10)</span>
+<span class="c1">// 10: xx xx xx xx    &lt;- temperature (8 bytes)</span>
+<span class="c1">// 14: xx xx xx xx</span>
+<span class="c1">// 18: 00 00 00 01    &lt;- status (1)</span>
+</code></pre></div>
+<h3 id="25">2.5 数组与序列编码</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === 定长数组 ===</span>
+<span class="c1">// IDL: int32_t values[4];</span>
+<span class="kt">int32_t</span><span class="w"> </span><span class="n">values</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">};</span>
+<span class="c1">// 编码: 4 * 4 = 16 bytes，无长度前缀，无填充</span>
+
+<span class="c1">// === 变长序列 (sequence) ===</span>
+<span class="c1">// IDL: sequence&lt;int32_t&gt; values;</span>
+<span class="n">vector</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">values</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">};</span>
+<span class="c1">// 编码:</span>
+<span class="c1">// [0x00 0x00 0x00 0x03]  // 长度 = 3</span>
+<span class="c1">// [0x00 0x00 0x00 0x01]  // values[0]</span>
+<span class="c1">// [0x00 0x00 0x00 0x02]  // values[1]</span>
+<span class="c1">// [0x00 0x00 0x00 0x03]  // values[2]</span>
+
+<span class="c1">// === 字节序列 (octet sequence) ===</span>
+<span class="c1">// IDL: sequence&lt;octet&gt; raw_data;</span>
+<span class="c1">// 优化: 元素无对齐要求，紧凑排列</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-fast-dds">3. Fast-DDS 序列化架构</h2>
+<h3 id="31">3.1 核心类图</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 序列化架构核心类</span>
+
+<span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                         </span><span class="n">序列化架构</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">TypeSupport</span><span class="w"> </span><span class="p">(</span><span class="n">抽象基类</span><span class="p">)</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">serialize</span><span class="p">()</span><span class="w">        </span><span class="err">→</span><span class="w"> </span><span class="n">对象</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">SerializedPayload</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">deserialize</span><span class="p">()</span><span class="w">      </span><span class="err">→</span><span class="w"> </span><span class="n">SerializedPayload</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">对象</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">get_serialized_size_provider</span><span class="p">()</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">create_data</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">delete_data</span><span class="p">()</span><span class="w">                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">         </span><span class="err">│</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">         </span><span class="err">│</span><span class="w"> </span><span class="n">派生</span><span class="w">                                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">         </span><span class="err">▼</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">GeneratedTypeSupport</span><span class="w"> </span><span class="p">(</span><span class="n">IDL</span><span class="w"> </span><span class="n">生成</span><span class="p">)</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">具体类型的序列化实现</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">使用</span><span class="w"> </span><span class="n">Cdr</span><span class="w"> </span><span class="n">类进行编码</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Cdr</span><span class="w"> </span><span class="p">(</span><span class="n">序列化引擎</span><span class="p">)</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="n">int16</span><span class="o">/</span><span class="n">int32</span><span class="o">/</span><span class="n">int64</span><span class="o">/</span><span class="kt">float</span><span class="o">/</span><span class="kt">double</span><span class="o">/</span><span class="n">string</span><span class="p">...)</span><span class="w">        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">serialize_array</span><span class="p">()</span><span class="w">                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">serialize_sequence</span><span class="p">()</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">处理字节序和对齐</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="p">(</span><span class="n">序列化结果</span><span class="p">)</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="p">(</span><span class="kt">uint8_t</span><span class="o">*</span><span class="p">)</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="n">原始字节</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="n">有效长度</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">max_size</span><span class="w">           </span><span class="err">→</span><span class="w"> </span><span class="n">最大容量</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">encapsulation</span><span class="w">      </span><span class="err">→</span><span class="w"> </span><span class="n">封装格式</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">CdrMessage</span><span class="w"> </span><span class="p">(</span><span class="n">RTPS</span><span class="w"> </span><span class="n">消息</span><span class="p">)</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">封装</span><span class="w"> </span><span class="n">CDR</span><span class="w"> </span><span class="n">数据到</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">子消息</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">添加</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">头部和标识</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="32">3.2 序列化流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">sequenceDiagram</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">App</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="err">应用程序</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">DW</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">DataWriter</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">TS</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">TypeSupport</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">CDR</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">Cdr</span><span class="w"> </span><span class="err">引擎</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">SP</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">SerializedPayload</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="err">层</span>
+
+<span class="w">    </span><span class="n">App</span><span class="o">-&gt;&gt;</span><span class="n">DW</span><span class="p">:</span><span class="w"> </span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="w">    </span><span class="n">DW</span><span class="o">-&gt;&gt;</span><span class="n">TS</span><span class="p">:</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">TS</span><span class="p">:</span><span class="w"> </span><span class="err">计算序列化大小</span>
+<span class="w">    </span><span class="n">TS</span><span class="o">-&gt;&gt;</span><span class="n">TS</span><span class="p">:</span><span class="w"> </span><span class="n">get_serialized_size</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">CDR</span><span class="p">:</span><span class="w"> </span><span class="err">开始序列化</span>
+<span class="w">    </span><span class="n">TS</span><span class="o">-&gt;&gt;</span><span class="n">CDR</span><span class="p">:</span><span class="w"> </span><span class="n">Cdr</span><span class="w"> </span><span class="n">cdr</span><span class="p">(</span><span class="n">payload_data</span><span class="p">)</span>
+<span class="w">    </span><span class="n">TS</span><span class="o">-&gt;&gt;</span><span class="n">CDR</span><span class="p">:</span><span class="w"> </span><span class="n">cdr</span><span class="o">.</span><span class="n">serialize_encapsulation</span><span class="p">()</span>
+
+<span class="w">    </span><span class="n">loop</span><span class="w"> </span><span class="err">每个字段</span>
+<span class="w">        </span><span class="n">TS</span><span class="o">-&gt;&gt;</span><span class="n">CDR</span><span class="p">:</span><span class="w"> </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="o">.</span><span class="n">field1</span>
+<span class="w">        </span><span class="n">TS</span><span class="o">-&gt;&gt;</span><span class="n">CDR</span><span class="p">:</span><span class="w"> </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">data</span><span class="o">.</span><span class="n">field2</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">CDR</span><span class="o">-&gt;&gt;</span><span class="n">SP</span><span class="p">:</span><span class="w"> </span><span class="err">填充</span><span class="w"> </span><span class="n">payload</span>
+<span class="w">    </span><span class="n">TS</span><span class="o">-&gt;&gt;</span><span class="n">SP</span><span class="p">:</span><span class="w"> </span><span class="n">payload</span><span class="o">.</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cdr</span><span class="o">.</span><span class="n">get_serialized_data_length</span><span class="p">()</span>
+
+<span class="w">    </span><span class="n">SP</span><span class="o">-&gt;&gt;</span><span class="n">RTPS</span><span class="p">:</span><span class="w"> </span><span class="n">new_change</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+<span class="w">    </span><span class="n">RTPS</span><span class="o">-&gt;&gt;</span><span class="n">RTPS</span><span class="p">:</span><span class="w"> </span><span class="err">封装到</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">Data</span><span class="w"> </span><span class="n">SubMessage</span>
+</code></pre></div>
+<h3 id="33">3.3 反序列化流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                      </span><span class="err">反序列化流程</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">接收端</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────┐</span><span class="w">     </span><span class="err">┌─────────┐</span><span class="w">     </span><span class="err">┌─────────┐</span><span class="w">     </span><span class="err">┌─────────┐</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Network</span><span class="w"> </span><span class="err">│────→│</span><span class="w">  </span><span class="n">RTPS</span><span class="w">   </span><span class="err">│────→│</span><span class="w">  </span><span class="n">CDR</span><span class="w">    </span><span class="err">│────→│</span><span class="w">   </span><span class="n">App</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────┘</span><span class="w">     </span><span class="err">└─────────┘</span><span class="w">     </span><span class="err">└─────────┘</span><span class="w">     </span><span class="err">└─────────┘</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">               </span><span class="err">│</span><span class="w">               </span><span class="err">│</span><span class="w">               </span><span class="err">│</span><span class="w">        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">▼</span><span class="w">               </span><span class="err">▼</span><span class="w">               </span><span class="err">▼</span><span class="w">               </span><span class="err">▼</span><span class="w">        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">UDP</span><span class="w"> </span><span class="n">Packet</span><span class="w">     </span><span class="n">SubMessage</span><span class="w">      </span><span class="n">Serialized</span><span class="w">       </span><span class="n">C</span><span class="o">++</span><span class="w"> </span><span class="nb nb-Type">Object</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="p">(</span><span class="err">字节流</span><span class="p">)</span><span class="w">       </span><span class="err">提取</span><span class="w"> </span><span class="n">payload</span><span class="w">      </span><span class="n">Payload</span><span class="w">         </span><span class="p">(</span><span class="err">数据</span><span class="p">)</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                     </span><span class="err">│</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                     </span><span class="err">▼</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                               </span><span class="n">Cdr</span><span class="w"> </span><span class="n">cdr</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span><span class="w">                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                               </span><span class="n">cdr</span><span class="o">.</span><span class="n">read_encapsulation</span><span class="p">()</span><span class="w">           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                               </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">obj</span><span class="o">.</span><span class="n">field1</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                               </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">obj</span><span class="o">.</span><span class="n">field2</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                               </span><span class="o">...</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="4-typesupport">4. TypeSupport 详解</h2>
+<h3 id="41-typesupport">4.1 TypeSupport 接口</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/dds/topic/TypeSupport.hpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TypeSupport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">TopicDataType</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// === 序列化 ===</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span>
+<span class="w">        </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="w"> </span><span class="n">data_representation</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 反序列化 ===</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">deserialize</span><span class="p">(</span>
+<span class="w">        </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 获取序列化大小 ===</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">uint32_t</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">get_serialized_size_provider</span><span class="p">(</span>
+<span class="w">        </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="w"> </span><span class="n">data_representation</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 数据生命周期管理 ===</span>
+<span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">create_data</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">delete_data</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 类型信息 ===</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="nf">get_type_name</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">is_bounded</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">is_plain</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === 注册 ===</span>
+<span class="w">    </span><span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">register_type</span><span class="p">(</span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="42-idl-typesupport">4.2 IDL 生成的 TypeSupport</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === IDL 定义 ===</span>
+<span class="c1">// Sensor.idl</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="err">@</span><span class="n">key</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// === 生成的 C++ 代码 (简化) ===</span>
+<span class="c1">// SensorPubSubTypes.h</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SensorDataPubSubType</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">TopicDataType</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">SensorDataPubSubType</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">setName</span><span class="p">(</span><span class="s">"SensorData"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">m_typeSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最大序列化大小（含填充）</span>
+<span class="w">        </span><span class="n">m_isGetKeyDefined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 序列化</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span>
+<span class="w">        </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span>
+<span class="w">        </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SensorData</span><span class="o">*</span><span class="w"> </span><span class="n">p_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">SensorData</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 1. 计算大小</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">ser_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_serialized_size</span><span class="p">(</span><span class="o">*</span><span class="n">p_type</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 2. 分配内存</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">uint8_t</span><span class="p">[</span><span class="n">ser_size</span><span class="p">];</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">max_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ser_size</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 3. 使用 Cdr 序列化</span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="nf">cdr</span><span class="p">(</span>
+<span class="w">            </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span>
+<span class="w">            </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="o">::</span><span class="n">DEFAULT_ENDIAN</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 4. 写入封装头</span>
+<span class="w">        </span><span class="n">cdr</span><span class="p">.</span><span class="n">serialize_encapsulation</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 5. 写入数据</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">status</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 6. 设置长度</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">cdr</span><span class="p">.</span><span class="n">getSerializedDataLength</span><span class="p">());</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 反序列化</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">deserialize</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SensorData</span><span class="o">*</span><span class="w"> </span><span class="n">p_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">SensorData</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="nf">cdr</span><span class="p">(</span>
+<span class="w">            </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span>
+<span class="w">            </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 1. 读取封装头</span>
+<span class="w">        </span><span class="n">cdr</span><span class="p">.</span><span class="n">read_encapsulation</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 2. 读取数据</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">status</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 计算 Key</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">getKey</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">InstanceHandle_t</span><span class="o">*</span><span class="w"> </span><span class="n">handle</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SensorData</span><span class="o">*</span><span class="w"> </span><span class="n">p_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">SensorData</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 只序列化 @key 字段</span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="nf">cdr</span><span class="p">(...);</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">p_type</span><span class="o">-&gt;</span><span class="n">sensor_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// 只序列化 key 字段</span>
+
+<span class="w">        </span><span class="c1">// 计算 MD5 作为 handle</span>
+<span class="w">        </span><span class="n">MD5</span><span class="w"> </span><span class="n">md5</span><span class="p">;</span>
+<span class="w">        </span><span class="n">md5</span><span class="p">.</span><span class="n">update</span><span class="p">(</span><span class="n">cdr</span><span class="p">.</span><span class="n">getBufferPointer</span><span class="p">(),</span><span class="w"> </span><span class="n">cdr</span><span class="p">.</span><span class="n">getSerializedDataLength</span><span class="p">());</span>
+<span class="w">        </span><span class="n">md5</span><span class="p">.</span><span class="n">finalize</span><span class="p">();</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">handle</span><span class="o">-&gt;</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">md5</span><span class="p">.</span><span class="n">digest</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="43-typesupport">4.3 自定义 TypeSupport</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === 自定义序列化实现 ===</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CustomSensorTypeSupport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TopicDataType</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">CustomSensorTypeSupport</span><span class="p">()</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">setName</span><span class="p">(</span><span class="s">"CustomSensor"</span><span class="p">);</span>
+<span class="w">        </span><span class="n">m_typeSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span>
+<span class="w">        </span><span class="n">m_isGetKeyDefined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">CustomSensor</span><span class="o">*</span><span class="w"> </span><span class="n">sensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">CustomSensor</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 使用自定义编码（例如：压缩）</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">buffer</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 自定义格式: [magic(4)] [version(1)] [compressed_data]</span>
+<span class="w">        </span><span class="n">buffer</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="mh">0x43</span><span class="p">);</span><span class="w">  </span><span class="c1">// 'C'</span>
+<span class="w">        </span><span class="n">buffer</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="mh">0x55</span><span class="p">);</span><span class="w">  </span><span class="c1">// 'U'</span>
+<span class="w">        </span><span class="n">buffer</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="mh">0x53</span><span class="p">);</span><span class="w">  </span><span class="c1">// 'S'</span>
+<span class="w">        </span><span class="n">buffer</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="mh">0x54</span><span class="p">);</span><span class="w">  </span><span class="c1">// 'T'</span>
+<span class="w">        </span><span class="n">buffer</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="mh">0x01</span><span class="p">);</span><span class="w">  </span><span class="c1">// version</span>
+
+<span class="w">        </span><span class="c1">// 压缩数据</span>
+<span class="w">        </span><span class="n">compress</span><span class="p">(</span><span class="n">sensor</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 复制到 payload</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">uint8_t</span><span class="p">[</span><span class="n">buffer</span><span class="p">.</span><span class="n">size</span><span class="p">()];</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">size</span><span class="p">());</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">max_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">deserialize</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">CustomSensor</span><span class="o">*</span><span class="w"> </span><span class="n">sensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">CustomSensor</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 验证 magic</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mh">0x43</span><span class="w"> </span><span class="o">||</span>
+<span class="w">            </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mh">0x55</span><span class="w"> </span><span class="o">||</span>
+<span class="w">            </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mh">0x53</span><span class="w"> </span><span class="o">||</span>
+<span class="w">            </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mh">0x54</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 解压缩</span>
+<span class="w">        </span><span class="n">decompress</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">sensor</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="5">5. 封装格式与版本</h2>
+<h3 id="51">5.1 封装头格式</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// CDR 封装头 (4 bytes)</span>
+<span class="c1">// ┌─────────────────────────────────────┐</span>
+<span class="c1">// │ 0x00 0x01 │ 0x00 0x00              │</span>
+<span class="c1">// │ 封装标识   │ 选项（保留）            │</span>
+<span class="c1">// └─────────────────────────────────────┘</span>
+<span class="c1">//</span>
+<span class="c1">// 封装标识解码：</span>
+<span class="c1">// 位 0-1: 字节序</span>
+<span class="c1">//   00 = 大端 (Big Endian)</span>
+<span class="c1">//   01 = 小端 (Little Endian)</span>
+<span class="c1">//</span>
+<span class="c1">// 位 2-5: 封装版本</span>
+<span class="c1">//   0000 = CDR (DDS 早期)</span>
+<span class="c1">//   0001 = PL_CDR (参数列表)</span>
+<span class="c1">//   0010 = CDR2</span>
+<span class="c1">//   0011 = PL_CDR2</span>
+<span class="c1">//   0100 = D_CDR (Delimited)</span>
+
+<span class="c1">// 封装标识常量</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">CDR_BE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0000</span><span class="p">;</span><span class="w">      </span><span class="c1">// CDR Big Endian</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">CDR_LE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0001</span><span class="p">;</span><span class="w">      </span><span class="c1">// CDR Little Endian</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">PL_CDR_BE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0002</span><span class="p">;</span><span class="w">   </span><span class="c1">// Parameter List Big Endian</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">PL_CDR_LE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0003</span><span class="p">;</span><span class="w">   </span><span class="c1">// Parameter List Little Endian</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">CDR2_BE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0006</span><span class="p">;</span><span class="w">     </span><span class="c1">// CDR2 Big Endian</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">CDR2_LE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x0007</span><span class="p">;</span><span class="w">     </span><span class="c1">// CDR2 Little Endian</span>
+</code></pre></div>
+<h3 id="52">5.2 数据表示格式</h3>
+<table>
+<thead>
+<tr>
+<th>格式</th>
+<th>ID</th>
+<th>说明</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CDR</strong></td>
+<td>0x0000/0x0001</td>
+<td>经典 CDR</td>
+<td>兼容旧系统</td>
+</tr>
+<tr>
+<td><strong>XCDR</strong></td>
+<td>0x0002/0x0003</td>
+<td>扩展 CDR (XTypes)</td>
+<td>默认推荐</td>
+</tr>
+<tr>
+<td><strong>XCDR2</strong></td>
+<td>0x0006/0x0007</td>
+<td>紧凑编码</td>
+<td>带宽敏感</td>
+</tr>
+<tr>
+<td><strong>XML</strong></td>
+<td>-</td>
+<td>文本格式</td>
+<td>调试（非生产）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53">5.3 配置数据表示</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/core/policy/QosPolicies.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="c1">// 方式1: 代码配置 DataRepresentationQos</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_data_representation</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置支持的数据表示格式（按优先级排序）</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">XCDR2</span><span class="p">);</span><span class="w">  </span><span class="c1">// 首选 XCDR2</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">XCDR1</span><span class="p">);</span><span class="w">  </span><span class="c1">// 次选 XCDR</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">CDR_DATA</span><span class="p">);</span><span class="w">  </span><span class="c1">// 兼容旧版</span>
+
+<span class="w">    </span><span class="c1">// 创建 DataWriter</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// 方式2: XML 配置</span>
+<span class="cm">/*</span>
+<span class="cm">&lt;data_writer&gt;</span>
+<span class="cm">    &lt;qos&gt;</span>
+<span class="cm">        &lt;dataRepresentation&gt;</span>
+<span class="cm">            &lt;value&gt;</span>
+<span class="cm">                &lt;element&gt;XCDR2&lt;/element&gt;</span>
+<span class="cm">                &lt;element&gt;XCDR&lt;/element&gt;</span>
+<span class="cm">            &lt;/value&gt;</span>
+<span class="cm">        &lt;/dataRepresentation&gt;</span>
+<span class="cm">    &lt;/qos&gt;</span>
+<span class="cm">&lt;/data_writer&gt;</span>
+<span class="cm">*/</span>
+
+<span class="c1">// Reader 配置（必须兼容 Writer）</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_reader_representation</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataReaderQos</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Reader 声明支持哪些格式</span>
+<span class="w">    </span><span class="n">reader_qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">XCDR2</span><span class="p">);</span>
+<span class="w">    </span><span class="n">reader_qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">XCDR1</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 如果 Writer 和 Reader 没有共同的表示格式，匹配会失败</span>
+<span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="6">6. 动态类型序列化</h2>
+<h3 id="61">6.1 动态类型概述</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 静态类型（编译时确定）</span>
+<span class="n">SensorData</span><span class="w"> </span><span class="n">data</span><span class="p">;</span><span class="w">  </span><span class="c1">// 结构固定</span>
+
+<span class="c1">// 动态类型（运行时确定）</span>
+<span class="n">DynamicType_ptr</span><span class="w"> </span><span class="n">dynamic_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...;</span><span class="w">  </span><span class="c1">// 运行时构建类型</span>
+<span class="n">DynamicData_ptr</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DynamicDataFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span>
+<span class="w">    </span><span class="o">-&gt;</span><span class="n">create_data</span><span class="p">(</span><span class="n">dynamic_type</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="62">6.2 动态类型序列化</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/xtypes/dynamic_types/DynamicData.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/xtypes/dynamic_types/DynamicDataFactory.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="c1">// 序列化动态类型数据</span>
+<span class="kt">bool</span><span class="w"> </span><span class="nf">serialize_dynamic_data</span><span class="p">(</span>
+<span class="w">    </span><span class="n">DynamicData_ptr</span><span class="w"> </span><span class="n">data</span><span class="p">,</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 使用 DynamicData 的序列化方法</span>
+<span class="w">    </span><span class="n">DynamicDataFactory</span><span class="o">*</span><span class="w"> </span><span class="n">factory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DynamicDataFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 获取序列化大小</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="o">-&gt;</span><span class="n">get_cdr_serialized_size</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 分配内存</span>
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">uint8_t</span><span class="p">[</span><span class="n">size</span><span class="p">];</span>
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">max_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 使用 Cdr 序列化</span>
+<span class="w">    </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="n">cdr</span><span class="p">(</span>
+<span class="w">        </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="o">::</span><span class="n">DEFAULT_ENDIAN</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 写入封装头</span>
+<span class="w">    </span><span class="n">cdr</span><span class="p">.</span><span class="n">serialize_encapsulation</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 序列化动态数据</span>
+<span class="w">    </span><span class="n">data</span><span class="o">-&gt;</span><span class="n">serialize</span><span class="p">(</span><span class="n">cdr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cdr</span><span class="p">.</span><span class="n">getSerializedDataLength</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 反序列化动态类型数据</span>
+<span class="kt">bool</span><span class="w"> </span><span class="nf">deserialize_dynamic_data</span><span class="p">(</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span>
+<span class="w">    </span><span class="n">DynamicType_ptr</span><span class="w"> </span><span class="n">type</span><span class="p">,</span>
+<span class="w">    </span><span class="n">DynamicData_ptr</span><span class="o">&amp;</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 创建 DynamicData 实例</span>
+<span class="w">    </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DynamicDataFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_data</span><span class="p">(</span><span class="n">type</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 使用 Cdr 反序列化</span>
+<span class="w">    </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="n">cdr</span><span class="p">(</span>
+<span class="w">        </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 读取封装头</span>
+<span class="w">    </span><span class="n">cdr</span><span class="p">.</span><span class="n">read_encapsulation</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 反序列化动态数据</span>
+<span class="w">    </span><span class="n">data</span><span class="o">-&gt;</span><span class="n">deserialize</span><span class="p">(</span><span class="n">cdr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="63-type-lookup-service">6.3 Type Lookup Service</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 动态类型发现 - Type Lookup Service</span>
+
+<span class="c1">// Writer 端: 发布类型信息</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">publish_with_type_info</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 启用类型传播</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">typelookup_config</span><span class="p">.</span><span class="n">use_server</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-</span>
+<span class="mo">003</span><span class="n">ecreate_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 注册动态类型</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_support</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">DynamicPubSubType</span><span class="p">(</span><span class="n">dynamic_type</span><span class="p">));</span>
+<span class="w">    </span><span class="n">type_support</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 创建 Topic</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span><span class="s">"DynamicTopic"</span><span class="p">,</span><span class="w"> </span><span class="n">dynamic_type</span><span class="o">-&gt;</span><span class="n">get_name</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="c1">// Reader 端: 自动获取类型信息</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">subscribe_with_dynamic_type</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">typelookup_config</span><span class="p">.</span><span class="n">use_client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...;</span>
+
+<span class="w">    </span><span class="c1">// 创建 Topic（此时类型可能还不知道）</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span><span class="s">"DynamicTopic"</span><span class="p">,</span><span class="w"> </span><span class="s">"UnknownType"</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 设置监听器，等待类型发现完成</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">DynamicTypeListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainParticipantListener</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">on_type_discovery</span><span class="p">(...)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 类型发现完成，可以创建 Reader 了</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="7">7. 源码实现分析</h2>
+<h3 id="71-cdr">7.1 Cdr 类核心实现</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastcdr/Cdr.h</span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastcdr</span><span class="w"> </span><span class="p">{</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Cdr</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// === 构造函数 ===</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="p">(</span><span class="n">FastBuffer</span><span class="o">*</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">Endianness</span><span class="w"> </span><span class="n">endianness</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DEFAULT_ENDIAN</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 封装头 ===</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">serialize_encapsulation</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">deserialize_encapsulation</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// === 基本类型 ===</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">int16_t</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">int32_t</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">int64_t</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 反序列化 ===</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="kt">int16_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="kt">int32_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="k">operator</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ...</span>
+
+<span class="w">    </span><span class="c1">// === 数组 ===</span>
+<span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="n">serializeArray</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">T</span><span class="o">*</span><span class="w"> </span><span class="n">array</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 序列 ===</span>
+<span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">T</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="n">serializeSequence</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">sequence</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 对齐 ===</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">align</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">alignment</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="nf">getCurrentPosition</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === 字节序 ===</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">changeEndianness</span><span class="p">(</span><span class="n">Endianness</span><span class="w"> </span><span class="n">endianness</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Endianness</span><span class="w"> </span><span class="nf">getEndianness</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">FastBuffer</span><span class="o">*</span><span class="w"> </span><span class="n">m_buffer</span><span class="p">;</span><span class="w">        </span><span class="c1">// 底层缓冲区</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">m_currentPosition</span><span class="p">;</span><span class="w">    </span><span class="c1">// 当前位置</span>
+<span class="w">    </span><span class="n">Endianness</span><span class="w"> </span><span class="n">m_endianness</span><span class="p">;</span><span class="w">     </span><span class="c1">// 字节序</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">m_swapBytes</span><span class="p">;</span><span class="w">            </span><span class="c1">// 是否需要交换字节</span>
+<span class="p">};</span>
+
+<span class="p">}</span><span class="w"> </span><span class="c1">// namespace eprosima::fastcdr</span>
+</code></pre></div>
+<h3 id="72">7.2 序列化实现细节</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/fastcdr/Cdr.cpp</span>
+
+<span class="c1">// int32 序列化</span>
+<span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="n">Cdr</span><span class="o">::</span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="kt">int32_t</span><span class="w"> </span><span class="n">value</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 对齐到 4 字节边界</span>
+<span class="w">    </span><span class="n">align</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 2. 检查缓冲区空间</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_currentPosition</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">m_buffer</span><span class="o">-&gt;</span><span class="n">getBufferSize</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">throw</span><span class="w"> </span><span class="n">NotEnoughMemoryException</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 写入数据（考虑字节序）</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_swapBytes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 交换字节序</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">swapped</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">swap_bytes</span><span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uint32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">value</span><span class="p">));</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">m_buffer</span><span class="o">-&gt;</span><span class="n">getBuffer</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m_currentPosition</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">swapped</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">m_buffer</span><span class="o">-&gt;</span><span class="n">getBuffer</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m_currentPosition</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. 更新位置</span>
+<span class="w">    </span><span class="n">m_currentPosition</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="k">this</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 字符串序列化</span>
+<span class="n">Cdr</span><span class="o">&amp;</span><span class="w"> </span><span class="n">Cdr</span><span class="o">::</span><span class="k">operator</span><span class="o">&lt;&lt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">value</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 字符串长度（含 null 终止符）</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="p">.</span><span class="n">length</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. 序列化长度</span>
+<span class="w">    </span><span class="o">*</span><span class="k">this</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">length</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 3. 序列化内容</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">serializeArray</span><span class="p">(</span><span class="n">value</span><span class="p">.</span><span class="n">c_str</span><span class="p">(),</span><span class="w"> </span><span class="n">length</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 空字符串，只写 null</span>
+<span class="w">        </span><span class="kt">char</span><span class="w"> </span><span class="n">null</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">'\0'</span><span class="p">;</span>
+<span class="w">        </span><span class="n">serializeArray</span><span class="p">(</span><span class="o">&amp;</span><span class="n">null</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. 对齐到 4 字节</span>
+<span class="w">    </span><span class="n">align</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="k">this</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 对齐函数</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">Cdr</span><span class="o">::</span><span class="n">align</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">alignment</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">remainder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m_currentPosition</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="n">alignment</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">remainder</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">size_t</span><span class="w"> </span><span class="n">padding</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">alignment</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">remainder</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 检查空间</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_currentPosition</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">padding</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">m_buffer</span><span class="o">-&gt;</span><span class="n">getBufferSize</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">throw</span><span class="w"> </span><span class="n">NotEnoughMemoryException</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 填充 0</span>
+<span class="w">        </span><span class="n">memset</span><span class="p">(</span><span class="n">m_buffer</span><span class="o">-&gt;</span><span class="n">getBuffer</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m_currentPosition</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">padding</span><span class="p">);</span>
+<span class="w">        </span><span class="n">m_currentPosition</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">padding</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="73-serializedpayload">7.3 SerializedPayload 管理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/common/SerializedPayload.h</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">SerializedPayload_t</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">encapsulation</span><span class="p">;</span><span class="w">   </span><span class="c1">// 封装格式标识</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">length</span><span class="p">;</span><span class="w">          </span><span class="c1">// 有效数据长度</span>
+<span class="w">    </span><span class="n">octet</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">;</span><span class="w">              </span><span class="c1">// 数据指针</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">max_size</span><span class="p">;</span><span class="w">        </span><span class="c1">// 最大容量</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">pos</span><span class="p">;</span><span class="w">                 </span><span class="c1">// 是否拥有 data 内存</span>
+
+<span class="w">    </span><span class="c1">// 构造函数</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="p">()</span>
+<span class="w">        </span><span class="o">:</span><span class="w"> </span><span class="n">encapsulation</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="w"> </span><span class="n">max_size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="w"> </span><span class="n">pos</span><span class="p">(</span><span class="nb">false</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{}</span>
+
+<span class="w">    </span><span class="c1">// 预留空间</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">reserve</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">max_size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">size</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">data</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">pos</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">delete</span><span class="p">[]</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">octet</span><span class="p">[</span><span class="n">size</span><span class="p">];</span>
+<span class="w">            </span><span class="n">max_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">            </span><span class="n">pos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 复制</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">copy</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">src</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">with_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">with_limit</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">max_size</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">src</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">src</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">;</span>
+<span class="w">        </span><span class="n">encapsulation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">src</span><span class="o">-&gt;</span><span class="n">encapsulation</span><span class="p">;</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">src</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 提取 key hash（用于 Instance 管理）</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">extract_key_hash</span><span class="p">(</span><span class="n">MD5</span><span class="o">*</span><span class="w"> </span><span class="n">md5</span><span class="p">)</span><span class="w"> </span><span class="k">const</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 从 payload 中提取 key 字段并计算 hash</span>
+<span class="w">        </span><span class="c1">// ...</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="8">8. 性能优化</h2>
+<h3 id="81">8.1 序列化性能优化技巧</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// === 优化1: 预分配内存 ===</span>
+
+<span class="c1">// ❌ 差：频繁分配</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">bad_serialize</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="n">payload</span><span class="p">;</span>
+<span class="w">        </span><span class="n">payload</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span><span class="w">  </span><span class="c1">// 每次分配</span>
+<span class="w">        </span><span class="n">serialize</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="n">payload</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// ✅ 好：重用 payload</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">good_serialize</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="n">payload</span><span class="p">;</span>
+<span class="w">    </span><span class="n">payload</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span><span class="w">  </span><span class="c1">// 只分配一次</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">payload</span><span class="p">.</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">  </span><span class="c1">// 重置长度</span>
+<span class="w">        </span><span class="n">serialize</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="o">&amp;</span><span class="n">payload</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// === 优化2: 零拷贝 (DataSharing) ===</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_zero_copy</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 启用 DataSharing（共享内存，避免序列化拷贝）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">data_sharing</span><span class="p">().</span><span class="n">on</span><span class="p">(</span><span class="s">"shared_memory_name"</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 对于大消息，避免序列化开销</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SYNCHRONOUS</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// === 优化3: 压缩大数据 ===</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;zlib.h&gt;</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">compress_and_serialize</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 先正常序列化到临时缓冲区</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">raw_buffer</span><span class="p">[</span><span class="mi">1024</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">raw_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">serialize_to_buffer</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">raw_buffer</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 2. 压缩</span>
+<span class="w">    </span><span class="n">uLongf</span><span class="w"> </span><span class="n">compressed_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compressBound</span><span class="p">(</span><span class="n">raw_size</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">compressed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">uint8_t</span><span class="p">[</span><span class="n">compressed_size</span><span class="p">];</span>
+
+<span class="w">    </span><span class="n">compress</span><span class="p">(</span><span class="n">compressed</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">compressed_size</span><span class="p">,</span><span class="w"> </span><span class="n">raw_buffer</span><span class="p">,</span><span class="w"> </span><span class="n">raw_size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 3. 存储压缩数据</span>
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compressed</span><span class="p">;</span>
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compressed_size</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// === 优化4: 使用 Plain 类型 ===</span>
+
+<span class="c1">// Plain 类型：内存布局与序列化格式一致，可直接 memcpy</span>
+<span class="c1">// 要求：</span>
+<span class="c1">// - 固定大小</span>
+<span class="c1">// - 无指针（无 string/vector）</span>
+<span class="c1">// - 对齐正确</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">PlainSensorData</span><span class="w">  </span><span class="c1">// Plain 类型</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span><span class="w">    </span><span class="c1">// 固定长度数组，非 string</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">__attribute__</span><span class="p">((</span><span class="n">packed</span><span class="p">));</span>
+<span class="c1">// 可以直接 memcpy，无需复杂序列化</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">NonPlainSensorData</span><span class="w">  </span><span class="c1">// 非 Plain 类型</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span><span class="w">  </span><span class="c1">// 动态分配</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">status</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="82">8.2 选择合适的编码格式</h3>
+<table>
+<thead>
+<tr>
+<th>格式</th>
+<th>编码大小</th>
+<th>速度</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CDR</td>
+<td>中等</td>
+<td>快</td>
+<td>兼容性优先</td>
+</tr>
+<tr>
+<td>XCDR</td>
+<td>中等</td>
+<td>快</td>
+<td>默认推荐</td>
+</tr>
+<tr>
+<td>XCDR2</td>
+<td>最小</td>
+<td>中等</td>
+<td>带宽敏感</td>
+</tr>
+<tr>
+<td>XML</td>
+<td>最大</td>
+<td>慢</td>
+<td>调试 only</td>
+</tr>
+</tbody>
+</table>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 带宽敏感场景使用 XCDR2</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_for_bandwidth</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// XCDR2 使用更紧凑的编码</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">XCDR2</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 启用内容过滤（减少不必要的数据传输）</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="9">9. 实战示例</h2>
+<h3 id="91-1">9.1 示例1: 大消息序列化</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 传输高清图像数据 (1MB+)</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">ImageFrame</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">width</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">height</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">pixel_data</span><span class="p">;</span><span class="w">  </span><span class="c1">// 大内存块</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ImageTypeSupport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TopicDataType</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ImageFrame</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">ImageFrame</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 1. 计算总大小</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">total_size</span><span class="w"> </span><span class="o">=</span>
+<span class="w">            </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w">                         </span><span class="c1">// width</span>
+<span class="w">            </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w">                         </span><span class="c1">// height</span>
+<span class="w">            </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w">                         </span><span class="c1">// pixel_data size</span>
+<span class="w">            </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">pixel_data</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w">   </span><span class="c1">// actual data</span>
+
+<span class="w">        </span><span class="c1">// 2. 预分配</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">reserve</span><span class="p">(</span><span class="n">total_size</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span><span class="w">  </span><span class="c1">// 留点余量</span>
+
+<span class="w">        </span><span class="c1">// 3. 使用 Cdr</span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="nf">cdr</span><span class="p">(</span>
+<span class="w">            </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="o">*&gt;</span><span class="p">(</span>
+<span class="w">                </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span>
+<span class="w">            </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="o">::</span><span class="n">DEFAULT_ENDIAN</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">cdr</span><span class="p">.</span><span class="n">serialize_encapsulation</span><span class="p">();</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">width</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">height</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&lt;&gt;&gt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">pixel_data</span><span class="p">;</span><span class="w">  </span><span class="c1">// 序列化 vector</span>
+
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cdr</span><span class="p">.</span><span class="n">getSerializedDataLength</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">deserialize</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">ImageFrame</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">ImageFrame</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">Cdr</span><span class="w"> </span><span class="nf">cdr</span><span class="p">(</span>
+<span class="w">            </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastcdr</span><span class="o">::</span><span class="n">FastBuffer</span><span class="o">*&gt;</span><span class="p">(</span>
+<span class="w">                </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">),</span>
+<span class="w">            </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">cdr</span><span class="p">.</span><span class="n">read_encapsulation</span><span class="p">();</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">width</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">height</span><span class="p">;</span>
+<span class="w">        </span><span class="n">cdr</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">pixel_data</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 使用 DataSharing 避免拷贝</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">setup_image_transport</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 启用共享内存传输</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">data_sharing</span><span class="p">().</span><span class="n">automatic</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 设置大消息阈值</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="92-2">9.2 示例2: 版本兼容序列化</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 新旧版本系统兼容</span>
+
+<span class="c1">// V1 数据结构</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorDataV1</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// V2 数据结构（添加了字段）</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">SensorDataV2</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">humidity</span><span class="p">;</span><span class="w">    </span><span class="c1">// 新增</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w">     </span><span class="c1">// 新增</span>
+<span class="p">};</span>
+
+<span class="c1">// 使用 XCDR2 的可扩展编码</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">setup_version_compatible</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">representation</span><span class="p">().</span><span class="n">m_value</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataRepresentationId_t</span><span class="o">::</span><span class="n">XCDR2</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// XCDR2 的 D_CDR 格式支持字段增减</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Reader 端处理未知字段</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">VersionedListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_data_available</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">LoanableSequence</span><span class="o">&lt;</span><span class="n">DynamicData</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">;</span>
+<span class="w">        </span><span class="n">SampleInfoSeq</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">length</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 使用动态数据访问，忽略版本差异</span>
+<span class="w">            </span><span class="n">DynamicData</span><span class="o">*</span><span class="w"> </span><span class="n">dyn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+
+<span class="w">            </span><span class="n">string</span><span class="w"> </span><span class="n">sensor_id</span><span class="p">;</span>
+<span class="w">            </span><span class="n">dyn</span><span class="o">-&gt;</span><span class="n">get_string_value</span><span class="p">(</span><span class="n">sensor_id</span><span class="p">,</span><span class="w"> </span><span class="n">dyn</span><span class="o">-&gt;</span><span class="n">get_member_id_by_name</span><span class="p">(</span><span class="s">"sensor_id"</span><span class="p">));</span>
+
+<span class="w">            </span><span class="kt">double</span><span class="w"> </span><span class="n">temperature</span><span class="p">;</span>
+<span class="w">            </span><span class="n">dyn</span><span class="o">-&gt;</span><span class="n">get_float64_value</span><span class="p">(</span><span class="n">temperature</span><span class="p">,</span><span class="w"> </span><span class="n">dyn</span><span class="o">-&gt;</span><span class="n">get_member_id_by_name</span><span class="p">(</span><span class="s">"temperature"</span><span class="p">));</span>
+
+<span class="w">            </span><span class="c1">//  humidity 可能不存在，检查后再读取</span>
+<span class="w">            </span><span class="n">MemberId</span><span class="w"> </span><span class="n">humidity_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dyn</span><span class="o">-&gt;</span><span class="n">get_member_id_by_name</span><span class="p">(</span><span class="s">"humidity"</span><span class="p">);</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">humidity_id</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">MEMBER_ID_INVALID</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kt">double</span><span class="w"> </span><span class="n">humidity</span><span class="p">;</span>
+<span class="w">                </span><span class="n">dyn</span><span class="o">-&gt;</span><span class="n">get_float64_value</span><span class="p">(</span><span class="n">humidity</span><span class="p">,</span><span class="w"> </span><span class="n">humidity_id</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="93-3">9.3 示例3: 自定义二进制协议</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 与非 DDS 系统通信（需要自定义格式）</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">CustomPacket</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">magic</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span><span class="w">       </span><span class="c1">// "MYAPP"</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">version</span><span class="p">;</span><span class="w">        </span><span class="c1">// 协议版本</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">msg_type</span><span class="p">;</span><span class="w">      </span><span class="c1">// 消息类型</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">payload_len</span><span class="p">;</span><span class="w">   </span><span class="c1">// 载荷长度</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">payload</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CustomProtocolTypeSupport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TopicDataType</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">serialize</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">CustomPacket</span><span class="o">*</span><span class="w"> </span><span class="n">packet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">CustomPacket</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">total_size</span><span class="w"> </span><span class="o">=</span>
+<span class="w">            </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w">     </span><span class="c1">// magic</span>
+<span class="w">            </span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w">     </span><span class="c1">// version</span>
+<span class="w">            </span><span class="mi">2</span><span class="w"> </span><span class="o">+</span><span class="w">     </span><span class="c1">// msg_type</span>
+<span class="w">            </span><span class="mi">4</span><span class="w"> </span><span class="o">+</span><span class="w">     </span><span class="c1">// payload_len</span>
+<span class="w">            </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload</span><span class="p">.</span><span class="n">size</span><span class="p">();</span>
+
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">reserve</span><span class="p">(</span><span class="n">total_size</span><span class="p">);</span>
+
+<span class="w">        </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 手动序列化（不使用 CDR）</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">        </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">version</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 大端序编码 msg_type</span>
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">msg_type</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">msg_type</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 大端序编码 payload_len</span>
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload_len</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">24</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload_len</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload_len</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+<span class="w">        </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload_len</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xFF</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// payload</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload</span><span class="p">.</span><span class="n">size</span><span class="p">());</span>
+
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total_size</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 不设置封装格式（自定义协议）</span>
+<span class="w">        </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">encapsulation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">deserialize</span><span class="p">(</span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">CustomPacket</span><span class="o">*</span><span class="w"> </span><span class="n">packet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">CustomPacket</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">        </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 验证 magic</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">memcmp</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="s">"MYAPP"</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">memcpy</span><span class="p">(</span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">magic</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<span class="w">        </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">ptr</span><span class="o">++</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 大端序解码</span>
+<span class="w">        </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">msg_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">        </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload_len</span><span class="w"> </span><span class="o">=</span>
+<span class="w">            </span><span class="p">(</span><span class="o">*</span><span class="n">ptr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">24</span><span class="p">)</span><span class="w"> </span><span class="o">|</span>
+<span class="w">            </span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">16</span><span class="p">)</span><span class="w"> </span><span class="o">|</span>
+<span class="w">            </span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">|</span>
+<span class="w">            </span><span class="o">*</span><span class="p">(</span><span class="n">ptr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">        </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 复制 payload</span>
+<span class="w">        </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload</span><span class="p">.</span><span class="n">assign</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">packet</span><span class="o">-&gt;</span><span class="n">payload_len</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_2">总结</h2>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                     </span><span class="n">Fast</span><span class="o">-</span><span class="n">DDS</span><span class="w"> </span><span class="err">序列化总结</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">核心组件</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">TypeSupport</span><span class="p">:</span><span class="w"> </span><span class="err">类型注册与序列化接口</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">Cdr</span><span class="p">:</span><span class="w"> </span><span class="err">序列化引擎，处理</span><span class="w"> </span><span class="n">CDR</span><span class="o">/</span><span class="n">XCDR</span><span class="w"> </span><span class="err">编码</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">SerializedPayload</span><span class="p">:</span><span class="w"> </span><span class="err">序列化结果容器</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">编码标准</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">CDR</span><span class="p">:</span><span class="w"> </span><span class="n">OMG</span><span class="w"> </span><span class="err">标准，大端序，对齐</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">XCDR</span><span class="p">:</span><span class="w"> </span><span class="n">DDS</span><span class="o">-</span><span class="n">XTYPES</span><span class="w"> </span><span class="err">扩展，支持动态类型</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">XCDR2</span><span class="p">:</span><span class="w"> </span><span class="err">更紧凑的编码</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">关键概念</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">封装头</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="err">字节，标识字节序和编码版本</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">对齐</span><span class="p">:</span><span class="w"> </span><span class="err">数据按自然边界对齐（</span><span class="mi">2</span><span class="o">/</span><span class="mi">4</span><span class="o">/</span><span class="mi">8</span><span class="err">字节）</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="err">字节序</span><span class="p">:</span><span class="w"> </span><span class="err">默认大端，可配置小端</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">性能优化</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">预分配内存，避免频繁分配</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">使用</span><span class="w"> </span><span class="n">DataSharing</span><span class="w"> </span><span class="err">避免拷贝</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="err">选择合适的编码格式（</span><span class="n">XCDR2</span><span class="w"> </span><span class="err">更紧凑）</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">高级特性</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">动态类型</span><span class="p">:</span><span class="w"> </span><span class="n">DynamicType</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Type</span><span class="w"> </span><span class="n">Lookup</span><span class="w"> </span><span class="n">Service</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="err">自定义序列化</span><span class="p">:</span><span class="w"> </span><span class="err">实现</span><span class="w"> </span><span class="n">TopicDataType</span><span class="w"> </span><span class="err">接口</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 Fast-DDS 2.14.x 和 fastcdr 2.x</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

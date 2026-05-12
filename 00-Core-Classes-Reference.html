@@ -1,0 +1,2453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 核心类体系详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item active" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 00-Core-Classes-Reference</div>
+        <h1 id="fast-dds">Fast-DDS 核心类体系详解</h1>
+<p><strong>创建时间</strong>: 2026-03-10<br/>
+<strong>源码版本</strong>: Fast-DDS 3.5.0<br/>
+<strong>作者</strong>: 旭旭助手</p>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#一架构总览">架构总览</a></li>
+<li><a href="#二dds-layer-核心类">DDS Layer 核心类</a></li>
+<li><a href="#三rtps-layer-核心类">RTPS Layer 核心类</a></li>
+<li><a href="#四数据与缓存类">数据与缓存类</a></li>
+<li><a href="#五发现协议类">发现协议类</a></li>
+<li><a href="#六辅助与工具类">辅助与工具类</a></li>
+<li><a href="#七类关系图">类关系图</a></li>
+<li><a href="#八代码示例">代码示例</a></li>
+<li><a href="#九设计模式总结">设计模式总结</a></li>
+</ol>
+<hr/>
+<h2 id="_2">一、架构总览</h2>
+<p>Fast-DDS 采用分层架构设计，主要分为三个层次：</p>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Application Layer                                  │
+│                     (用户应用程序代码)                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DDS Layer                                       │
+│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
+│  │DomainParticipant │  │  Publisher  │  │  Subscriber │  │      Topic      │  │
+│  │     Factory      │  │             │  │             │  │                 │  │
+│  └────────┬────────┘  └──────┬──────┘  └──────┬──────┘  └─────────────────┘  │
+│           │                  │                │                              │
+│           ▼                  ▼                ▼                              │
+│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────┐                       │
+│  │DomainParticipant │  │ DataWriter  │  │ DataReader  │                       │
+│  │                 │◀─┤             │  │             │                       │
+│  └────────┬────────┘  └──────┬──────┘  └──────┬──────┘                       │
+│           │                  │                │                              │
+└───────────┼──────────────────┼────────────────┼──────────────────────────────┘
+            │                  │                │
+            │                  ▼                ▼
+            │           ┌─────────────────────────────┐
+            │           │   TypeSupport / TopicData   │
+            │           └─────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RTPS Layer                                      │
+│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
+│  │   RTPSDomain    │  │RTPSParticipant│  │ RTPSWriter  │  │  RTPSReader     │  │
+│  │   (单例工厂)     │  │             │  │             │  │                 │  │
+│  └────────┬────────┘  └──────┬──────┘  └──────┬──────┘  └────────┬────────┘  │
+│           │                  │                │                   │         │
+│           ▼                  ▼                ▼                   ▼         │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                     Endpoint (抽象基类)                                 │ │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐ │ │
+│  │  │   RTPSWriter    │  │   RTPSReader    │  │   BuiltinProtocols      │ │ │
+│  │  │  StatefulWriter │  │  StatefulReader │  │  (PDP/EDP)              │ │ │
+│  │  │ StatelessWriter │  │ StatelessReader │  │                         │ │ │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────────────┘ │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Transport Layer                                    │
+│              (UDP / TCP / Shared Memory / Zero Copy / SHM)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="dds-layer">二、DDS Layer 核心类</h2>
+<h3 id="21-domainparticipantfactory-">2.1 DomainParticipantFactory - 域参与者工厂</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>单例模式 (Singleton)</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/domain/DomainParticipantFactory.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>管理所有 DomainParticipant 的生命周期，提供统一的创建/删除接口</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_3">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DomainParticipantFactory</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 参与者列表映射: domain_id -&gt; vector&lt;DomainParticipantImpl*&gt;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">DomainId_t</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">DomainParticipantImpl</span><span class="o">*&gt;&gt;</span><span class="w"> </span><span class="n">participants_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 工厂自身的 QoS 配置</span>
+<span class="w">    </span><span class="n">DomainParticipantFactoryQos</span><span class="w"> </span><span class="n">factory_qos_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 互斥锁保护 participants_ 的并发访问</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mtx_participants_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置是否已加载</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">has_configuration_file_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_4">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数签名</th>
+<th>作用说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>static DomainParticipantFactory* get_instance()</code></td>
+<td>获取单例实例，线程安全</td>
+</tr>
+<tr>
+<td><code>DomainParticipant* create_participant(DomainId_t did, const DomainParticipantQos&amp; qos, DomainParticipantListener* listener, const StatusMask&amp; mask)</code></td>
+<td>创建 DomainParticipant</td>
+</tr>
+<tr>
+<td><code>ReturnCode_t delete_participant(DomainParticipant* part)</code></td>
+<td>删除指定的 DomainParticipant</td>
+</tr>
+<tr>
+<td><code>DomainParticipant* lookup_participant(DomainId_t did)</code></td>
+<td>查找指定 Domain 的参与者</td>
+</tr>
+<tr>
+<td><code>ReturnCode_t load_profiles()</code></td>
+<td>加载 XML 配置文件</td>
+</tr>
+<tr>
+<td><code>ReturnCode_t get_qos(DomainParticipantFactoryQos&amp; qos)</code></td>
+<td>获取工厂 QoS</td>
+</tr>
+<tr>
+<td><code>ReturnCode_t set_qos(const DomainParticipantFactoryQos&amp; qos)</code></td>
+<td>设置工厂 QoS</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_5">使用示例</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 1. 获取工厂单例</span>
+<span class="n">DomainParticipantFactory</span><span class="o">*</span><span class="w"> </span><span class="n">factory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">();</span>
+
+<span class="c1">// 2. 设置工厂 QoS (可选)</span>
+<span class="n">DomainParticipantFactoryQos</span><span class="w"> </span><span class="n">factory_qos</span><span class="p">;</span>
+<span class="n">factory_qos</span><span class="p">.</span><span class="n">entity_factory</span><span class="p">().</span><span class="n">autoenable_created_entities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="n">factory</span><span class="o">-&gt;</span><span class="n">set_qos</span><span class="p">(</span><span class="n">factory_qos</span><span class="p">);</span>
+
+<span class="c1">// 3. 创建 DomainParticipant</span>
+<span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">;</span>
+<span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">factory</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span>
+<span class="w">    </span><span class="mi">0</span><span class="p">,</span><span class="w">                      </span><span class="c1">// Domain ID = 0</span>
+<span class="w">    </span><span class="n">participant_qos</span><span class="p">,</span><span class="w">        </span><span class="c1">// QoS 配置</span>
+<span class="w">    </span><span class="nb">nullptr</span><span class="p">,</span><span class="w">                </span><span class="c1">// Listener (可选)</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">none</span><span class="p">()</span><span class="w">      </span><span class="c1">// 监听的状态掩码</span>
+<span class="p">);</span>
+</code></pre></div>
+<hr/>
+<h3 id="22-domainparticipant-">2.2 DomainParticipant - 域参与者</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>Pimpl (Pointer to Implementation)</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/domain/DomainParticipant.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>DDS 应用程序的入口点，管理同一 Domain 内所有实体</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_6">类层次关系</h4>
+<div class="codehilite"><pre><span></span><code>DomainParticipant (User Object - 用户直接操作)
+└── DomainParticipantImpl (Implementation - 实际实现)
+    ├── RTPSParticipant* rtps_participant_  (指向 RTPS 层)
+    ├── std::map&lt;Publisher*, PublisherImpl*&gt; publishers_  (Publisher 列表)
+    ├── std::map&lt;Subscriber*, SubscriberImpl*&gt; subscribers_ (Subscriber 列表)
+    ├── std::map&lt;std::string, TopicProxy*&gt; topics_ (Topic 列表)
+    └── BuiltinProtocols builtin_protocols_ (内置发现协议)
+</code></pre></div>
+<h4 id="_7">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DomainParticipant</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Entity</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DomainParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 实现类指针 (Pimpl 模式)</span>
+<span class="w">    </span><span class="n">DomainId_t</span><span class="w"> </span><span class="n">domain_id_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 所属 Domain ID</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos_</span><span class="p">;</span><span class="w">              </span><span class="c1">// QoS 配置</span>
+<span class="w">    </span><span class="n">DomainParticipantListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span><span class="w">   </span><span class="c1">// 监听器回调</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="w"> </span><span class="n">mask_</span><span class="p">;</span><span class="w">                       </span><span class="c1">// 状态监听掩码</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">enabled_</span><span class="p">;</span><span class="w">                          </span><span class="c1">// 是否已启用</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_8">核心成员函数</h4>
+<p><strong>生命周期管理：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enable()</code></td>
+<td>启用参与者，开始发现过程</td>
+</tr>
+<tr>
+<td><code>close()</code></td>
+<td>关闭参与者，释放资源</td>
+</tr>
+<tr>
+<td><code>get_status_changes()</code></td>
+<td>获取状态变更</td>
+</tr>
+<tr>
+<td><code>get_instance_handle()</code></td>
+<td>获取实例句柄</td>
+</tr>
+</tbody>
+</table>
+<p><strong>创建子实体：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create_publisher(const PublisherQos&amp; qos, PublisherListener* listener, const StatusMask&amp; mask)</code></td>
+<td>创建 Publisher</td>
+</tr>
+<tr>
+<td><code>create_subscriber(const SubscriberQos&amp; qos, SubscriberListener* listener, const StatusMask&amp; mask)</code></td>
+<td>创建 Subscriber</td>
+</tr>
+<tr>
+<td><code>create_topic(const std::string&amp; topic_name, const std::string&amp; type_name, const TopicQos&amp; qos, TopicListener* listener, const StatusMask&amp; mask)</code></td>
+<td>创建 Topic</td>
+</tr>
+<tr>
+<td><code>delete_publisher(Publisher* pub)</code></td>
+<td>删除 Publisher</td>
+</tr>
+<tr>
+<td><code>delete_subscriber(Subscriber* sub)</code></td>
+<td>删除 Subscriber</td>
+</tr>
+<tr>
+<td><code>delete_topic(Topic* topic)</code></td>
+<td>删除 Topic</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查询接口：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_rtps_participant()</code></td>
+<td>获取底层 RTPSParticipant</td>
+</tr>
+<tr>
+<td><code>get_qos(DomainParticipantQos&amp; qos)</code> / <code>set_qos(const DomainParticipantQos&amp; qos)</code></td>
+<td>获取/设置 QoS</td>
+</tr>
+<tr>
+<td><code>get_listener()</code> / <code>set_listener(DomainParticipantListener* listener)</code></td>
+<td>获取/设置监听器</td>
+</tr>
+<tr>
+<td><code>lookup_topicdescription(const std::string&amp; topic_name)</code></td>
+<td>查找 Topic</td>
+</tr>
+<tr>
+<td><code>get_discovered_participants(...)</code></td>
+<td>获取已发现的参与者</td>
+</tr>
+<tr>
+<td><code>get_discovered_participant_data(...)</code></td>
+<td>获取参与者数据</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_9">使用示例</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 Publisher</span>
+<span class="n">PublisherQos</span><span class="w"> </span><span class="n">pub_qos</span><span class="p">;</span>
+<span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span>
+<span class="w">    </span><span class="n">pub_qos</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">,</span><span class="w"> </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">none</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="c1">// 创建 Topic</span>
+<span class="n">TopicQos</span><span class="w"> </span><span class="n">topic_qos</span><span class="p">;</span>
+<span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s">"HelloWorldTopic"</span><span class="p">,</span>
+<span class="w">    </span><span class="s">"HelloWorld"</span><span class="p">,</span>
+<span class="w">    </span><span class="n">topic_qos</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">nullptr</span><span class="p">,</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">none</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="c1">// 获取底层 RTPSParticipant</span>
+<span class="n">fastrtps</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">RTPSParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">rtps_part</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">get_rtps_participant</span><span class="p">();</span>
+</code></pre></div>
+<hr/>
+<h3 id="23-publisher-">2.3 Publisher - 发布者</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>Pimpl 模式</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/publisher/Publisher.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>管理 DataWriter 的集合，提供发布组策略和 QoS</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_10">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Publisher</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">PublisherImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 实现类指针</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 所属 DomainParticipant</span>
+<span class="w">    </span><span class="n">PublisherQos</span><span class="w"> </span><span class="n">qos_</span><span class="p">;</span><span class="w">                       </span><span class="c1">// Publisher QoS</span>
+<span class="w">    </span><span class="n">PublisherListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span><span class="w">            </span><span class="c1">// 监听器</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="w"> </span><span class="n">mask_</span><span class="p">;</span><span class="w">                        </span><span class="c1">// 状态监听掩码</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle_</span><span class="p">;</span><span class="w">                </span><span class="c1">// 实例句柄</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_11">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create_datawriter(Topic* topic, const DataWriterQos&amp; qos, DataWriterListener* listener, const StatusMask&amp; mask)</code></td>
+<td>创建 DataWriter</td>
+</tr>
+<tr>
+<td><code>delete_datawriter(DataWriter* writer)</code></td>
+<td>删除 DataWriter</td>
+</tr>
+<tr>
+<td><code>lookup_datawriter(const std::string&amp; topic_name)</code></td>
+<td>按 Topic 名称查找 DataWriter</td>
+</tr>
+<tr>
+<td><code>get_datawriters(...)</code></td>
+<td>获取所有 DataWriters</td>
+</tr>
+<tr>
+<td><code>has_datawriters()</code></td>
+<td>检查是否有 DataWriter</td>
+</tr>
+<tr>
+<td><code>wait_for_acknowledgments(const Duration_t&amp; max_wait)</code></td>
+<td>等待所有数据被确认</td>
+</tr>
+<tr>
+<td><code>get_participant()</code></td>
+<td>获取所属 DomainParticipant</td>
+</tr>
+<tr>
+<td><code>get_qos()</code> / <code>set_qos()</code></td>
+<td>获取/设置 QoS</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="24-subscriber-">2.4 Subscriber - 订阅者</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>Pimpl 模式</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/subscriber/Subscriber.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>管理 DataReader 的集合，提供订阅组策略和 QoS</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_12">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Subscriber</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">SubscriberImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                   </span><span class="c1">// 实现类指针</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 所属 DomainParticipant</span>
+<span class="w">    </span><span class="n">SubscriberQos</span><span class="w"> </span><span class="n">qos_</span><span class="p">;</span><span class="w">                      </span><span class="c1">// Subscriber QoS</span>
+<span class="w">    </span><span class="n">SubscriberListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 监听器</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="w"> </span><span class="n">mask_</span><span class="p">;</span><span class="w">                        </span><span class="c1">// 状态监听掩码</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle_</span><span class="p">;</span><span class="w">                </span><span class="c1">// 实例句柄</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_13">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create_datawriter(TopicDescription* topic, const DataWriterQos&amp; qos, DataWriterListener* listener, const StatusMask&amp; mask)</code></td>
+<td>创建 DataWriter</td>
+</tr>
+<tr>
+<td><code>delete_datawriter(DataWriter* writer)</code></td>
+<td>删除 DataWriter</td>
+</tr>
+<tr>
+<td><code>lookup_datawriter(const std::string&amp; topic_name)</code></td>
+<td>按 Topic 名称查找 DataWriter</td>
+</tr>
+<tr>
+<td><code>get_datawriters(...)</code></td>
+<td>获取所有 DataWriters</td>
+</tr>
+<tr>
+<td><code>has_datawriters()</code></td>
+<td>检查是否有 DataWriter</td>
+</tr>
+<tr>
+<td><code>wait_for_acknowledgments(const Duration_t&amp; max_wait)</code></td>
+<td>等待所有数据被确认</td>
+</tr>
+<tr>
+<td><code>get_participant()</code></td>
+<td>获取所属 DomainParticipant</td>
+</tr>
+<tr>
+<td><code>get_qos()</code> / <code>set_qos()</code></td>
+<td>获取/设置 QoS</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="25-datawriter-">2.5 DataWriter - 数据写入器</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>委托模式 (Delegate to RTPSWriter)</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/publisher/DataWriter.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>应用程序写入数据的接口，实际写操作委托给 RTPSWriter</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_14">类层次关系</h4>
+<div class="codehilite"><pre><span></span><code><span class="nx">DataWriter</span><span class="w"> </span><span class="p">(</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">用户</span><span class="w"> </span><span class="nx">API</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">DataWriterImpl</span><span class="w"> </span><span class="p">(</span><span class="nx">Implementation</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="nx">writer_</span><span class="w">              </span><span class="p">(</span><span class="nx">底层</span><span class="w"> </span><span class="nx">RTPSWriter</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">TypeSupport</span><span class="w"> </span><span class="nx">type_support_</span><span class="w">        </span><span class="p">(</span><span class="nx">数据类型支持</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">Publisher</span><span class="o">*</span><span class="w"> </span><span class="nx">publisher_</span><span class="w">            </span><span class="p">(</span><span class="nx">所属</span><span class="w"> </span><span class="nx">Publisher</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">Topic</span><span class="o">*</span><span class="w"> </span><span class="nx">topic_</span><span class="w">                    </span><span class="p">(</span><span class="nx">关联</span><span class="w"> </span><span class="nx">Topic</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">DataWriterQos</span><span class="w"> </span><span class="nx">qos_</span><span class="w">               </span><span class="p">(</span><span class="nx">QoS</span><span class="w"> </span><span class="nx">配置</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">DataWriterListener</span><span class="o">*</span><span class="w"> </span><span class="nx">listener_</span><span class="w">    </span><span class="p">(</span><span class="nx">监听器</span><span class="p">)</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="nx">history_</span><span class="w">          </span><span class="p">(</span><span class="nx">发送历史缓存</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="_15">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DataWriterImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 实现类指针</span>
+<span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 所属 Publisher</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic_</span><span class="p">;</span><span class="w">                          </span><span class="c1">// 关联 Topic</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos_</span><span class="p">;</span><span class="w">                     </span><span class="c1">// QoS 配置</span>
+<span class="w">    </span><span class="n">DataWriterListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span><span class="w">          </span><span class="c1">// 监听器</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="w"> </span><span class="n">mask_</span><span class="p">;</span><span class="w">                       </span><span class="c1">// 状态监听掩码</span>
+<span class="w">    </span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">rtps_writer_</span><span class="p">;</span><span class="w">               </span><span class="c1">// 底层 RTPSWriter</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_16">核心成员函数</h4>
+<p><strong>数据写入：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>write(void* data)</code></td>
+<td>写入数据</td>
+</tr>
+<tr>
+<td><code>write(void* data, const InstanceHandle_t&amp; handle)</code></td>
+<td>写入数据并指定实例</td>
+</tr>
+<tr>
+<td><code>dispose(const InstanceHandle_t&amp; handle)</code></td>
+<td>标记实例为已删除</td>
+</tr>
+<tr>
+<td><code>unregister_instance(const InstanceHandle_t&amp; handle)</code></td>
+<td>注销实例</td>
+</tr>
+<tr>
+<td><code>dispose_w_timestamp(...)</code> / <code>unregister_instance_w_timestamp(...)</code></td>
+<td>带时间戳的版本</td>
+</tr>
+</tbody>
+</table>
+<p><strong>同步与确认：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wait_for_acknowledgments(const Duration_t&amp; max_wait)</code></td>
+<td>等待数据被所有 Reader 确认</td>
+</tr>
+<tr>
+<td><code>get_offered_deadline_missed_status(...)</code></td>
+<td>获取 Deadline Missed 状态</td>
+</tr>
+<tr>
+<td><code>get_offered_incompatible_qos_status(...)</code></td>
+<td>获取 Incompatible QoS 状态</td>
+</tr>
+<tr>
+<td><code>get_publication_matched_status(...)</code></td>
+<td>获取匹配状态</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查询接口：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_guid()</code></td>
+<td>获取 GUID</td>
+</tr>
+<tr>
+<td><code>get_topic()</code></td>
+<td>获取关联 Topic</td>
+</tr>
+<tr>
+<td><code>get_publisher()</code></td>
+<td>获取所属 Publisher</td>
+</tr>
+<tr>
+<td><code>get_qos()</code> / <code>set_qos()</code></td>
+<td>获取/设置 QoS</td>
+</tr>
+<tr>
+<td><code>get_matched_subscriptions(...)</code></td>
+<td>获取匹配的订阅者</td>
+</tr>
+<tr>
+<td><code>get_matched_subscription_data(...)</code></td>
+<td>获取匹配订阅者的数据</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_17">使用示例</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 DataWriter</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">;</span>
+<span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span>
+<span class="w">    </span><span class="n">topic</span><span class="p">,</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">nullptr</span><span class="p">,</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">none</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="c1">// 写入数据</span>
+<span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+<span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">(</span><span class="s">"Hello, Fast-DDS!"</span><span class="p">);</span>
+<span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hello</span><span class="p">);</span>
+
+<span class="c1">// 等待确认 (Reliable QoS)</span>
+<span class="n">writer</span><span class="o">-&gt;</span><span class="n">wait_for_acknowledgments</span><span class="p">(</span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+</code></pre></div>
+<hr/>
+<h3 id="26-datareader-">2.6 DataReader - 数据读取器</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>委托模式 (Delegate to RTPSReader)</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/subscriber/DataReader.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>应用程序读取数据的接口，实际读操作委托给 RTPSReader</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_18">类层次关系</h4>
+<div class="codehilite"><pre><span></span><code><span class="nx">DataReader</span><span class="w"> </span><span class="p">(</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">用户</span><span class="w"> </span><span class="nx">API</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">DataReaderImpl</span><span class="w"> </span><span class="p">(</span><span class="nx">Implementation</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">RTPSReader</span><span class="o">*</span><span class="w"> </span><span class="nx">reader_</span><span class="w">              </span><span class="p">(</span><span class="nx">底层</span><span class="w"> </span><span class="nx">RTPSReader</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">TypeSupport</span><span class="w"> </span><span class="nx">type_support_</span><span class="w">        </span><span class="p">(</span><span class="nx">数据类型支持</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">Subscriber</span><span class="o">*</span><span class="w"> </span><span class="nx">subscriber_</span><span class="w">          </span><span class="p">(</span><span class="nx">所属</span><span class="w"> </span><span class="nx">Subscriber</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">TopicDescription</span><span class="o">*</span><span class="w"> </span><span class="nx">topic_</span><span class="w">         </span><span class="p">(</span><span class="nx">关联</span><span class="w"> </span><span class="nx">Topic</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">DataReaderQos</span><span class="w"> </span><span class="nx">qos_</span><span class="w">               </span><span class="p">(</span><span class="nx">QoS</span><span class="w"> </span><span class="nx">配置</span><span class="p">)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">DataReaderListener</span><span class="o">*</span><span class="w"> </span><span class="nx">listener_</span><span class="w">    </span><span class="p">(</span><span class="nx">监听器</span><span class="p">)</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">ReaderHistory</span><span class="o">*</span><span class="w"> </span><span class="nx">history_</span><span class="w">          </span><span class="p">(</span><span class="nx">接收历史缓存</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="_19">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DataReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DataReaderImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 实现类指针</span>
+<span class="w">    </span><span class="n">Subscriber</span><span class="o">*</span><span class="w"> </span><span class="n">subscriber_</span><span class="p">;</span><span class="w">                </span><span class="c1">// 所属 Subscriber</span>
+<span class="w">    </span><span class="n">TopicDescription</span><span class="o">*</span><span class="w"> </span><span class="n">topic_</span><span class="p">;</span><span class="w">               </span><span class="c1">// 关联 Topic</span>
+<span class="w">    </span><span class="n">DataReaderQos</span><span class="w"> </span><span class="n">qos_</span><span class="p">;</span><span class="w">                     </span><span class="c1">// QoS 配置</span>
+<span class="w">    </span><span class="n">DataReaderListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span><span class="w">          </span><span class="c1">// 监听器</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="w"> </span><span class="n">mask_</span><span class="p">;</span><span class="w">                       </span><span class="c1">// 状态监听掩码</span>
+<span class="w">    </span><span class="n">RTPSReader</span><span class="o">*</span><span class="w"> </span><span class="n">rtps_reader_</span><span class="p">;</span><span class="w">               </span><span class="c1">// 底层 RTPSReader</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_20">核心成员函数</h4>
+<p><strong>数据读取：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>take(void* data, SampleInfo* info)</code></td>
+<td>读取并移除数据</td>
+</tr>
+<tr>
+<td><code>take_next_sample(void* data, SampleInfo* info)</code></td>
+<td>读取下一个样本</td>
+</tr>
+<tr>
+<td><code>read(void* data, SampleInfo* info)</code></td>
+<td>读取数据 (不移除)</td>
+</tr>
+<tr>
+<td><code>read_next_sample(void* data, SampleInfo* info)</code></td>
+<td>读取下一个样本 (不移除)</td>
+</tr>
+<tr>
+<td><code>return_loan(void* data, SampleInfo* info)</code></td>
+<td>归还借用的数据缓冲区</td>
+</tr>
+<tr>
+<td><code>take_instance(...)</code> / <code>read_instance(...)</code></td>
+<td>读取指定实例</td>
+</tr>
+<tr>
+<td><code>take_next_instance(...)</code> / <code>read_next_instance(...)</code></td>
+<td>读取下一个实例</td>
+</tr>
+</tbody>
+</table>
+<p><strong>同步与等待：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wait_for_historical_data(const Duration_t&amp; max_wait)</code></td>
+<td>等待历史数据</td>
+</tr>
+<tr>
+<td><code>get_requested_deadline_missed_status(...)</code></td>
+<td>获取 Deadline Missed 状态</td>
+</tr>
+<tr>
+<td><code>get_requested_incompatible_qos_status(...)</code></td>
+<td>获取 Incompatible QoS 状态</td>
+</tr>
+<tr>
+<td><code>get_subscription_matched_status(...)</code></td>
+<td>获取匹配状态</td>
+</tr>
+<tr>
+<td><code>get_sample_lost_status(...)</code></td>
+<td>获取样本丢失状态</td>
+</tr>
+<tr>
+<td><code>get_sample_rejected_status(...)</code></td>
+<td>获取样本拒绝状态</td>
+</tr>
+<tr>
+<td><code>get_liveliness_changed_status(...)</code></td>
+<td>获取活性变更状态</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查询接口：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_topicdescription()</code></td>
+<td>获取 Topic 描述</td>
+</tr>
+<tr>
+<td><code>get_subscriber()</code></td>
+<td>获取所属 Subscriber</td>
+</tr>
+<tr>
+<td><code>get_qos()</code> / <code>set_qos()</code></td>
+<td>获取/设置 QoS</td>
+</tr>
+<tr>
+<td><code>get_matched_publications(...)</code></td>
+<td>获取匹配的发布者</td>
+</tr>
+<tr>
+<td><code>get_matched_publication_data(...)</code></td>
+<td>获取匹配发布者的数据</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_21">使用示例</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 创建 DataReader</span>
+<span class="n">DataReaderQos</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">;</span>
+<span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span>
+<span class="w">    </span><span class="n">topic</span><span class="p">,</span>
+<span class="w">    </span><span class="n">reader_qos</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">nullptr</span><span class="p">,</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="o">::</span><span class="n">none</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="c1">// 读取数据</span>
+<span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+<span class="n">SampleInfo</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take_next_sample</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hello</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ReturnCode_t</span><span class="o">::</span><span class="n">RETCODE_OK</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">valid_data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Received: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h3 id="27-topic-topicdescription-">2.7 Topic / TopicDescription - 主题</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>描述符模式</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/dds/topic/Topic.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>定义数据类型和 QoS，作为发布/订阅的纽带</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_22">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Topic</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainEntity</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TopicDescription</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">TopicImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">                        </span><span class="c1">// 实现类指针</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 所属 DomainParticipant</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">topic_name_</span><span class="p">;</span><span class="w">                 </span><span class="c1">// Topic 名称</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">type_name_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 数据类型名称</span>
+<span class="w">    </span><span class="n">TopicQos</span><span class="w"> </span><span class="n">qos_</span><span class="p">;</span><span class="w">                           </span><span class="c1">// Topic QoS</span>
+<span class="w">    </span><span class="n">TopicListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span><span class="w">                </span><span class="c1">// 监听器</span>
+<span class="w">    </span><span class="n">StatusMask</span><span class="w"> </span><span class="n">mask_</span><span class="p">;</span><span class="w">                        </span><span class="c1">// 状态监听掩码</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_23">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_name()</code></td>
+<td>获取 Topic 名称</td>
+</tr>
+<tr>
+<td><code>get_type_name()</code></td>
+<td>获取类型名称</td>
+</tr>
+<tr>
+<td><code>get_qos()</code> / <code>set_qos()</code></td>
+<td>获取/设置 QoS</td>
+</tr>
+<tr>
+<td><code>get_participant()</code></td>
+<td>获取所属 DomainParticipant</td>
+</tr>
+<tr>
+<td><code>get_inconsistent_topic_status(...)</code></td>
+<td>获取不一致状态</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="rtps-layer">三、RTPS Layer 核心类</h2>
+<h3 id="31-rtpsdomain-rtps">3.1 RTPSDomain - RTPS 域管理器</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>单例模式，纯静态方法</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/RTPSDomain.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>管理所有 RTPSParticipant 的生命周期</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_24">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>static RTPSParticipant* createParticipant(...)</code></td>
+<td>创建 RTPSParticipant</td>
+</tr>
+<tr>
+<td><code>static RTPSWriter* createRTPSWriter(...)</code></td>
+<td>创建 RTPSWriter</td>
+</tr>
+<tr>
+<td><code>static RTPSReader* createRTPSReader(...)</code></td>
+<td>创建 RTPSReader</td>
+</tr>
+<tr>
+<td><code>static bool removeRTPSWriter(RTPSWriter* writer)</code></td>
+<td>删除 RTPSWriter</td>
+</tr>
+<tr>
+<td><code>static bool removeRTPSReader(RTPSReader* reader)</code></td>
+<td>删除 RTPSReader</td>
+</tr>
+<tr>
+<td><code>static bool removeRTPSParticipant(RTPSParticipant* part)</code></td>
+<td>删除 RTPSParticipant</td>
+</tr>
+<tr>
+<td><code>static void stopAll()</code></td>
+<td>关闭所有 RTPS 实体</td>
+</tr>
+<tr>
+<td><code>static void setMaxRTPSParticipantId(uint32_t max_id)</code></td>
+<td>设置最大参与者 ID</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="32-rtpsparticipant-rtps">3.2 RTPSParticipant - RTPS 参与者</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>Pimpl 模式</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/participant/RTPSParticipant.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>RTPS 层的核心实体，管理 Writers/Readers，实现发现协议</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_25">核心组件架构</h4>
+<div class="codehilite"><pre><span></span><code><span class="nx">RTPSParticipant</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">GuidPrefix_t</span><span class="w"> </span><span class="nx">m_guidPrefix</span><span class="w">                    </span><span class="c1">// GUID 前缀</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="nx">mp_impl</span><span class="w">                 </span><span class="c1">// 实现类 (Pimpl)</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">std</span><span class="o">::</span><span class="nx">vector</span><span class="p">&lt;</span><span class="nx">RTPSWriter</span><span class="o">*</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">m_writers</span><span class="w">       </span><span class="c1">// Writer 列表</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">std</span><span class="o">::</span><span class="nx">vector</span><span class="p">&lt;</span><span class="nx">RTPSReader</span><span class="o">*</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">m_readers</span><span class="w">       </span><span class="c1">// Reader 列表</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">BuiltinProtocols</span><span class="w"> </span><span class="nx">m_builtinProtocols</span><span class="w">      </span><span class="c1">// 内置协议</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">PDP</span><span class="o">*</span><span class="w"> </span><span class="nx">mp_PDP</span><span class="w">                          </span><span class="c1">// 参与者发现协议</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">EDP</span><span class="o">*</span><span class="w"> </span><span class="nx">mp_EDP</span><span class="w">                          </span><span class="c1">// 端点发现协议</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">ResourceEvent</span><span class="w"> </span><span class="nx">mp_resourceEvent</span><span class="w">           </span><span class="c1">// 资源事件循环</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">MessageReceiver</span><span class="w"> </span><span class="nx">mp_receiver</span><span class="w">              </span><span class="c1">// 消息接收器</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">std</span><span class="o">::</span><span class="nx">vector</span><span class="p">&lt;</span><span class="nx">Locator</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">m_defaultLocators</span><span class="w">   </span><span class="c1">// 传输地址</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">RTPSParticipantAttributes</span><span class="w"> </span><span class="nx">m_att</span><span class="w">              </span><span class="c1">// 参与者属性</span>
+</code></pre></div>
+<h4 id="_26">核心成员函数</h4>
+<p><strong>生命周期管理：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getGuid()</code></td>
+<td>获取 GUID</td>
+</tr>
+<tr>
+<td><code>enable()</code></td>
+<td>启用参与者</td>
+</tr>
+<tr>
+<td><code>announceRTPSParticipantState()</code></td>
+<td>强制宣告参与者状态</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Writer/Reader 管理：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>register_writer(RTPSWriter* writer, ...)</code></td>
+<td>注册 Writer 到内置协议</td>
+</tr>
+<tr>
+<td><code>register_reader(RTPSReader* reader, ...)</code></td>
+<td>注册 Reader 到内置协议</td>
+</tr>
+<tr>
+<td><code>unregister_writer(RTPSWriter* writer)</code></td>
+<td>注销 Writer</td>
+</tr>
+<tr>
+<td><code>unregister_reader(RTPSReader* reader)</code></td>
+<td>注销 Reader</td>
+</tr>
+<tr>
+<td><code>getWriters()</code></td>
+<td>获取所有 Writers</td>
+</tr>
+<tr>
+<td><code>getReaders()</code></td>
+<td>获取所有 Readers</td>
+</tr>
+</tbody>
+</table>
+<p><strong>发现相关：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>newRemoteWriterDiscovered(const GUID_t&amp; pguid, int16_t userDefinedId)</code></td>
+<td>发现新远程 Writer</td>
+</tr>
+<tr>
+<td><code>newRemoteReaderDiscovered(const GUID_t&amp; pguid, int16_t userDefinedId)</code></td>
+<td>发现新远程 Reader</td>
+</tr>
+<tr>
+<td><code>get_remote_writer_info(const GUID_t&amp; writerGuid, ...)</code></td>
+<td>获取远程 Writer 信息</td>
+</tr>
+<tr>
+<td><code>get_remote_reader_info(const GUID_t&amp; readerGuid, ...)</code></td>
+<td>获取远程 Reader 信息</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="33-endpoint-">3.3 Endpoint - 端点基类</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>设计模式</strong></td>
+<td>抽象基类</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/Endpoint.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>RTPSWriter 和 RTPSReader 的共同基类</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_27">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Endpoint</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">;</span><span class="w">      </span><span class="c1">// 所属参与者实现</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">m_guid</span><span class="p">;</span><span class="w">                          </span><span class="c1">// 全局唯一标识符</span>
+<span class="w">    </span><span class="n">EndpointAttributes</span><span class="w"> </span><span class="n">m_att</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 端点属性</span>
+<span class="w">    </span><span class="k">mutable</span><span class="w"> </span><span class="n">RecursiveTimedMutex</span><span class="w"> </span><span class="n">mp_mutex</span><span class="p">;</span><span class="w">         </span><span class="c1">// 递归互斥锁 (线程安全)</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_28">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getGuid()</code></td>
+<td>获取 GUID</td>
+</tr>
+<tr>
+<td><code>getMutex()</code></td>
+<td>获取互斥锁 (用于线程同步)</td>
+</tr>
+<tr>
+<td><code>getAttributes()</code></td>
+<td>获取端点属性</td>
+</tr>
+<tr>
+<td><code>getRTPSParticipant()</code></td>
+<td>获取所属 RTPSParticipant</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="34-rtpswriter-rtps">3.4 RTPSWriter - RTPS 写入器</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>继承关系</strong></td>
+<td>Endpoint ← RTPSWriter ← StatefulWriter / StatelessWriter</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/writer/RTPSWriter.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>实际负责数据发送，管理发送历史和流控</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_29">继承层次</h4>
+<div class="codehilite"><pre><span></span><code>Endpoint (基类)
+└── RTPSWriter (抽象基类)
+    ├── StatefulWriter (有状态，追踪每个 Reader 的状态)
+    │   └── 维护 ReaderProxy 列表
+    │   └── 支持 Reliable 传输
+    └── StatelessWriter (无状态，不追踪 Reader)
+        └── 支持 Best-Effort 传输
+</code></pre></div>
+<h4 id="_30">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RTPSWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">mp_history</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 发送历史缓存</span>
+<span class="w">    </span><span class="n">FlowController</span><span class="o">*</span><span class="w"> </span><span class="n">mp_flowController</span><span class="p">;</span><span class="w">            </span><span class="c1">// 流控器</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Locator</span><span class="o">&gt;</span><span class="w"> </span><span class="n">m_locators</span><span class="p">;</span><span class="w">              </span><span class="c1">// 发送地址列表</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">m_maxMessageSize</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 最大消息大小</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">m_fragmentSize</span><span class="p">;</span><span class="w">                      </span><span class="c1">// 分片大小</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">m_isReliable</span><span class="p">;</span><span class="w">                            </span><span class="c1">// 是否可靠传输</span>
+
+<span class="w">    </span><span class="c1">// StatefulWriter 特有</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ReaderProxy</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_matchedReaders</span><span class="p">;</span><span class="w">   </span><span class="c1">// 匹配的 Reader 代理</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_31">核心成员函数</h4>
+<p><strong>数据操作：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>new_change(const std::function&lt;uint32_t()&gt;&amp; dataSizeCalculator, ChangeKind_t changeKind, InstanceHandle_t handle)</code></td>
+<td>创建新的 CacheChange</td>
+</tr>
+<tr>
+<td><code>release_change(CacheChange_t* change)</code></td>
+<td>释放 CacheChange</td>
+</tr>
+<tr>
+<td><code>send(CacheChange_t* change, ...)</code></td>
+<td>发送单个变更</td>
+</tr>
+<tr>
+<td><code>send(std::vector&lt;CacheChange_t*&gt;&amp; changes, ...)</code></td>
+<td>发送多个变更</td>
+</tr>
+</tbody>
+</table>
+<p><strong>匹配管理：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>matched_reader_add(const ReaderProxyData&amp; info)</code></td>
+<td>添加匹配的 Reader</td>
+</tr>
+<tr>
+<td><code>matched_reader_remove(const GUID_t&amp; readerGuid)</code></td>
+<td>移除匹配的 Reader</td>
+</tr>
+<tr>
+<td><code>matched_reader_is_matched(const GUID_t&amp; readerGuid)</code></td>
+<td>检查是否已匹配</td>
+</tr>
+<tr>
+<td><code>get_matched_readers(...)</code></td>
+<td>获取匹配的 Readers</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查询接口：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getHistory()</code></td>
+<td>获取 WriterHistory</td>
+</tr>
+<tr>
+<td><code>getFlowController()</code></td>
+<td>获取流控器</td>
+</tr>
+<tr>
+<td><code>is_reliable()</code></td>
+<td>检查是否可靠传输</td>
+</tr>
+<tr>
+<td><code>getMaxMessageSize()</code></td>
+<td>获取最大消息大小</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="35-rtpsreader-rtps">3.5 RTPSReader - RTPS 读取器</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>继承关系</strong></td>
+<td>Endpoint ← RTPSReader ← StatefulReader / StatelessReader</td>
+</tr>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/reader/RTPSReader.hpp</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>实际负责数据接收，管理接收历史和回调监听</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_32">继承层次</h4>
+<div class="codehilite"><pre><span></span><code>Endpoint (基类)
+└── RTPSReader (抽象基类)
+    ├── StatefulReader (有状态，追踪每个 Writer 的状态)
+    │   └── 维护 WriterProxy 列表
+    │   └── 发送 ACK/NACK 反馈
+    └── StatelessReader (无状态，不追踪 Writer)
+        └── 不发送反馈
+</code></pre></div>
+<h4 id="_33">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RTPSReader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">ReaderHistory</span><span class="o">*</span><span class="w"> </span><span class="n">mp_history</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 接收历史缓存</span>
+<span class="w">    </span><span class="n">ReaderListener</span><span class="o">*</span><span class="w"> </span><span class="n">mp_listener</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 监听器回调</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">m_acceptMessagesToUnknownReaders</span><span class="p">;</span><span class="w">        </span><span class="c1">// 是否接受未知 Reader 的消息</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">m_acceptMessagesFromUnknownWriters</span><span class="p">;</span><span class="w">      </span><span class="c1">// 是否接受未知 Writer 的消息</span>
+
+<span class="w">    </span><span class="c1">// StatefulReader 特有</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">WriterProxy</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_matchedWriters</span><span class="p">;</span><span class="w">   </span><span class="c1">// 匹配的 Writer 代理</span>
+<span class="w">    </span><span class="n">ResourceEvent</span><span class="o">&amp;</span><span class="w"> </span><span class="n">mp_resourceEvent</span><span class="p">;</span><span class="w">              </span><span class="c1">// 事件循环引用</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_34">核心成员函数</h4>
+<p><strong>数据接收：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>read_next_cache_change(...)</code></td>
+<td>读取下一个缓存变更</td>
+</tr>
+<tr>
+<td><code>processDataMsg(...)</code></td>
+<td>处理接收到的数据消息</td>
+</tr>
+<tr>
+<td><code>processDataFragMsg(...)</code></td>
+<td>处理分片数据消息</td>
+</tr>
+<tr>
+<td><code>processHeartbeatMsg(...)</code></td>
+<td>处理心跳消息</td>
+</tr>
+<tr>
+<td><code>processGapMsg(...)</code></td>
+<td>处理 Gap 消息</td>
+</tr>
+</tbody>
+</table>
+<p><strong>匹配管理：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>matched_writer_add(const WriterProxyData&amp; info)</code></td>
+<td>添加匹配的 Writer</td>
+</tr>
+<tr>
+<td><code>matched_writer_remove(const GUID_t&amp; writerGuid, ...)</code></td>
+<td>移除匹配的 Writer</td>
+</tr>
+<tr>
+<td><code>matched_writer_is_matched(const GUID_t&amp; writerGuid)</code></td>
+<td>检查是否已匹配</td>
+</tr>
+<tr>
+<td><code>get_matched_writers(...)</code></td>
+<td>获取匹配的 Writers</td>
+</tr>
+</tbody>
+</table>
+<p><strong>回调机制：</strong></p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>setListener(ReaderListener* listener)</code></td>
+<td>设置监听器</td>
+</tr>
+<tr>
+<td><code>getListener()</code></td>
+<td>获取监听器</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_35">四、数据与缓存类</h2>
+<h3 id="41-cachechange_t-">4.1 CacheChange_t - 缓存变更</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/common/CacheChange.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>表示一个数据样本的封装单元，是 RTPS 传输的基本单位</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_36">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">CacheChange_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ChangeKind_t</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 变更类型 (ALIVE, NOT_ALIVE_DISPOSED, etc.)</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">writerGUID</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 写入者 GUID</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">instanceHandle</span><span class="p">;</span><span class="w">      </span><span class="c1">// 实例句柄</span>
+<span class="w">    </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">sequenceNumber</span><span class="p">;</span><span class="w">      </span><span class="c1">// 序列号 (用于排序和重传)</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="n">serializedPayload</span><span class="p">;</span><span class="w"> </span><span class="c1">// 序列化后的数据负载</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">sourceTimestamp</span><span class="p">;</span><span class="w">               </span><span class="c1">// 源时间戳</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">receptionTimestamp</span><span class="p">;</span><span class="w">            </span><span class="c1">// 接收时间戳</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">isRead</span><span class="p">;</span><span class="w">                          </span><span class="c1">// 是否已被读取</span>
+
+<span class="w">    </span><span class="c1">// 分片相关</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">fragmentStartingNum</span><span class="p">;</span><span class="w">         </span><span class="c1">// 起始分片号</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">fragmentsInSubmessage</span><span class="p">;</span><span class="w">       </span><span class="c1">// 子消息中的分片数</span>
+<span class="w">    </span><span class="n">FragmentNumberSet_t</span><span class="w"> </span><span class="n">fragmentSnState</span><span class="p">;</span><span class="w">  </span><span class="c1">// 分片状态</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="changekind_t">ChangeKind_t 枚举</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">ChangeKind_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                            </span><span class="c1">// 正常数据</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_DISPOSED</span><span class="p">,</span><span class="w">              </span><span class="c1">// 实例被删除</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_UNREGISTERED</span><span class="p">,</span><span class="w">          </span><span class="c1">// 实例被注销</span>
+<span class="w">    </span><span class="n">NOT_ALIVE_DISPOSED_UNREGISTERED</span><span class="w">  </span><span class="c1">// 既删除又注销</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h3 id="42-writerhistory-">4.2 WriterHistory - 写入历史缓存</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/history/WriterHistory.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>管理 RTPSWriter 的发送历史缓存，实现 QoS 的 History 策略</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_37">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">WriterHistory</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">mp_writer</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 关联的 Writer</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_changes</span><span class="p">;</span><span class="w">    </span><span class="c1">// 缓存变更列表</span>
+<span class="w">    </span><span class="n">HistoryAttributes</span><span class="w"> </span><span class="n">m_att</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 历史缓存属性</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">m_poolSize</span><span class="p">;</span><span class="w">                      </span><span class="c1">// 缓存池大小</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_38">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add_change(CacheChange_t* change)</code></td>
+<td>添加变更到历史</td>
+</tr>
+<tr>
+<td><code>remove_change(CacheChange_t* change)</code></td>
+<td>从历史中移除变更</td>
+</tr>
+<tr>
+<td><code>remove_min_change()</code></td>
+<td>移除最旧的变更</td>
+</tr>
+<tr>
+<td><code>get_oldest_sample()</code></td>
+<td>获取最旧的样本</td>
+</tr>
+<tr>
+<td><code>get_min_available_changes_seq_num()</code></td>
+<td>获取最小可用序列号</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="43-readerhistory-">4.3 ReaderHistory - 读取历史缓存</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/history/ReaderHistory.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>管理 RTPSReader 的接收历史缓存</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_39">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ReaderHistory</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">RTPSReader</span><span class="o">*</span><span class="w"> </span><span class="n">mp_reader</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 关联的 Reader</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_changes</span><span class="p">;</span><span class="w">    </span><span class="c1">// 缓存变更列表</span>
+<span class="w">    </span><span class="n">HistoryAttributes</span><span class="w"> </span><span class="n">m_att</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 历史缓存属性</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_40">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>received_change(CacheChange_t* change, size_t sampleSize)</code></td>
+<td>接收并存储变更</td>
+</tr>
+<tr>
+<td><code>remove_change(CacheChange_t* change)</code></td>
+<td>移除变更</td>
+</tr>
+<tr>
+<td><code>remove_changes_with_guid(const GUID_t&amp; guid)</code></td>
+<td>移除指定 GUID 的所有变更</td>
+</tr>
+<tr>
+<td><code>get_seq_num_min()</code></td>
+<td>获取最小序列号</td>
+</tr>
+<tr>
+<td><code>get_seq_num_max()</code></td>
+<td>获取最大序列号</td>
+</tr>
+<tr>
+<td><code>thereIsRecordOf(const SequenceNumber_t&amp; seq, const GUID_t&amp; guid)</code></td>
+<td>检查是否有序列记录</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="44-guid_t-">4.4 GUID_t - 全局唯一标识符</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/common/Guid.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>唯一标识 RTPS 实体 (Participant, Writer, Reader)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_41">结构定义</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GUID_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">GuidPrefix_t</span><span class="w"> </span><span class="n">guidPrefix</span><span class="p">;</span><span class="w">      </span><span class="c1">// 12 字节前缀 (标识 Participant)</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">entityId</span><span class="p">;</span><span class="w">          </span><span class="c1">// 4 字节实体 ID (标识 Writer/Reader)</span>
+<span class="p">};</span>
+
+<span class="c1">// GuidPrefix_t: 12 字节</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">GuidPrefix_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">octet</span><span class="w"> </span><span class="n">value</span><span class="p">[</span><span class="mi">12</span><span class="p">];</span>
+<span class="p">};</span>
+
+<span class="c1">// EntityId_t: 4 字节</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">EntityId_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">octet</span><span class="w"> </span><span class="n">value</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="entityid">内置 EntityId</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Participant</span>
+<span class="cp">#define ENTITYID_PARTICIPANT 0x000001c1</span>
+
+<span class="c1">// Writers (内置)</span>
+<span class="cp">#define ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER 0x000003c2</span>
+<span class="cp">#define ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER 0x000004c2</span>
+<span class="cp">#define ENTITYID_BUILTIN_PARTICIPANT_STATELESS_WRITER 0x000002c2</span>
+<span class="cp">#define ENTITYID_BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_WRITER 0x000002c3</span>
+
+<span class="c1">// Readers (内置)</span>
+<span class="cp">#define ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER 0x000003c7</span>
+<span class="cp">#define ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER 0x000004c7</span>
+<span class="cp">#define ENTITYID_BUILTIN_PARTICIPANT_STATELESS_READER 0x000002c7</span>
+<span class="cp">#define ENTITYID_BUILTIN_PARTICIPANT_VOLATILE_MESSAGE_READER 0x000002c3</span>
+</code></pre></div>
+<hr/>
+<h2 id="_42">五、发现协议类</h2>
+<h3 id="51-pdp-participant-discovery-protocol">5.1 PDP - 参与者发现协议 (Participant Discovery Protocol)</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/builtin/discovery/participant/PDP.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>发现网络中的其他参与者，维护参与者列表</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_43">继承层次</h4>
+<div class="codehilite"><pre><span></span><code><span class="nx">PDP</span><span class="w"> </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">PDPSimple</span><span class="w">          </span><span class="c1">// 标准 Simple PDP 实现</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">PDPServer</span><span class="w">          </span><span class="c1">// Discovery Server 服务器模式</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">PDPClient</span><span class="w">          </span><span class="c1">// Discovery Server 客户端模式</span>
+</code></pre></div>
+<h4 id="_44">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PDP</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">;</span><span class="w">          </span><span class="c1">// 所属参与者</span>
+<span class="w">    </span><span class="n">EDP</span><span class="o">*</span><span class="w"> </span><span class="n">mp_EDP</span><span class="p">;</span><span class="w">                                      </span><span class="c1">// 端点发现协议</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">GUID_t</span><span class="p">,</span><span class="w"> </span><span class="n">ParticipantProxyData</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_participantProxies</span><span class="p">;</span><span class="w"> </span><span class="c1">// 参与者代理列表</span>
+
+<span class="w">    </span><span class="c1">// 内置端点</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">WriterHistory</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_writerHistory</span><span class="p">;</span><span class="w">      </span><span class="c1">// 内置 Writer 历史</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ReaderHistory</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">m_readerHistory</span><span class="p">;</span><span class="w">      </span><span class="c1">// 内置 Reader 历史</span>
+
+<span class="w">    </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">m_discovery_duration</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 发现周期</span>
+<span class="w">    </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">m_leaseDuration</span><span class="p">;</span><span class="w">                       </span><span class="c1">// 租约时长</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_45">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init(RTPSParticipantImpl* part)</code></td>
+<td>初始化 PDP</td>
+</tr>
+<tr>
+<td><code>announceParticipantState()</code></td>
+<td>宣告参与者状态</td>
+</tr>
+<tr>
+<td><code>assertRemoteParticipantLiveliness(GUID_t&amp; guid)</code></td>
+<td>确认远程参与者活性</td>
+</tr>
+<tr>
+<td><code>remove_remote_participant(GUID_t&amp; guid, ...)</code></td>
+<td>移除远程参与者</td>
+</tr>
+<tr>
+<td><code>get_participant_proxy_data(const GUID_t&amp; guid)</code></td>
+<td>获取参与者代理数据</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h3 id="52-edp-endpoint-discovery-protocol">5.2 EDP - 端点发现协议 (Endpoint Discovery Protocol)</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/builtin/discovery/endpoint/EDP.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>发现 Writers 和 Readers，基于 Topic 和 QoS 进行匹配</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_46">继承层次</h4>
+<div class="codehilite"><pre><span></span><code><span class="nx">EDP</span><span class="w"> </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">EDPSimple</span><span class="w">    </span><span class="c1">// 动态发现</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">EDPStatic</span><span class="w">    </span><span class="c1">// 静态配置 (通过 XML)</span>
+</code></pre></div>
+<h4 id="_47">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">EDP</span><span class="w"> </span><span class="p">{</span>
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">PDP</span><span class="o">*</span><span class="w"> </span><span class="n">mp_PDP</span><span class="p">;</span><span class="w">                                      </span><span class="c1">// 关联的 PDP</span>
+<span class="w">    </span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">;</span><span class="w">          </span><span class="c1">// 所属参与者</span>
+
+<span class="w">    </span><span class="c1">// 内置端点</span>
+<span class="w">    </span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">m_publicationsWriterHistory</span><span class="p">;</span><span class="w">       </span><span class="c1">// 发布信息 Writer 历史</span>
+<span class="w">    </span><span class="n">ReaderHistory</span><span class="o">*</span><span class="w"> </span><span class="n">m_publicationsReaderHistory</span><span class="p">;</span><span class="w">       </span><span class="c1">// 发布信息 Reader 历史</span>
+<span class="w">    </span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">m_subscriptionsWriterHistory</span><span class="p">;</span><span class="w">      </span><span class="c1">// 订阅信息 Writer 历史</span>
+<span class="w">    </span><span class="n">ReaderHistory</span><span class="o">*</span><span class="w"> </span><span class="n">m_subscriptionsReaderHistory</span><span class="p">;</span><span class="w">      </span><span class="c1">// 订阅信息 Reader 历史</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="_48">核心成员函数</h4>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>initEDP(...)</code></td>
+<td>初始化 EDP</td>
+</tr>
+<tr>
+<td><code>newLocalWriterProxyData(RTPSWriter* writer, ...)</code></td>
+<td>注册本地 Writer</td>
+</tr>
+<tr>
+<td><code>newLocalReaderProxyData(RTPSReader* reader, ...)</code></td>
+<td>注册本地 Reader</td>
+</tr>
+<tr>
+<td><code>unpair(RTPSWriter* writer)</code></td>
+<td>取消 Writer 配对</td>
+</tr>
+<tr>
+<td><code>unpair(RTPSReader* reader)</code></td>
+<td>取消 Reader 配对</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_49">六、辅助与工具类</h2>
+<h3 id="61-locator-">6.1 Locator - 网络定位器</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/common/Locator.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>描述网络传输地址 (IP + Port)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_50">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">Locator_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 传输类型 (LOCATOR_KIND_UDPv4, etc.)</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">port</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 端口号</span>
+<span class="w">    </span><span class="n">octet</span><span class="w"> </span><span class="n">address</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span><span class="w">                </span><span class="c1">// IP 地址 (IPv4/IPv6)</span>
+<span class="p">};</span>
+
+<span class="c1">// 常用 Kind 定义</span>
+<span class="cp">#define LOCATOR_KIND_INVALID -1</span>
+<span class="cp">#define LOCATOR_KIND_RESERVED 0</span>
+<span class="cp">#define LOCATOR_KIND_UDPv4 1</span>
+<span class="cp">#define LOCATOR_KIND_UDPv6 2</span>
+<span class="cp">#define LOCATOR_KIND_TCPv4 4</span>
+<span class="cp">#define LOCATOR_KIND_SHM 0x01000000    </span><span class="c1">// 共享内存</span>
+</code></pre></div>
+<hr/>
+<h3 id="62-sequencenumber_t-">6.2 SequenceNumber_t - 序列号</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/common/SequenceNumber.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>标识数据的顺序，用于可靠传输和去重</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_51">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SequenceNumber_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">high</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 高位</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">low</span><span class="p">;</span><span class="w">                     </span><span class="c1">// 低位</span>
+<span class="p">};</span>
+
+<span class="c1">// 特殊序列号</span>
+<span class="cp">#define SEQUENCENUMBER_UNKNOWN {-1, 0}</span>
+</code></pre></div>
+<hr/>
+<h3 id="63-serializedpayload_t-">6.3 SerializedPayload_t - 序列化负载</h3>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>头文件</strong></td>
+<td><code>include/fastdds/rtps/common/SerializedPayload.h</code></td>
+</tr>
+<tr>
+<td><strong>职责</strong></td>
+<td>存储序列化后的数据</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_52">核心成员变量</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SerializedPayload_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">encapsulation</span><span class="p">;</span><span class="w">           </span><span class="c1">// 封装格式 (CDR, PL_CDR, etc.)</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">length</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 数据长度</span>
+<span class="w">    </span><span class="n">octet</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">;</span><span class="w">                      </span><span class="c1">// 数据指针</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">max_size</span><span class="p">;</span><span class="w">                </span><span class="c1">// 最大容量</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">data_is_internal</span><span class="p">;</span><span class="w">            </span><span class="c1">// 数据是否内部管理</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_53">七、类关系图</h2>
+<h3 id="71-dds-layer">7.1 DDS Layer 完整类图</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DDS Layer                                          │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                    DomainParticipantFactory                          │    │
+│  │                      (Singleton 单例)                                 │    │
+│  │                         get_instance()                                │    │
+│  └─────────────────────────────────┬───────────────────────────────────┘    │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                      DomainParticipant                               │    │
+│  │                         (1 per Domain)                               │    │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐      │    │
+│  │  │    Publisher    │  │    Subscriber   │  │      Topic      │      │    │
+│  │  │    (0..n)       │  │     (0..n)      │  │     (0..n)      │      │    │
+│  │  └────────┬────────┘  └────────┬────────┘  └─────────────────┘      │    │
+│  │           │                    │                                     │    │
+│  │           ▼                    ▼                                     │    │
+│  │  ┌─────────────────┐  ┌─────────────────┐                            │    │
+│  │  │   DataWriter    │  │   DataReader    │                            │    │
+│  │  │    (0..n)       │  │    (0..n)       │                            │    │
+│  │  └────────┬────────┘  └────────┬────────┘                            │    │
+│  │           │                    │                                     │    │
+│  │           └────────┬───────────┘                                     │    │
+│  │                    │                                                  │    │
+│  │                    ▼                                                  │    │
+│  │           ┌─────────────────┐                                         │    │
+│  │           │  TypeSupport    │                                         │    │
+│  │           │  (Data Type)    │                                         │    │
+│  │           └─────────────────┘                                         │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                    │                                         │
+└────────────────────────────────────┼─────────────────────────────────────────┘
+                                     │
+                                     ▼
+</code></pre></div>
+<h3 id="72-rtps-layer">7.2 RTPS Layer 完整类图</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                           </span><span class="nx">RTPS</span><span class="w"> </span><span class="nx">Layer</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                         </span><span class="nx">RTPSDomain</span><span class="w">                                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                       </span><span class="p">(</span><span class="nx">Singleton</span><span class="w"> </span><span class="nx">单例</span><span class="p">)</span><span class="w">                                </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">    </span><span class="nx">createParticipant</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">createRTPSWriter</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">createRTPSReader</span><span class="p">()</span><span class="w">     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────┬───────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                    </span><span class="err">│</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                    </span><span class="err">▼</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                      </span><span class="nx">RTPSParticipant</span><span class="w">                                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                         </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="nx">per</span><span class="w"> </span><span class="nx">Domain</span><span class="p">)</span><span class="w">                               </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                                      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────────────────────────────────────────────┐</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                   </span><span class="nx">BuiltinProtocols</span><span class="w">                             </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌─────────────┐</span><span class="w">  </span><span class="err">┌─────────────┐</span><span class="w">  </span><span class="err">┌─────────────────────┐</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="nx">PDP</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="nx">EDP</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">    </span><span class="nx">TypeLookup</span><span class="w">       </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="nx">Simple</span><span class="o">/</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="nx">Simple</span><span class="o">/</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="p">(</span><span class="nx">可选</span><span class="p">)</span><span class="w">            </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">Server</span><span class="o">/</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">Static</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">Client</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">             </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└─────────────┘</span><span class="w">  </span><span class="err">└─────────────┘</span><span class="w">  </span><span class="err">└─────────────────────┘</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────────────────────────────────────────────┘</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                                      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────────────────────────────────────────────┐</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                        </span><span class="nx">Endpoint</span><span class="w">                                </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                       </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span><span class="w">                                </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                         </span><span class="nx">m_guid</span><span class="w">                                 </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                         </span><span class="nx">mp_mutex</span><span class="w">                               </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└───────────────┬───────────────────────────────┬───────────────┘</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span><span class="w">                               </span><span class="err">│</span><span class="w">                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                  </span><span class="err">▼</span><span class="w">                               </span><span class="err">▼</span><span class="w">                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────┐</span><span class="w">  </span><span class="err">┌─────────────────────────────┐</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">         </span><span class="nx">RTPSWriter</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">         </span><span class="nx">RTPSReader</span><span class="w">          </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">         </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span><span class="w">           </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">         </span><span class="p">(</span><span class="nx">抽象基类</span><span class="p">)</span><span class="w">           </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────┐</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────┐</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">StatefulWriter</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nx">StatefulReader</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="p">(</span><span class="nx">追踪</span><span class="w"> </span><span class="nx">Reader</span><span class="w"> </span><span class="nx">状态</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="p">(</span><span class="nx">追踪</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="nx">状态</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nx">ReaderProxy</span><span class="w"> </span><span class="nx">列表</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nx">WriterProxy</span><span class="w"> </span><span class="nx">列表</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nx">支持</span><span class="w"> </span><span class="nx">Reliable</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nx">发送</span><span class="w"> </span><span class="nx">ACK</span><span class="o">/</span><span class="nx">NACK</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────┘</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────┘</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────┐</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────┐</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="nx">StatelessWriter</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="nx">StatelessReader</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="nx">不追踪状态</span><span class="p">)</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="nx">不追踪状态</span><span class="p">)</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="nx">支持</span><span class="w"> </span><span class="nx">Best</span><span class="o">-</span><span class="nx">Effort</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="nx">无反馈</span><span class="w">             </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────┘</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────┘</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────┘</span><span class="w">  </span><span class="err">└─────────────────────────────┘</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="73-dds-rtps">7.3 DDS 与 RTPS 映射关系</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">DDS</span><span class="w"> </span><span class="n">Layer</span><span class="w">  </span><span class="err">←→</span><span class="w">  </span><span class="n">RTPS</span><span class="w"> </span><span class="n">Layer</span><span class="w"> </span><span class="err">映射</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">┌─────────────────────┐</span><span class="w">          </span><span class="err">┌─────────────────────┐</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w"> </span><span class="n">DomainParticipant</span><span class="w">   </span><span class="err">│</span><span class="w"> </span><span class="err">←────→</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="n">RTPSParticipant</span><span class="w">    </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="mh">1</span><span class="o">:</span><span class="mh">1</span><span class="w"> </span><span class="err">映射</span><span class="p">)</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">create_publisher</span><span class="w"> </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">register_writer</span><span class="w">  </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">create_subscriber</span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">register_reader</span><span class="w">  </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">create_topic</span><span class="w">     </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">PDP</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">EDP</span><span class="w">        </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└─────────────────────┘</span><span class="w">          </span><span class="err">└─────────────────────┘</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">┌─────────────────────┐</span><span class="w">          </span><span class="err">┌─────────────────────┐</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">DataWriter</span><span class="w">       </span><span class="err">│</span><span class="w"> </span><span class="err">←────→</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">RTPSWriter</span><span class="w">       </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="mh">1</span><span class="o">:</span><span class="mh">1</span><span class="w"> </span><span class="err">映射</span><span class="p">)</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">write</span><span class="p">()</span><span class="w">          </span><span class="err">│</span><span class="w">   </span><span class="err">委托</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">new_change</span><span class="p">()</span><span class="w">     </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">dispose</span><span class="p">()</span><span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">─────→</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">send</span><span class="p">()</span><span class="w">           </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">wait_for_acks</span><span class="p">()</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">matched_reader_</span><span class="o">*</span><span class="w"> </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└─────────────────────┘</span><span class="w">          </span><span class="err">└─────────────────────┘</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">┌─────────────────────┐</span><span class="w">          </span><span class="err">┌─────────────────────┐</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">DataReader</span><span class="w">       </span><span class="err">│</span><span class="w"> </span><span class="err">←────→</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">RTPSReader</span><span class="w">       </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="mh">1</span><span class="o">:</span><span class="mh">1</span><span class="w"> </span><span class="err">映射</span><span class="p">)</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">                     </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">take</span><span class="p">()</span><span class="w">           </span><span class="err">│</span><span class="w">   </span><span class="err">委托</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">read_next_</span><span class="o">*</span><span class="p">()</span><span class="w">    </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">read</span><span class="p">()</span><span class="w">           </span><span class="err">│</span><span class="w">  </span><span class="err">←─────</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">processDataMsg</span><span class="p">()</span><span class="w"> </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">return_loan</span><span class="p">()</span><span class="w">    </span><span class="err">│</span><span class="w">          </span><span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="n">matched_writer_</span><span class="o">*</span><span class="w"> </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└─────────────────────┘</span><span class="w">          </span><span class="err">└─────────────────────┘</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">┌─────────────────────┐</span><span class="w">                                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">Publisher</span><span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="n">DDS</span><span class="w"> </span><span class="err">层特有，管理一组</span><span class="w"> </span><span class="n">DataWriters</span><span class="p">)</span><span class="w">               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">Subscriber</span><span class="w">       </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="n">DDS</span><span class="w"> </span><span class="err">层特有，管理一组</span><span class="w"> </span><span class="n">DataReaders</span><span class="p">)</span><span class="w">               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="n">Topic</span><span class="w">            </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="n">DDS</span><span class="w"> </span><span class="err">层特有，描述数据类型和</span><span class="w"> </span><span class="n">QoS</span><span class="p">)</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└─────────────────────┘</span><span class="w">                                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="_54">八、代码示例</h2>
+<h3 id="81-">8.1 完整的发布者-订阅者示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== Publisher.cpp ====================</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriterListener.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/topic/Topic.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">HelloWorldPublisher</span><span class="w"> </span><span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">HelloWorldPublisher</span><span class="p">()</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">participant_</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">),</span><span class="w"> </span><span class="n">publisher_</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">),</span><span class="w"> </span>
+<span class="w">                            </span><span class="n">topic_</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">),</span><span class="w"> </span><span class="n">writer_</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 创建 DomainParticipant</span>
+<span class="w">        </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">;</span>
+<span class="w">        </span><span class="n">participant_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span>
+<span class="w">            </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">participant_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 注册数据类型</span>
+<span class="w">        </span><span class="n">type_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TypeSupport</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">HelloWorldPubSubType</span><span class="p">());</span>
+<span class="w">        </span><span class="n">type_</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 3. 创建 Topic</span>
+<span class="w">        </span><span class="n">topic_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span><span class="s">"HelloWorldTopic"</span><span class="p">,</span><span class="w"> </span><span class="s">"HelloWorld"</span><span class="p">,</span><span class="w"> </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">topic_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 4. 创建 Publisher</span>
+<span class="w">        </span><span class="n">publisher_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span><span class="n">PUBLISHER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">publisher_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 5. 创建 DataWriter</span>
+<span class="w">        </span><span class="n">writer_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher_</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic_</span><span class="p">,</span><span class="w"> </span><span class="n">DATAWRITER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">publish</span><span class="p">(</span><span class="n">HelloWorld</span><span class="o">&amp;</span><span class="w"> </span><span class="n">hello</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hello</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+<span class="w">        </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">(</span><span class="s">"Hello Fast-DDS!"</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">hello</span><span class="p">.</span><span class="n">index</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="w">            </span><span class="n">publish</span><span class="p">(</span><span class="n">hello</span><span class="p">);</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">this_thread</span><span class="o">::</span><span class="n">sleep_for</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="p">(</span><span class="mi">1000</span><span class="p">));</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== Subscriber.cpp ====================</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/Subscriber.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/DataReader.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/DataReaderListener.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/qos/DataReaderQos.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/SampleInfo.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">HelloWorldSubscriber</span><span class="w"> </span><span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Subscriber</span><span class="o">*</span><span class="w"> </span><span class="n">subscriber_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">SubListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">on_data_available</span><span class="p">(</span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">SampleInfo</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+<span class="w">            </span><span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">take_next_sample</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hello</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ReturnCode_t</span><span class="o">::</span><span class="n">RETCODE_OK</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">valid_data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Received: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">()</span><span class="w"> </span>
+<span class="w">                              </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" ["</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">index</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"]"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">listener_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 创建 DomainParticipant</span>
+<span class="w">        </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">;</span>
+<span class="w">        </span><span class="n">participant_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span>
+<span class="w">            </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">participant_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 注册数据类型</span>
+<span class="w">        </span><span class="n">type_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TypeSupport</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">HelloWorldPubSubType</span><span class="p">());</span>
+<span class="w">        </span><span class="n">type_</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 3. 创建 Topic</span>
+<span class="w">        </span><span class="n">topic_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span><span class="s">"HelloWorldTopic"</span><span class="p">,</span><span class="w"> </span><span class="s">"HelloWorld"</span><span class="p">,</span><span class="w"> </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">topic_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 4. 创建 Subscriber</span>
+<span class="w">        </span><span class="n">subscriber_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant_</span><span class="o">-&gt;</span><span class="n">create_subscriber</span><span class="p">(</span><span class="n">SUBSCRIBER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">subscriber_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 5. 创建 DataReader (带监听器)</span>
+<span class="w">        </span><span class="n">reader_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber_</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span><span class="n">topic_</span><span class="p">,</span><span class="w"> </span><span class="n">DATAREADER_QOS_DEFAULT</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">listener_</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">reader_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cin</span><span class="p">.</span><span class="n">ignore</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_55">九、设计模式总结</h2>
+<table>
+<thead>
+<tr>
+<th>设计模式</th>
+<th>应用场景</th>
+<th>具体实现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>单例模式</strong></td>
+<td>全局唯一实例管理</td>
+<td><code>DomainParticipantFactory</code>, <code>RTPSDomain</code></td>
+</tr>
+<tr>
+<td><strong>工厂模式</strong></td>
+<td>创建复杂对象</td>
+<td><code>create_participant()</code>, <code>createRTPSWriter()</code></td>
+</tr>
+<tr>
+<td><strong>Pimpl 模式</strong></td>
+<td>隐藏实现细节</td>
+<td><code>DomainParticipant</code> → <code>DomainParticipantImpl</code>, <code>RTPSParticipant</code> → <code>RTPSParticipantImpl</code></td>
+</tr>
+<tr>
+<td><strong>委托模式</strong></td>
+<td>DDS 层委托 RTPS 层</td>
+<td><code>DataWriter</code> → <code>RTPSWriter</code>, <code>DataReader</code> → <code>RTPSReader</code></td>
+</tr>
+<tr>
+<td><strong>观察者模式</strong></td>
+<td>事件监听回调</td>
+<td><code>DataWriterListener</code>, <code>DataReaderListener</code>, <code>DomainParticipantListener</code></td>
+</tr>
+<tr>
+<td><strong>桥接模式</strong></td>
+<td>抽象与实现分离</td>
+<td>DDS Layer 与 RTPS Layer 的分离</td>
+</tr>
+<tr>
+<td><strong>策略模式</strong></td>
+<td>可替换的算法</td>
+<td><code>PDP</code> (Simple/Server/Client), <code>EDP</code> (Simple/Static)</td>
+</tr>
+<tr>
+<td><strong>模板方法模式</strong></td>
+<td>算法骨架定义</td>
+<td><code>Endpoint</code> 定义接口，<code>RTPSWriter</code>/<code>RTPSReader</code> 实现</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_56">十、总结</h2>
+<p>Fast-DDS 的类体系设计遵循以下原则：</p>
+<ol>
+<li><strong>分层清晰</strong>: DDS Layer 提供标准 API，RTPS Layer 处理底层通信</li>
+<li><strong>职责单一</strong>: 每个类只负责一个明确的功能领域</li>
+<li><strong>可扩展性</strong>: 通过抽象基类和策略模式支持多种实现</li>
+<li><strong>线程安全</strong>: 使用递归互斥锁保护共享状态</li>
+<li><strong>资源管理</strong>: 通过 History 和 FlowController 管理内存和带宽</li>
+</ol>
+<p>理解这些核心类及其关系，是掌握 Fast-DDS 使用和调优的基础。</p>
+<hr/>
+<p><em>文档版本: 1.0<br/>
+最后更新: 2026-03-10<br/>
+作者: 旭旭助手</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

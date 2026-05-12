@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A2 - 核心类速查表 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item active" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / A2-核心类速查表</div>
+        <h1 id="a2-">A2 - 核心类速查表</h1>
+<p><strong>整理时间</strong>: 2026-03-17</p>
+<hr/>
+<h2 id="_1">类继承关系图</h2>
+<div class="codehilite"><pre><span></span><code>eprosima::fastdds::dds::DomainEntity
+├── DomainParticipant
+├── Publisher
+├── DataWriter
+├── Subscriber
+└── DataReader
+
+eprosima::fastdds::rtps::RTPSDomain (单例)
+├── RTPSParticipant
+│   ├── RTPSWriter ──→ WriterHistory
+│   └── RTPSReader ──→ ReaderHistory
+
+Endpoint (抽象基类)
+├── RTPSWriter
+│   ├── StatelessWriter
+│   └── StatefulWriter
+└── RTPSReader
+    ├── StatelessReader
+    └── StatefulReader
+</code></pre></div>
+<hr/>
+<h2 id="_2">核心类速查</h2>
+<h3 id="rtpsdomain">RTPSDomain</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>createParticipant()</code></td>
+<td>创建 Participant</td>
+</tr>
+<tr>
+<td><code>removeParticipant()</code></td>
+<td>移除 Participant</td>
+</tr>
+<tr>
+<td><code>createRTPSWriter()</code></td>
+<td>创建 Writer</td>
+</tr>
+<tr>
+<td><code>createRTPSReader()</code></td>
+<td>创建 Reader</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rtpsparticipant">RTPSParticipant</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getGuid()</code></td>
+<td>获取 GUID</td>
+</tr>
+<tr>
+<td><code>newWriter()</code></td>
+<td>创建 Writer</td>
+</tr>
+<tr>
+<td><code>newReader()</code></td>
+<td>创建 Reader</td>
+</tr>
+<tr>
+<td><code>getRTPSParticipantAttributes()</code></td>
+<td>获取配置</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rtpswriter">RTPSWriter</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>write()</code></td>
+<td>发送数据</td>
+</tr>
+<tr>
+<td><code>new_change()</code></td>
+<td>创建 CacheChange</td>
+</tr>
+<tr>
+<td><code>send_to_all_readers()</code></td>
+<td>发送到所有 Reader</td>
+</tr>
+<tr>
+<td><code>update_reader_info()</code></td>
+<td>更新 Reader 信息</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rtpsreader">RTPSReader</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>process_data()</code></td>
+<td>处理接收数据</td>
+</tr>
+<tr>
+<td><code>add_change()</code></td>
+<td>添加到 History</td>
+</tr>
+<tr>
+<td><code>send_acknack()</code></td>
+<td>发送确认</td>
+</tr>
+<tr>
+<td><code>matched_writer_add()</code></td>
+<td>添加匹配的 Writer</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_3">关键数据结构</h2>
+<h3 id="guid">GUID</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">GUID_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">GuidPrefix_t</span><span class="w"> </span><span class="n">guidPrefix</span><span class="p">;</span><span class="w">  </span><span class="c1">// 12 bytes</span>
+<span class="w">    </span><span class="n">EntityId_t</span><span class="w"> </span><span class="n">entityId</span><span class="p">;</span><span class="w">      </span><span class="c1">// 4 bytes</span>
+<span class="p">};</span>
+
+<span class="c1">// 示例: 01.0f.da.70.f5.ea.d7.9b.00.00.00.00|0.0.1.4</span>
+<span class="c1">//       └──────── GUID Prefix ────────┘ |Entity|</span>
+</code></pre></div>
+<h4 id="guid-prefix-12-bytes">GUID Prefix 组成 (12 bytes)</h4>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>大小</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vendor ID</td>
+<td>2 bytes</td>
+<td>厂商标识 (0x010f = eProsima)</td>
+</tr>
+<tr>
+<td>Domain ID</td>
+<td>2 bytes</td>
+<td>域标识</td>
+</tr>
+<tr>
+<td>Instance ID</td>
+<td>8 bytes</td>
+<td>MAC/时间戳/随机数</td>
+</tr>
+</tbody>
+</table>
+<h4 id="entity-id-4-bytes">Entity ID 组成 (4 bytes)</h4>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>大小</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entity Type</td>
+<td>3 bytes</td>
+<td>实体类型 (Participant/Writer/Reader)</td>
+</tr>
+<tr>
+<td>Instance Num</td>
+<td>1 byte</td>
+<td>实例编号</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_4">唯一性保证</h4>
+<ul>
+<li>MAC + 时间戳 + 随机数 + 冲突检测</li>
+<li>即使同一台机器同时启动多个 Participant 也能区分</li>
+</ul>
+<h3 id="cachechange">CacheChange</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">CacheChange_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ChangeKind_t</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">              </span><span class="c1">// ALIVE, DISPOSE, etc.</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">writerGUID</span><span class="p">;</span><span class="w">              </span><span class="c1">// 写入者 GUID</span>
+<span class="w">    </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">sequenceNumber</span><span class="p">;</span><span class="w"> </span><span class="c1">// 序列号</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="n">serializedPayload</span><span class="p">;</span><span class="w"> </span><span class="c1">// 序列化数据</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">sourceTimestamp</span><span class="p">;</span><span class="w">         </span><span class="c1">// 时间戳</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">instanceHandle</span><span class="p">;</span><span class="w"> </span><span class="c1">// 实例句柄</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="sequencenumber">SequenceNumber</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">SequenceNumber_t</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">high</span><span class="p">;</span><span class="w">   </span><span class="c1">// 高32位</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">low</span><span class="p">;</span><span class="w">   </span><span class="c1">// 低32位</span>
+<span class="p">};</span>
+<span class="c1">// 支持 2^64 个序列号，实际使用 low 部分</span>
+</code></pre></div>
+<hr/>
+<h2 id="qos">QoS 策略速查</h2>
+<table>
+<thead>
+<tr>
+<th>QoS</th>
+<th>Writer</th>
+<th>Reader</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>RELIABILITY</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>可靠/BEST_EFFORT</td>
+</tr>
+<tr>
+<td><strong>DURABILITY</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>历史数据保留</td>
+</tr>
+<tr>
+<td><strong>HISTORY</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>缓存深度</td>
+</tr>
+<tr>
+<td><strong>LIVELINESS</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>活性检测</td>
+</tr>
+<tr>
+<td><strong>DEADLINE</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>发布周期</td>
+</tr>
+<tr>
+<td><strong>LIFESPAN</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>数据有效期</td>
+</tr>
+<tr>
+<td><strong>OWNERSHIP</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>所有权策略</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="rtps">RTPS 消息类型</h2>
+<table>
+<thead>
+<tr>
+<th>消息</th>
+<th>方向</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DATA</strong></td>
+<td>W→R</td>
+<td>传输用户数据</td>
+</tr>
+<tr>
+<td><strong>DATA_FRAG</strong></td>
+<td>W→R</td>
+<td>分片大数据</td>
+</tr>
+<tr>
+<td><strong>HEARTBEAT</strong></td>
+<td>W→R</td>
+<td>确认请求</td>
+</tr>
+<tr>
+<td><strong>ACKNACK</strong></td>
+<td>R→W</td>
+<td>确认/重传请求</td>
+</tr>
+<tr>
+<td><strong>GAP</strong></td>
+<td>W→R</td>
+<td>数据间隙标记</td>
+</tr>
+<tr>
+<td><strong>INFO_TS</strong></td>
+<td>W→R</td>
+<td>时间戳信息</td>
+</tr>
+<tr>
+<td><strong>INFO_DST</strong></td>
+<td>R→W</td>
+<td>目标信息</td>
+</tr>
+<tr>
+<td><strong>INFO_SRC</strong></td>
+<td>W→R</td>
+<td>源信息</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_5">文件位置速查</h2>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>路径</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTPS 层</td>
+<td><code>include/fastdds/rtps/</code></td>
+</tr>
+<tr>
+<td>DDS 层</td>
+<td><code>include/fastdds/dds/</code></td>
+</tr>
+<tr>
+<td>Writer</td>
+<td><code>src/cpp/rtps/writer/</code></td>
+</tr>
+<tr>
+<td>Reader</td>
+<td><code>src/cpp/rtps/reader/</code></td>
+</tr>
+<tr>
+<td>History</td>
+<td><code>src/cpp/rtps/history/</code></td>
+</tr>
+<tr>
+<td>流量控制</td>
+<td><code>src/cpp/rtps/flowcontrol/</code></td>
+</tr>
+<tr>
+<td>传输层</td>
+<td><code>src/cpp/transport/</code></td>
+</tr>
+<tr>
+<td>安全</td>
+<td><code>src/cpp/security/</code></td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_6">常见端口号</h2>
+<table>
+<thead>
+<tr>
+<th>端口</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>7400</strong></td>
+<td>默认 RTPS 端口 (SPDP)</td>
+</tr>
+<tr>
+<td><strong>7410</strong></td>
+<td>用户流量 (Participant 0)</td>
+</tr>
+<tr>
+<td><strong>7411</strong></td>
+<td>用户流量 (Participant 1)</td>
+</tr>
+<tr>
+<td><strong>11811</strong></td>
+<td>Discovery Server 默认端口</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<p><em>整理自 2026-02-27 ~ 2026-03-05 学习笔记</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

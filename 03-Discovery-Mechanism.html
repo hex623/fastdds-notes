@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 发现机制 (Discovery) 详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item active" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 03-Discovery-Mechanism</div>
+        <h1 id="fast-dds-discovery">Fast-DDS 发现机制 (Discovery) 详解</h1>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#概述">概述</a></li>
+<li><a href="#simple-discovery-协议架构">Simple Discovery 协议架构</a></li>
+<li><a href="#participant-discovery-protocol-pdp">Participant Discovery Protocol (PDP)</a></li>
+<li><a href="#endpoint-discovery-protocol-edp">Endpoint Discovery Protocol (EDP)</a></li>
+<li><a href="#discovery-消息流程图">Discovery 消息流程图</a></li>
+<li><a href="#动态加入与离开处理">动态加入与离开处理</a></li>
+<li><a href="#关键配置参数详解">关键配置参数详解</a></li>
+<li><a href="#代码示例">代码示例</a></li>
+<li><a href="#总结">总结</a></li>
+</ol>
+<hr/>
+<h2 id="_2">概述</h2>
+<p>Fast-DDS 的发现机制是 DDS 分布式系统的核心组件，负责自动发现网络中的参与者（Participant）、数据写入者（Writer）和数据读取者（Reader）。Fast-DDS 实现了 <strong>RTPS (Real-Time Publish Subscribe) 标准</strong> 中定义的 Simple Discovery Protocol。</p>
+<h3 id="_3">发现协议的分层架构</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="nx">Simple</span><span class="w"> </span><span class="nx">Discovery</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">├─────────────────────┬───────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">   </span><span class="nx">PDP</span><span class="w"> </span><span class="p">(</span><span class="nx">Participant</span><span class="p">)</span><span class="w"> </span><span class="err">│</span><span class="w">            </span><span class="nx">EDP</span><span class="w"> </span><span class="p">(</span><span class="nx">Endpoint</span><span class="p">)</span><span class="w">             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Protocol</span><span class="err">│</span><span class="w">        </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Protocol</span><span class="w">             </span><span class="err">│</span>
+<span class="err">├─────────────────────┼───────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">发现参与者</span><span class="w">        </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">发现</span><span class="w"> </span><span class="nx">Writers</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">交换元数据</span><span class="w">        </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">发现</span><span class="w"> </span><span class="nx">Readers</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">维护参与者活性</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="nx">匹配</span><span class="w"> </span><span class="nx">Topic</span><span class="o">/</span><span class="nx">QoS</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">└─────────────────────┴───────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="simple-discovery">Simple Discovery 协议架构</h2>
+<h3 id="_4">核心设计思想</h3>
+<p>Simple Discovery 基于<strong>参与者自发现</strong>的概念：<br/>
+1. 每个参与者定期广播自己的存在信息<br/>
+2. 新加入的参与者通过监听这些广播来发现现有参与者<br/>
+3. 已发现的参与者之间交换端点信息，建立实际的数据通道</p>
+<h3 id="_5">发现阶段</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="nx">Simple</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">阶段</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">├────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">Phase</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Protocol</span><span class="w"> </span><span class="p">(</span><span class="nx">PDP</span><span class="p">)</span><span class="w">             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">参与者周期性发送</span><span class="w"> </span><span class="nx">DATA</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span><span class="w"> </span><span class="nx">消息</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">接收其他参与者的</span><span class="w"> </span><span class="nx">DATA</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span><span class="w"> </span><span class="nx">消息</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">建立参与者之间的通信通道</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">├────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">Phase</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="nx">Endpoint</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Protocol</span><span class="w"> </span><span class="p">(</span><span class="nx">EDP</span><span class="p">)</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">交换</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="nx">信息</span><span class="w"> </span><span class="p">(</span><span class="nx">DATA</span><span class="p">(</span><span class="nx">w</span><span class="p">))</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">交换</span><span class="w"> </span><span class="nx">Reader</span><span class="w"> </span><span class="nx">信息</span><span class="w"> </span><span class="p">(</span><span class="nx">DATA</span><span class="p">(</span><span class="nx">r</span><span class="p">))</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">基于</span><span class="w"> </span><span class="nx">Topic</span><span class="w"> </span><span class="nx">和</span><span class="w"> </span><span class="nx">QoS</span><span class="w"> </span><span class="nx">进行匹配</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">├────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">Phase</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="nx">数据通信</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">匹配的</span><span class="w"> </span><span class="nx">Writer</span><span class="o">-</span><span class="nx">Reader</span><span class="w"> </span><span class="nx">建立连接</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">开始用户数据传输</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="participant-discovery-protocol-pdp">Participant Discovery Protocol (PDP)</h2>
+<h3 id="pdp">PDP 核心职责</h3>
+<p>PDP 负责管理<strong>参与者级别的发现</strong>，包括：<br/>
+- 参与者信息的发布与订阅<br/>
+- 维护远程参与者的活性状态<br/>
+- 触发 EDP 进行端点发现</p>
+<h3 id="pdp_1">PDP 类层次结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码位置: src/cpp/rtps/builtin/discovery/participant/</span>
+
+<span class="n">PDP</span><span class="w"> </span><span class="p">(</span><span class="n">抽象基类</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">PDPSimple</span><span class="w">          </span><span class="c1">// 标准 Simple PDP 实现</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">PDPServer</span><span class="w">          </span><span class="c1">// Discovery Server 服务器模式</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">PDPClient</span><span class="w">          </span><span class="c1">// Discovery Server 客户端模式</span>
+</code></pre></div>
+<h3 id="pdp_2">PDP 内置端点</h3>
+<p>每个参与者创建两个关键的内置端点：</p>
+<table>
+<thead>
+<tr>
+<th>端点</th>
+<th>类型</th>
+<th>EntityId</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BuiltinParticipantWriter</code></td>
+<td>StatelessWriter</td>
+<td>0x000100c2</td>
+<td>发送 DATA(p) 消息</td>
+</tr>
+<tr>
+<td><code>BuiltinParticipantReader</code></td>
+<td>StatelessReader</td>
+<td>0x000100c7</td>
+<td>接收 DATA(p) 消息</td>
+</tr>
+</tbody>
+</table>
+<h3 id="datap">DATA(p) 消息内容</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ParticipantProxyData 包含的关键信息</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">ParticipantProxyData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">guid</span><span class="p">;</span><span class="w">                          </span><span class="c1">// 参与者唯一标识</span>
+<span class="w">    </span><span class="n">ProtocolVersion_t</span><span class="w"> </span><span class="n">protocolVersion</span><span class="p">;</span><span class="w">    </span><span class="c1">// RTPS 协议版本</span>
+<span class="w">    </span><span class="n">VendorId_t</span><span class="w"> </span><span class="n">vendorId</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 厂商 ID</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">metatrafficLocators</span><span class="p">;</span><span class="w">    </span><span class="c1">// 元数据传输地址</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">defaultLocators</span><span class="p">;</span><span class="w">        </span><span class="c1">// 默认数据传输地址</span>
+<span class="w">    </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">leaseDuration</span><span class="p">;</span><span class="w">             </span><span class="c1">// 活性租约时长</span>
+<span class="w">    </span><span class="c1">// ... 其他 QoS 和属性</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="pdp_3">PDP 发现流程时序图</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">sequenceDiagram</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">Participant</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="p">(</span><span class="err">现有</span><span class="p">)</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">Participant</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="p">(</span><span class="err">新加入</span><span class="p">)</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">M</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="err">组播地址</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="n">PDP</span><span class="w"> </span><span class="err">发现阶段</span>
+
+<span class="w">    </span><span class="n">rect</span><span class="w"> </span><span class="n">rgb</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">230</span><span class="p">,</span><span class="w"> </span><span class="mi">255</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="err">周期性广播</span>
+<span class="w">        </span><span class="nf">loop</span><span class="w"> </span><span class="n">every</span><span class="w"> </span><span class="n">announcementPeriod</span>
+<span class="w">            </span><span class="n">A</span><span class="o">-&gt;&gt;</span><span class="n">M</span><span class="o">:</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">leaseDuration</span>
+<span class="w">        </span><span class="kd">end</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">M</span><span class="o">:</span><span class="w"> </span><span class="err">监听</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="err">消息</span>
+<span class="w">    </span><span class="n">M</span><span class="o">--&gt;&gt;</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">接收到</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="err">的</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">发现</span><span class="w"> </span><span class="n">Participant</span><span class="w"> </span><span class="n">A</span>
+
+<span class="w">    </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="err">单播回应</span><span class="p">)</span>
+<span class="w">    </span><span class="n">A</span><span class="o">--&gt;&gt;</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">确认收到</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="n">PDP</span><span class="w"> </span><span class="err">完成，触发</span><span class="w"> </span><span class="n">EDP</span>
+
+<span class="w">    </span><span class="n">A</span><span class="o">-&gt;&gt;</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="n">SEDP</span><span class="w"> </span><span class="err">端点信息交换</span>
+<span class="w">    </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="n">SEDP</span><span class="w"> </span><span class="err">端点信息交换</span>
+</code></pre></div>
+<h3 id="pdp_4">源码解析：PDP 初始化</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码: src/cpp/rtps/builtin/discovery/participant/PDPSimple.cpp</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">PDPSimple::init</span><span class="p">(</span><span class="n">RTPSParticipantImpl</span><span class="o">*</span><span class="w"> </span><span class="n">part</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 初始化 PDP 基础组件</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">PDP</span><span class="o">::</span><span class="n">initPDP</span><span class="p">(</span><span class="n">part</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. 初始化 EDP (Endpoint Discovery Protocol)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_discovery</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">use_STATIC_EndpointDiscoveryProtocol</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 使用静态 EDP (通过 XML 配置)</span>
+<span class="w">        </span><span class="n">mp_EDP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">EDPStatic</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_discovery</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">use_SIMPLE_EndpointDiscoveryProtocol</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 使用简单 EDP (动态发现)</span>
+<span class="w">        </span><span class="n">mp_EDP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">EDPSimple</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">mp_RTPSParticipant</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">mp_EDP</span><span class="o">-&gt;</span><span class="n">initEDP</span><span class="p">(</span><span class="n">m_discovery</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="_6">参与者活性维护</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码: src/cpp/rtps/builtin/discovery/participant/PDP.cpp</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">PDP::check_remote_participant_liveliness</span><span class="p">(</span><span class="n">ParticipantProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">remote_participant</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 检查租约是否过期</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">remote_participant</span><span class="o">-&gt;</span><span class="n">lease_duration_expired</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 移除过期的参与者</span>
+<span class="w">        </span><span class="n">remove_remote_participant</span><span class="p">(</span>
+<span class="w">            </span><span class="n">remote_participant</span><span class="o">-&gt;</span><span class="n">guid</span><span class="p">,</span><span class="w"> </span>
+<span class="w">            </span><span class="n">ParticipantDiscoveryStatus</span><span class="o">::</span><span class="n">DROPPED_PARTICIPANT</span>
+<span class="w">        </span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="endpoint-discovery-protocol-edp">Endpoint Discovery Protocol (EDP)</h2>
+<h3 id="edp">EDP 核心职责</h3>
+<p>EDP 负责管理<strong>端点级别的发现</strong>，包括：<br/>
+- 发布和订阅 Writer/Reader 信息<br/>
+- 基于 Topic 名称和 QoS 策略匹配端点<br/>
+- 通知应用层匹配状态变化</p>
+<h3 id="edp_1">EDP 类层次结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码位置: src/cpp/rtps/builtin/discovery/endpoint/</span>
+
+<span class="n">EDP</span><span class="w"> </span><span class="p">(</span><span class="n">抽象基类</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">EDPSimple</span><span class="w">          </span><span class="c1">// 动态端点发现</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">EDPStatic</span><span class="w">          </span><span class="c1">// 静态端点配置 (XML)</span>
+</code></pre></div>
+<h3 id="edpsimple">EDPSimple 内置端点</h3>
+<p>EDPSimple 创建四个内置端点：</p>
+<table>
+<thead>
+<tr>
+<th>端点</th>
+<th>类型</th>
+<th>EntityId</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PublicationsWriter</code></td>
+<td>StatefulWriter</td>
+<td>0x000003c2</td>
+<td>发送 Writer 信息</td>
+</tr>
+<tr>
+<td><code>PublicationsReader</code></td>
+<td>StatefulReader</td>
+<td>0x000003c7</td>
+<td>接收 Writer 信息</td>
+</tr>
+<tr>
+<td><code>SubscriptionsWriter</code></td>
+<td>StatefulWriter</td>
+<td>0x000004c2</td>
+<td>发送 Reader 信息</td>
+</tr>
+<tr>
+<td><code>SubscriptionsReader</code></td>
+<td>StatefulReader</td>
+<td>0x000004c7</td>
+<td>接收 Reader 信息</td>
+</tr>
+</tbody>
+</table>
+<h3 id="edp_2">EDP 消息类型</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// WriterProxyData (DATA(w))</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">WriterProxyData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">guid</span><span class="p">;</span><span class="w">                    </span><span class="c1">// Writer 唯一标识</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">participant_guid</span><span class="p">;</span><span class="w">        </span><span class="c1">// 所属参与者 GUID</span>
+<span class="w">    </span><span class="n">string_255</span><span class="w"> </span><span class="n">topicName</span><span class="p">;</span><span class="w">           </span><span class="c1">// Topic 名称</span>
+<span class="w">    </span><span class="n">string_255</span><span class="w"> </span><span class="n">typeName</span><span class="p">;</span><span class="w">            </span><span class="c1">// 数据类型名称</span>
+<span class="w">    </span><span class="n">WriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span><span class="w">                  </span><span class="c1">// Writer QoS 策略</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">unicastLocatorList</span><span class="p">;</span><span class="w">   </span><span class="c1">// 单播地址</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">multicastLocatorList</span><span class="p">;</span><span class="w"> </span><span class="c1">// 组播地址</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">};</span>
+
+<span class="c1">// ReaderProxyData (DATA(r))</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">ReaderProxyData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">guid</span><span class="p">;</span><span class="w">                    </span><span class="c1">// Reader 唯一标识</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">participant_guid</span><span class="p">;</span><span class="w">        </span><span class="c1">// 所属参与者 GUID</span>
+<span class="w">    </span><span class="n">string_255</span><span class="w"> </span><span class="n">topicName</span><span class="p">;</span><span class="w">           </span><span class="c1">// Topic 名称</span>
+<span class="w">    </span><span class="n">string_255</span><span class="w"> </span><span class="n">typeName</span><span class="p">;</span><span class="w">            </span><span class="c1">// 数据类型名称</span>
+<span class="w">    </span><span class="n">ReaderQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span><span class="w">                  </span><span class="c1">// Reader QoS 策略</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">unicastLocatorList</span><span class="p">;</span><span class="w">   </span><span class="c1">// 单播地址</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">multicastLocatorList</span><span class="p">;</span><span class="w"> </span><span class="c1">// 组播地址</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="edp_3">EDP 匹配流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码: src/cpp/rtps/builtin/discovery/endpoint/EDP.cpp</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">EDP::valid_matching</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">WriterProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">wdata</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">ReaderProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">rdata</span><span class="p">,</span>
+<span class="w">    </span><span class="n">MatchingFailureMask</span><span class="o">&amp;</span><span class="w"> </span><span class="n">reason</span><span class="p">,</span>
+<span class="w">    </span><span class="n">PolicyMask</span><span class="o">&amp;</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 检查 Topic 名称是否匹配</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">topicName</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">topicName</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">reason</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">different_topic</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. 检查 Topic 类型是否一致</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">check_type_consistency</span><span class="p">(</span><span class="n">wdata</span><span class="p">,</span><span class="w"> </span><span class="n">rdata</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">reason</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">inconsistent_topic</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 检查 QoS 兼容性</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">check_qos_compatibility</span><span class="p">(</span><span class="n">wdata</span><span class="p">,</span><span class="w"> </span><span class="n">rdata</span><span class="p">,</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">reason</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">incompatible_qos</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. 检查分区 (Partition) 匹配</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">check_partitions</span><span class="p">(</span><span class="n">wdata</span><span class="p">,</span><span class="w"> </span><span class="n">rdata</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">reason</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">partitions</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">  </span><span class="c1">// 匹配成功！</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="edp_4">EDP 匹配时序图</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">sequenceDiagram</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">PW</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">Writer</span><span class="w"> </span><span class="n">A</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">SW</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">PublicationsWriter</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="p">(</span><span class="n">SEDP</span><span class="p">)</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">SR</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">SubscriptionsReader</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="p">(</span><span class="n">SEDP</span><span class="p">)</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">RR</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="n">B</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">PW</span><span class="p">,</span><span class="n">RR</span><span class="o">:</span><span class="w"> </span><span class="n">EDP</span><span class="w"> </span><span class="err">匹配流程</span>
+
+<span class="w">    </span><span class="n">PW</span><span class="o">-&gt;&gt;</span><span class="n">SW</span><span class="o">:</span><span class="w"> </span><span class="err">创建</span><span class="w"> </span><span class="n">Writer</span>
+<span class="w">    </span><span class="n">SW</span><span class="o">-&gt;&gt;</span><span class="n">SR</span><span class="o">:</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">w</span><span class="p">)</span><span class="w"> </span><span class="err">广播</span>
+
+<span class="w">    </span><span class="n">RR</span><span class="o">-&gt;&gt;</span><span class="n">SR</span><span class="o">:</span><span class="w"> </span><span class="err">监听</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+<span class="w">    </span><span class="n">SR</span><span class="o">--&gt;&gt;</span><span class="n">RR</span><span class="o">:</span><span class="w"> </span><span class="err">发现</span><span class="w"> </span><span class="n">Writer</span><span class="w"> </span><span class="n">A</span>
+
+<span class="w">    </span><span class="n">alt</span><span class="w"> </span><span class="n">Topic</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="err">匹配</span>
+<span class="w">        </span><span class="n">RR</span><span class="o">-&gt;&gt;</span><span class="n">RR</span><span class="o">:</span><span class="w"> </span><span class="n">on_subscription_matched</span><span class="p">()</span>
+<span class="w">        </span><span class="n">PW</span><span class="o">-&gt;&gt;</span><span class="n">PW</span><span class="o">:</span><span class="w"> </span><span class="n">on_publication_matched</span><span class="p">()</span>
+<span class="w">        </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">PW</span><span class="p">,</span><span class="n">RR</span><span class="o">:</span><span class="w"> </span><span class="err">建立数据连接</span>
+<span class="w">    </span><span class="n">else</span><span class="w"> </span><span class="err">不匹配</span>
+<span class="w">        </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">PW</span><span class="p">,</span><span class="n">RR</span><span class="o">:</span><span class="w"> </span><span class="err">无匹配通知</span>
+<span class="w">    </span><span class="kd">end</span>
+</code></pre></div>
+<hr/>
+<h2 id="discovery">Discovery 消息流程图</h2>
+<h3 id="_7">完整发现流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">    </span><span class="n">P1</span><span class="p">[</span><span class="s">"Participant A"</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"DATA(p) 广播"</span><span class="o">|</span><span class="w"> </span><span class="n">M1</span><span class="p">[</span><span class="s">"组播"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">P2</span><span class="p">[</span><span class="s">"Participant B"</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"DATA(p) 广播"</span><span class="o">|</span><span class="w"> </span><span class="n">M1</span>
+<span class="w">    </span><span class="n">M1</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"接收"</span><span class="o">|</span><span class="w"> </span><span class="n">P1</span>
+<span class="w">    </span><span class="n">M1</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"接收"</span><span class="o">|</span><span class="w"> </span><span class="n">P2</span>
+
+<span class="w">    </span><span class="n">P1</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"DATA(w) + DATA(r)"</span><span class="o">|</span><span class="w"> </span><span class="n">P2</span>
+<span class="w">    </span><span class="n">P2</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"DATA(w) + DATA(r)"</span><span class="o">|</span><span class="w"> </span><span class="n">P1</span>
+
+<span class="w">    </span><span class="n">P1</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"匹配检查"</span><span class="o">|</span><span class="w"> </span><span class="n">M</span><span class="p">[</span><span class="s">"匹配引擎"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">P2</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"匹配检查"</span><span class="o">|</span><span class="w"> </span><span class="n">M</span>
+<span class="w">    </span><span class="n">M</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"匹配成功"</span><span class="o">|</span><span class="w"> </span><span class="n">C</span><span class="p">[</span><span class="s">"建立连接"</span><span class="p">]</span>
+<span class="w">    </span><span class="n">C</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">"用户数据"</span><span class="o">|</span><span class="w"> </span><span class="n">D</span><span class="p">[</span><span class="s">"数据传输"</span><span class="p">]</span>
+
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">P1</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">e1f5ff</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">P2</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">e1f5ff</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">M1</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">ffe1e1</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">M</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fff4e1</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">e5ffe1</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">f0f0f0</span>
+</code></pre></div>
+<h3 id="_8">发现消息类型总结</h3>
+<div class="codehilite"><pre><span></span><code>┌────────────────────────────────────────────────────────────────┐
+│                     RTPS Discovery Messages                     │
+├────────────────────────────────────────────────────────────────┤
+│ DATA(p) - Participant Data                                      │
+│ ├── 发送者: BuiltinParticipantWriter                           │
+│ ├── 接收者: BuiltinParticipantReader                           │
+│ └── 内容: 参与者 GUID、地址、租约时长、协议版本                │
+├────────────────────────────────────────────────────────────────┤
+│ DATA(w) - Writer Data                                           │
+│ ├── 发送者: PublicationsWriter                                 │
+│ ├── 接收者: PublicationsReader                                 │
+│ └── 内容: Writer GUID、Topic、QoS、传输地址                    │
+├────────────────────────────────────────────────────────────────┤
+│ DATA(r) - Reader Data                                           │
+│ ├── 发送者: SubscriptionsWriter                                │
+│ ├── 接收者: SubscriptionsReader                                │
+│ └── 内容: Reader GUID、Topic、QoS、传输地址                    │
+├────────────────────────────────────────────────────────────────┤
+│ 心跳与确认 (Heartbeat / AckNack)                               │
+│ └── 用于确保可靠发现消息的传输                                 │
+└────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="_9">动态加入与离开处理</h2>
+<h3 id="_10">“我刚醒来，错过了什么？”</h3>
+<p>当一个新参与者加入已经运行的系统时，需要解决的关键问题是：<strong>如何获取已存在参与者的信息？</strong></p>
+<h4 id="_11">解决方案：周期性广播 + 历史数据</h4>
+<div class="codehilite"><pre><span></span><code>┌────────────────────────────────────────────────────────────────┐
+│               新参与者加入处理机制                              │
+├────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. 周期性广播 (Announcement Period)                            │
+│     ├── 每个参与者定期广播 DATA(p)                              │
+│     ├── 默认间隔: 3 秒                                          │
+│     └── 新参与者只需等待一个周期即可发现现有参与者              │
+│                                                                  │
+│  2. 初始广播增强 (Initial Announcements)                        │
+│     ├── 启动时发送多次 DATA(p)                                  │
+│     ├── 默认次数: 5 次                                          │
+│     └── 默认间隔: 100ms                                         │
+│                                                                  │
+│  3. 历史数据保持 (Writer History)                               │
+│     ├── 内置 Writer 保持历史发现消息                            │
+│     └── 新参与者可以通过可靠传输获取历史信息                    │
+│                                                                  │
+└────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="_12">参与者离开检测</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 基于租约 (Lease Duration) 的活性检测</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ParticipantProxyData</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">leaseDuration</span><span class="p">;</span><span class="w">        </span><span class="c1">// 租约时长 (默认 20s)</span>
+<span class="w">    </span><span class="n">Time_t</span><span class="w"> </span><span class="n">last_received_lease</span><span class="p">;</span><span class="w">      </span><span class="c1">// 最后收到租约更新时间</span>
+
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">is_alive</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 检查是否在租约期内收到更新</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">current_time</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">last_received_lease</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">leaseDuration</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 租约过期处理流程</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">on_lease_expired</span><span class="p">(</span><span class="n">ParticipantProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">pdata</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 标记参与者为已失效</span>
+<span class="w">    </span><span class="n">pdata</span><span class="o">-&gt;</span><span class="n">is_alive</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. 移除该参与者的所有端点</span>
+<span class="w">    </span><span class="n">remove_all_endpoints</span><span class="p">(</span><span class="n">pdata</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 3. 通知应用层</span>
+<span class="w">    </span><span class="n">listener</span><span class="o">-&gt;</span><span class="n">on_participant_dropped</span><span class="p">(</span><span class="n">pdata</span><span class="o">-&gt;</span><span class="n">guid</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 4. 清理资源</span>
+<span class="w">    </span><span class="n">remove_participant_proxy</span><span class="p">(</span><span class="n">pdata</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="_13">动态加入时序图</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">sequenceDiagram</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">Participant</span><span class="w"> </span><span class="n">A</span><span class="w"> </span><span class="p">(</span><span class="err">在线</span><span class="p">)</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="n">Participant</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="p">(</span><span class="err">新加入</span><span class="p">)</span>
+<span class="w">    </span><span class="n">participant</span><span class="w"> </span><span class="n">Net</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="err">网络</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">新参与者</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="err">加入</span>
+
+<span class="w">    </span><span class="n">rect</span><span class="w"> </span><span class="n">rgb</span><span class="p">(</span><span class="mi">255</span><span class="p">,</span><span class="w"> </span><span class="mi">230</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">启动阶段</span>
+<span class="w">        </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">Net</span><span class="o">:</span><span class="w"> </span><span class="err">初始广播</span><span class="w"> </span><span class="err">×</span><span class="mi">5</span><span class="w"> </span><span class="p">(</span><span class="mi">100</span><span class="n">ms</span><span class="w"> </span><span class="err">间隔</span><span class="p">)</span>
+<span class="w">        </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">Net</span><span class="o">:</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">Net</span><span class="o">--&gt;&gt;</span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="err">接收到</span><span class="w"> </span><span class="n">B</span><span class="w"> </span><span class="err">的</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+<span class="w">    </span><span class="n">A</span><span class="o">--&gt;&gt;</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">回应</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">发现彼此</span>
+
+<span class="w">    </span><span class="n">A</span><span class="o">-&gt;&gt;</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">发送历史</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">w</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+<span class="w">    </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="err">发送自身</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">w</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+
+<span class="w">    </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="p">,</span><span class="n">B</span><span class="o">:</span><span class="w"> </span><span class="err">端点匹配完成</span>
+
+<span class="w">    </span><span class="n">rect</span><span class="w"> </span><span class="n">rgb</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="w"> </span><span class="mi">255</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="w">        </span><span class="n">Note</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">A</span><span class="o">:</span><span class="w"> </span><span class="err">周期性广播继续</span>
+<span class="w">        </span><span class="nf">loop</span><span class="w"> </span><span class="n">every</span><span class="w"> </span><span class="mi">3</span><span class="n">s</span>
+<span class="w">            </span><span class="n">A</span><span class="o">-&gt;&gt;</span><span class="n">Net</span><span class="o">:</span><span class="w"> </span><span class="n">DATA</span><span class="p">(</span><span class="n">p</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">leaseDuration</span>
+<span class="w">        </span><span class="kd">end</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">B</span><span class="o">-&gt;&gt;</span><span class="n">Net</span><span class="o">:</span><span class="w"> </span><span class="err">监听所有发现消息</span>
+</code></pre></div>
+<h3 id="vs">优雅离开 vs 异常断开</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                   参与者离开场景                             │
+├─────────────────────────┬───────────────────────────────────┤
+│     优雅离开             │          异常断开                 │
+├─────────────────────────┼───────────────────────────────────┤
+│ 1. 发送 NOT_ALIVE_DISPOSED │ 1. 停止发送 DATA(p)              │
+│    的 DATA(p)            │                                   │
+│ 2. 等待确认              │ 2. 租约超时 (leaseDuration)      │
+│ 3. 清理资源              │ 3. 检测到活性丢失                 │
+│ 4. 立即通知其他参与者    │ 4. 延迟通知 (最长 leaseDuration) │
+├─────────────────────────┼───────────────────────────────────┤
+│ 延迟: 立即               │ 延迟: up to leaseDuration (20s)  │
+└─────────────────────────┴───────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="_14">关键配置参数详解</h2>
+<h3 id="discoverysettings">DiscoverySettings 配置类</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码: include/fastdds/rtps/attributes/RTPSParticipantAttributes.hpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DiscoverySettings</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// ========== 发现协议选择 ==========</span>
+<span class="w">    </span><span class="n">DiscoveryProtocol</span><span class="w"> </span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DiscoveryProtocol</span><span class="o">::</span><span class="n">SIMPLE</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">use_SIMPLE_EndpointDiscoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">use_STATIC_EndpointDiscoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// ========== 活性租约配置 ==========</span>
+<span class="w">    </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">leaseDuration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">};</span><span class="w">                    </span><span class="c1">// 20 秒</span>
+<span class="w">    </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">leaseDuration_announcementperiod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">};</span><span class="w">  </span><span class="c1">// 3 秒</span>
+
+<span class="w">    </span><span class="c1">// ========== 初始广播配置 ==========</span>
+<span class="w">    </span><span class="n">InitialAnnouncementConfig</span><span class="w"> </span><span class="n">initial_announcements</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">//   count = 5    (初始广播次数)</span>
+<span class="w">    </span><span class="c1">//   period = 100ms  (初始广播间隔)</span>
+
+<span class="w">    </span><span class="c1">// ========== Simple EDP 配置 ==========</span>
+<span class="w">    </span><span class="n">SimpleEDPAttributes</span><span class="w"> </span><span class="n">m_simpleEDP</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">//   use_PublicationWriterANDSubscriptionReader = true</span>
+<span class="w">    </span><span class="c1">//   use_PublicationReaderANDSubscriptionWriter = true</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="_15">关键参数详解</h3>
+<h4 id="1-leaseduration">1. leaseDuration (租约时长)</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 默认: 20 秒</span>
+<span class="n">Duration_t</span><span class="w"> </span><span class="n">leaseDuration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">};</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>含义</strong></td>
+<td>参与者声明自己在多长时间内保持活跃</td>
+</tr>
+<tr>
+<td><strong>作用</strong></td>
+<td>其他参与者如果在该时间内未收到 DATA(p)，则认为该参与者已失效</td>
+</tr>
+<tr>
+<td><strong>影响</strong></td>
+<td>值越大，检测故障时间越长；值越小，网络开销越大</td>
+</tr>
+<tr>
+<td><strong>推荐</strong></td>
+<td>LAN: 10-30s；WAN: 30-60s</td>
+</tr>
+</tbody>
+</table>
+<h4 id="2-leaseduration_announcementperiod">2. leaseDuration_announcementperiod (广播周期)</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 默认: 3 秒</span>
+<span class="n">Duration_t</span><span class="w"> </span><span class="n">leaseDuration_announcementperiod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">};</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>含义</strong></td>
+<td>参与者发送 DATA(p) 消息的间隔</td>
+</tr>
+<tr>
+<td><strong>作用</strong></td>
+<td>确保其他参与者能够持续更新租约计时器</td>
+</tr>
+<tr>
+<td><strong>建议</strong></td>
+<td>应设置为 <code>leaseDuration / 3</code> 到 <code>leaseDuration / 10</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="3-initial_announcements">3. initial_announcements (初始广播)</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">struct</span><span class="w"> </span><span class="nc">InitialAnnouncementConfig</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5u</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 初始广播次数</span>
+<span class="w">    </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000u</span><span class="w"> </span><span class="p">};</span><span class="w">  </span><span class="c1">// 100ms 间隔</span>
+<span class="p">};</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>作用</strong></td>
+<td>加速新参与者的发现过程</td>
+</tr>
+<tr>
+<td><strong>原理</strong></td>
+<td>启动时快速发送多次 DATA(p)，提高被发现的概率</td>
+</tr>
+<tr>
+<td><strong>调优</strong></td>
+<td>大规模系统可适当增加 count</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_16">配置参数关系图</h3>
+<div class="codehilite"><pre><span></span><code>leaseDuration (20s)
+       │
+       ├── 决定故障检测的最大延迟
+       │
+       ├── announcementPeriod (3s)
+       │       └── 应该远小于 leaseDuration
+       │           (推荐: leaseDuration / 6 到 / 10)
+       │
+       └── initial_announcements
+               ├── count: 5
+               └── period: 100ms
+                   └── 快速启动发现
+</code></pre></div>
+<h3 id="pdp-edp">PDP 和 EDP 的默认定时配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码: src/cpp/rtps/builtin/discovery/participant/PDP.cpp</span>
+<span class="c1">// PDP 可靠传输配置</span>
+<span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">pdp_heartbeat_period</span><span class="p">{</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">350</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000000</span><span class="w"> </span><span class="p">};</span><span class="w">        </span><span class="c1">// 350ms</span>
+<span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">pdp_nack_response_delay</span><span class="p">{</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000000</span><span class="w"> </span><span class="p">};</span><span class="w">     </span><span class="c1">// 100ms</span>
+<span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">pdp_nack_supression_duration</span><span class="p">{</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">11</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000000</span><span class="w"> </span><span class="p">};</span><span class="w"> </span><span class="c1">// 11ms</span>
+
+<span class="c1">// 源码: src/cpp/rtps/builtin/discovery/endpoint/EDPSimple.cpp</span>
+<span class="c1">// EDP 可靠传输配置</span>
+<span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">edp_heartbeat_period</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">               </span><span class="c1">// 1s</span>
+<span class="k">static</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">edp_nack_response_delay</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1000</span><span class="p">};</span><span class="w"> </span><span class="c1">// 100ms</span>
+</code></pre></div>
+<hr/>
+<h2 id="_17">代码示例</h2>
+<h3 id="1-discovery">示例 1: 基本 Discovery 配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/attributes/RTPSParticipantAttributes.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">rtps</span><span class="p">;</span>
+
+<span class="c1">// 配置参与者发现参数</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_discovery</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// ========== PDP 配置 ==========</span>
+<span class="w">    </span><span class="c1">// 设置租约时长 (参与者活性超时)</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">leaseDuration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 30 秒</span>
+
+<span class="w">    </span><span class="c1">// 设置广播周期</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">leaseDuration_announcementperiod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">   </span><span class="c1">// 5 秒</span>
+
+<span class="w">    </span><span class="c1">// 初始广播配置 (加速发现)</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">initial_announcements</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">initial_announcements</span><span class="p">.</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
+
+<span class="w">    </span><span class="c1">// ========== EDP 配置 ==========</span>
+<span class="w">    </span><span class="c1">// 使用 Simple EDP</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">use_SIMPLE_EndpointDiscoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 启用 Publications/Subscriptions 双向发现</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">m_simpleEDP</span><span class="p">.</span><span class="n">use_PublicationWriterANDSubscriptionReader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">m_simpleEDP</span><span class="p">.</span><span class="n">use_PublicationReaderANDSubscriptionWriter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 创建参与者</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="2">示例 2: 快速发现配置 (局域网)</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 适用于低延迟局域网环境</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_fast_discovery</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 缩短租约检测时间</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">leaseDuration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">   </span><span class="c1">// 5 秒</span>
+
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">leaseDuration_announcementperiod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">   </span><span class="c1">// 1 秒</span>
+
+<span class="w">    </span><span class="c1">// 增加初始广播</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">initial_announcements</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">initial_announcements</span><span class="p">.</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">50000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 50ms</span>
+
+<span class="w">    </span><span class="c1">// 配置传输 (使用共享内存加速)</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">shm_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SharedMemTransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="3">示例 3: 大规模系统配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 适用于大型分布式系统</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_large_scale_discovery</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 增加租约以减少网络开销</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">leaseDuration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">   </span><span class="c1">// 60 秒</span>
+
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">leaseDuration_announcementperiod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">   </span><span class="c1">// 10 秒</span>
+
+<span class="w">    </span><span class="c1">// 限制参与者发现范围</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">ignoreParticipantFlags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">ParticipantFilteringFlags</span><span class="o">::</span><span class="n">FILTER_DIFFERENT_HOST</span><span class="p">;</span><span class="w">  </span><span class="c1">// 只发现同主机参与者</span>
+
+<span class="w">    </span><span class="c1">// 使用静态 EDP 减少动态发现开销</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">use_SIMPLE_EndpointDiscoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">use_STATIC_EndpointDiscoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">static_edp_xml_config</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"file://static_config.xml"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="4-discovery-server">示例 4: Discovery Server 配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 服务器配置</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_discovery_server</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置为 SERVER 模式</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">DiscoveryProtocol</span><span class="o">::</span><span class="n">SERVER</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置服务器 ID (生成唯一 GUID Prefix)</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">eprosima</span><span class="o">::</span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">GuidPrefix_t</span><span class="p">({</span>
+<span class="w">            </span><span class="mh">0x01</span><span class="p">,</span><span class="w"> </span><span class="mh">0x0f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x01</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span>
+<span class="w">            </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span><span class="p">,</span><span class="w"> </span><span class="mh">0x00</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// 设置监听地址</span>
+<span class="w">    </span><span class="n">Locator_t</span><span class="w"> </span><span class="n">locator</span><span class="p">;</span>
+<span class="w">    </span><span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">locator</span><span class="p">,</span><span class="w"> </span><span class="s">"192.168.1.100"</span><span class="p">);</span>
+<span class="w">    </span><span class="n">IPLocator</span><span class="o">::</span><span class="n">setPhysicalPort</span><span class="p">(</span><span class="n">locator</span><span class="p">,</span><span class="w"> </span><span class="mi">56542</span><span class="p">);</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">metatrafficUnicastLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">locator</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// 客户端配置</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_discovery_client</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置为 CLIENT 模式</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">DiscoveryProtocol</span><span class="o">::</span><span class="n">CLIENT</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置服务器地址</span>
+<span class="w">    </span><span class="n">RemoteServerAttributes</span><span class="w"> </span><span class="n">server_attr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">Locator_t</span><span class="w"> </span><span class="n">locator</span><span class="p">;</span>
+<span class="w">    </span><span class="n">IPLocator</span><span class="o">::</span><span class="n">setIPv4</span><span class="p">(</span><span class="n">locator</span><span class="p">,</span><span class="w"> </span><span class="s">"192.168.1.100"</span><span class="p">);</span>
+<span class="w">    </span><span class="n">IPLocator</span><span class="o">::</span><span class="n">setPhysicalPort</span><span class="p">(</span><span class="n">locator</span><span class="p">,</span><span class="w"> </span><span class="mi">56542</span><span class="p">);</span>
+<span class="w">    </span><span class="n">server_attr</span><span class="p">.</span><span class="n">metatrafficUnicastLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">locator</span><span class="p">);</span>
+<span class="w">    </span><span class="n">server_attr</span><span class="p">.</span><span class="n">ReadguidPrefix</span><span class="p">(</span><span class="s">"01.0f.01.00.00.00.00.00.00.00.00.00"</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">m_DiscoveryServers</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">server_attr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 客户端同步周期</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">wire_protocol</span><span class="p">().</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryServer_client_syncperiod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">450000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 450ms</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="5">示例 5: 监听发现事件</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantListener.hpp&gt;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DiscoveryListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DomainParticipantListener</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 参与者发现回调</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_participant_discovery</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="p">,</span>
+<span class="w">        </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">ParticipantDiscoveryInfo</span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">fastdds</span><span class="o">::</span><span class="no">rtps</span><span class="o">::</span><span class="no">ParticipantDiscoveryInfo</span><span class="o">::</span><span class="no">DISCOVERED_PARTICIPANT</span><span class="p">:</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"发现新参与者: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">info</span><span class="p">.</span><span class="n">guid</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">fastdds</span><span class="o">::</span><span class="no">rtps</span><span class="o">::</span><span class="no">ParticipantDiscoveryInfo</span><span class="o">::</span><span class="no">CHANGED_QOS_PARTICIPANT</span><span class="p">:</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"参与者 QoS 变更: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">info</span><span class="p">.</span><span class="n">guid</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">fastdds</span><span class="o">::</span><span class="no">rtps</span><span class="o">::</span><span class="no">ParticipantDiscoveryInfo</span><span class="o">::</span><span class="no">REMOVED_PARTICIPANT</span><span class="p">:</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"参与者离开: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">info</span><span class="p">.</span><span class="n">guid</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">fastdds</span><span class="o">::</span><span class="no">rtps</span><span class="o">::</span><span class="no">ParticipantDiscoveryInfo</span><span class="o">::</span><span class="no">DROPPED_PARTICIPANT</span><span class="p">:</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"参与者掉线: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">info</span><span class="p">.</span><span class="n">guid</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 数据写入者发现回调</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_publication_matched</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">PublicationMatchedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">current_count_change</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Writer 匹配到 Reader, total: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Writer 失去 Reader 匹配"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 数据读取者发现回调</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_subscription_matched</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">SubscriptionMatchedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">info</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="p">.</span><span class="n">current_count_change</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Reader 匹配到 Writer, total: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">info</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Reader 失去 Writer 匹配"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 使用监听器创建参与者</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">create_participant_with_listener</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DiscoveryListener</span><span class="w"> </span><span class="n">listener</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span>
+<span class="w">            </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">listener</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="_18">总结</h2>
+<h3 id="_19">核心概念回顾</h3>
+<div class="codehilite"><pre><span></span><code>┌────────────────────────────────────────────────────────────────┐
+│                   Fast-DDS Discovery 核心                      │
+├────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  PDP (Participant Discovery)                                   │
+│  ├── 基于 Stateless 传输 (UDP 组播)                            │
+│  ├── 周期性广播 DATA(p)                                        │
+│  ├── 租约机制维护活性                                          │
+│  └── 发现参与者后触发 EDP                                      │
+│                                                                  │
+│  EDP (Endpoint Discovery)                                      │
+│  ├── 基于 Stateful 传输 (可靠传输)                             │
+│  ├── 交换 DATA(w) 和 DATA(r)                                   │
+│  ├── Topic/QoS 匹配                                            │
+│  └── 通知应用层匹配结果                                        │
+│                                                                  │
+│  关键参数                                                       │
+│  ├── leaseDuration: 活性超时检测                               │
+│  ├── announcementPeriod: 广播频率                              │
+│  └── initial_announcements: 启动加速                           │
+│                                                                  │
+└────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="_20">最佳实践</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>leaseDuration</th>
+<th>announcementPeriod</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>开发/测试</td>
+<td>5-10s</td>
+<td>1-2s</td>
+<td>快速发现，便于调试</td>
+</tr>
+<tr>
+<td>局域网生产</td>
+<td>20s</td>
+<td>3s</td>
+<td>默认配置，平衡性能</td>
+</tr>
+<tr>
+<td>广域网/云</td>
+<td>60s</td>
+<td>10s</td>
+<td>减少网络开销</td>
+</tr>
+<tr>
+<td>大规模集群</td>
+<td>60s</td>
+<td>10s</td>
+<td>考虑使用 Discovery Server</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_21">相关源码目录</h3>
+<div class="codehilite"><pre><span></span><code><span class="nx">src</span><span class="o">/</span><span class="nx">cpp</span><span class="o">/</span><span class="nx">rtps</span><span class="o">/</span><span class="nx">builtin</span><span class="o">/</span><span class="nx">discovery</span><span class="o">/</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">participant</span><span class="o">/</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="nx">PDP</span><span class="w"> </span><span class="nx">实现</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">PDP</span><span class="p">.</span><span class="nx">h</span><span class="o">/</span><span class="nx">cpp</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">PDP</span><span class="w"> </span><span class="nx">基类</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">PDPSimple</span><span class="p">.</span><span class="nx">h</span><span class="o">/</span><span class="nx">cpp</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">Simple</span><span class="w"> </span><span class="nx">PDP</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">PDPServer</span><span class="p">.</span><span class="nx">hpp</span><span class="o">/</span><span class="nx">cpp</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Server</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">PDPClient</span><span class="p">.</span><span class="nx">h</span><span class="o">/</span><span class="nx">cpp</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Client</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">simple</span><span class="o">/</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="nx">Simple</span><span class="w"> </span><span class="nx">PDP</span><span class="w"> </span><span class="nx">辅助类</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">endpoint</span><span class="o">/</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="nx">EDP</span><span class="w"> </span><span class="nx">实现</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">EDP</span><span class="p">.</span><span class="nx">h</span><span class="o">/</span><span class="nx">cpp</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">EDP</span><span class="w"> </span><span class="nx">基类</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">EDPSimple</span><span class="p">.</span><span class="nx">h</span><span class="o">/</span><span class="nx">cpp</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">Simple</span><span class="w"> </span><span class="nx">EDP</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">EDPStatic</span><span class="p">.</span><span class="nx">h</span><span class="o">/</span><span class="nx">cpp</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">Static</span><span class="w"> </span><span class="nx">EDP</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">database</span><span class="o">/</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Server</span><span class="w"> </span><span class="nx">数据库</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">DiscoveryDataBase</span><span class="p">.</span><span class="nx">hpp</span><span class="o">/</span><span class="nx">cpp</span>
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 Fast-DDS 2.x 版本源码分析</em><br/>
+<em>参考: DDS-RTPS 标准规范</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

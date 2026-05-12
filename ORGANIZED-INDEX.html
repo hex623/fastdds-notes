@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 学习笔记归档索引 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item active" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / ORGANIZED-INDEX</div>
+        <h1 id="fast-dds">Fast-DDS 学习笔记归档索引</h1>
+<p><strong>整理时间</strong>: 2026-03-17<br/>
+<strong>来源</strong>: 2026-02-19 ~ 2026-03-10 记忆日志<br/>
+<strong>总字数</strong>: 约 80,000+ 字</p>
+<hr/>
+<h2 id="_1">📚 笔记目录</h2>
+<h3 id="_2">基础架构篇</h3>
+<ol>
+<li><strong><a href="01-RTPS-架构概览.html">01-RTPS-架构概览</a></strong> - RTPS 核心类结构与关系</li>
+<li><strong><a href="02-DDS-发现机制.html">02-DDS-发现机制</a></strong> - SPDP/SEDP 两阶段发现协议</li>
+<li><strong><a href="03-Discovery-Server.html">03-Discovery-Server</a></strong> - 集中式发现机制详解</li>
+</ol>
+<h3 id="_3">核心机制篇</h3>
+<ol start="4">
+<li><strong><a href="04-消息传递机制.html">04-消息传递机制</a></strong> - HEARTBEAT/ACKNACK 可靠传输</li>
+<li><strong><a href="05-Proxy-代理机制.html">05-Proxy-代理机制</a></strong> - WriterProxy/ReaderProxy 详解</li>
+<li><strong><a href="06-DDS到RTPS调用链.html">06-DDS到RTPS调用链</a></strong> - 完整数据流分析</li>
+</ol>
+<h3 id="_4">功能模块篇</h3>
+<ol start="7">
+<li><strong><a href="07-Topic-详解.html">07-Topic-详解</a></strong> - Topic 创建、匹配与 QoS</li>
+<li><strong><a href="08-Listener-与-WaitSet.html">08-Listener-与-WaitSet</a></strong> - 回调与条件等待机制</li>
+<li><strong><a href="09-传输层与性能.html">09-传输层与性能</a></strong> - UDP/TCP/SHM 与优化策略</li>
+<li><strong><a href="10-DDS-Security.html">10-DDS-Security</a></strong> - PKI 证书与访问控制</li>
+</ol>
+<h3 id="_5">参考附录</h3>
+<ol start="11">
+<li><strong><a href="A1-代码修正记录.html">A1-代码修正记录</a></strong> - AsyncWriterThread 类名修正</li>
+<li><strong><a href="A2-核心类速查表.html">A2-核心类速查表</a></strong> - 类关系图与关键方法</li>
+</ol>
+<hr/>
+<h2 id="_6">🎯 学习路径建议</h2>
+<h3 id="_7">初学者路线</h3>
+<div class="codehilite"><pre><span></span><code><span class="mf">01</span><span class="o">-</span><span class="n">RTPS</span><span class="o">-</span><span class="n">架构概览</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">02</span><span class="o">-</span><span class="n">DDS</span><span class="o">-</span><span class="n">发现机制</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">04</span><span class="o">-</span><span class="n">消息传递机制</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">07</span><span class="o">-</span><span class="kr">To</span><span class="n">pic</span><span class="o">-</span><span class="n">详解</span>
+</code></pre></div>
+<h3 id="_8">进阶开发者路线</h3>
+<div class="codehilite"><pre><span></span><code><span class="mf">03</span><span class="o">-</span><span class="n">Discovery</span><span class="o">-</span><span class="n">Server</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">05</span><span class="o">-</span><span class="n">Proxy</span><span class="o">-</span><span class="n">代理机制</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">06</span><span class="o">-</span><span class="n">DDS到RTPS调用链</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">09</span><span class="o">-</span><span class="n">传输层与性能</span>
+</code></pre></div>
+<h3 id="_9">生产部署路线</h3>
+<div class="codehilite"><pre><span></span><code><span class="mf">08</span><span class="o">-</span><span class="kr">List</span><span class="n">ener</span><span class="o">-</span><span class="n">与</span><span class="o">-</span><span class="kr">Wait</span><span class="n">Set</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">09</span><span class="o">-</span><span class="n">传输层与性能</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">10</span><span class="o">-</span><span class="n">DDS</span><span class="o">-</span><span class="n">Security</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">03</span><span class="o">-</span><span class="n">Discovery</span><span class="o">-</span><span class="n">Server</span>
+</code></pre></div>
+<hr/>
+<h2 id="_10">📊 内容统计</h2>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>笔记数</th>
+<th>字数</th>
+<th>状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>基础架构</td>
+<td>3篇</td>
+<td>~25,000</td>
+<td>✅ 完整</td>
+</tr>
+<tr>
+<td>核心机制</td>
+<td>3篇</td>
+<td>~30,000</td>
+<td>✅ 完整</td>
+</tr>
+<tr>
+<td>功能模块</td>
+<td>4篇</td>
+<td>~20,000</td>
+<td>✅ 完整</td>
+</tr>
+<tr>
+<td>参考附录</td>
+<td>2篇</td>
+<td>~5,000</td>
+<td>✅ 完整</td>
+</tr>
+<tr>
+<td><strong>总计</strong></td>
+<td><strong>12篇</strong></td>
+<td><strong>~80,000</strong></td>
+<td>✅ 归档</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_11">🔗 外部资源</h2>
+<ul>
+<li><strong>GitHub 仓库</strong>: https://github.com/hex623/fastdds-notes</li>
+<li><strong>NotebookLM 导入</strong>: 可导入 NotebookLM 进行 AI 问答</li>
+<li><strong>PCAP 分析工具</strong>: <code>../analysis-scripts/dds-rtps-pcap-analyzer/</code></li>
+</ul>
+<hr/>
+<h2 id="_12">📝 笔记来源</h2>
+<p>本归档整理自以下记忆日志：<br/>
+- <code>memory/2026-02-19.md</code> - DDS 教程创建<br/>
+- <code>memory/2026-02-26.md</code> - 源码分析开始<br/>
+- <code>memory/2026-02-27.md</code> - RTPS 核心类详解<br/>
+- <code>memory/2026-03-01.md</code> - 分析工具创建<br/>
+- <code>memory/2026-03-02.md</code> - 编译完成<br/>
+- <code>memory/2026-03-03.md</code> - 深度技术讲解<br/>
+- <code>memory/2026-03-04.md</code> - GUID 机制详解<br/>
+- <code>memory/2026-03-05.md</code> - Discovery Server/Topic 详解</p>
+<hr/>
+<p><em>最后更新: 2026-03-17</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

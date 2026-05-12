@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 数据收发完整流程详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item active" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 15-Data-Transmission-Flow</div>
+        <h1 id="fast-dds">Fast-DDS 数据收发完整流程详解</h1>
+<blockquote>
+<p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
+1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
+2. <strong>简化示例</strong>：为教学目的简化，省略了锁、异常处理等细节</p>
+<p><strong>重要更正</strong>：文中使用的 <code>AsyncWriterThread</code> 是<strong>概念性命名</strong>，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code></p>
+</blockquote>
+<hr/>
+<p><strong>创建时间</strong>: 2026-03-10<br/>
+<strong>源码版本</strong>: Fast-DDS 3.5.0<br/>
+<strong>作者</strong>: 旭旭助手</p>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#一writer-发送数据流程">Writer 发送数据流程</a></li>
+<li><a href="#二reader-接收数据流程">Reader 接收数据流程</a></li>
+<li><a href="#三可靠传输-vs-尽力传输对比">可靠传输 vs 尽力传输对比</a></li>
+<li><a href="#四acknack-与-heartbeat-交互">ACKNACK 与 HEARTBEAT 交互</a></li>
+<li><a href="#五完整数据流图">完整数据流图</a></li>
+<li><a href="#六关键源码解析">关键源码解析</a></li>
+</ol>
+<hr/>
+<h2 id="writer">一、Writer 发送数据流程</h2>
+<h3 id="11">1.1 整体流程图</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                           </span><span class="n">Writer</span><span class="w"> </span><span class="n">发送数据流程</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
+
+<span class="err">【</span><span class="n">应用层</span><span class="err">】</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">1.</span><span class="w"> </span><span class="n">应用调用</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="k">write</span><span class="p">(</span><span class="o">&amp;</span><span class="k">data</span><span class="p">)</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="nl">DataWriter</span><span class="p">:</span><span class="err">:</span><span class="k">write</span><span class="p">(</span><span class="n">void</span><span class="o">*</span><span class="w"> </span><span class="k">data</span><span class="p">)</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">委托给</span><span class="w"> </span><span class="n">DataWriterImpl</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">序列化数据</span><span class="w">                                                    </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">【</span><span class="n">RTPS</span><span class="w"> </span><span class="n">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">准备阶段</span><span class="err">】</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">2.</span><span class="w"> </span><span class="n">创建</span><span class="w"> </span><span class="n">CacheChange</span><span class="w">                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="nl">RTPSWriter</span><span class="p">:</span><span class="err">:</span><span class="n">new_change</span><span class="p">(</span><span class="w">                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">[]</span><span class="p">()</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">serialized_size</span><span class="p">;</span><span class="w"> </span><span class="err">}</span><span class="p">,</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">数据大小计算器</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                             </span><span class="o">//</span><span class="w"> </span><span class="n">变更类型</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="n">instance_handle</span><span class="w">                     </span><span class="o">//</span><span class="w"> </span><span class="n">实例句柄</span><span class="err">（</span><span class="n">keyed</span><span class="w"> </span><span class="n">topics</span><span class="err">）</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="p">)</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">CacheChange_t</span><span class="p">()</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ALIVE</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">writerGUID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">this</span><span class="o">-&gt;</span><span class="n">m_guid</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">next_sequence_number</span><span class="o">++</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sourceTimestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">序列化数据到</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">3.</span><span class="w"> </span><span class="n">存入</span><span class="w"> </span><span class="n">WriterHistory</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="nl">WriterHistory</span><span class="p">:</span><span class="err">:</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w">                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">根据</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="n">策略管理缓存</span><span class="err">：</span><span class="w">                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="nl">KEEP_LAST</span><span class="p">:</span><span class="w"> </span><span class="n">保留最近</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="n">个</span><span class="err">，</span><span class="n">旧的丢弃</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="nl">KEEP_ALL</span><span class="p">:</span><span class="w">  </span><span class="n">保留所有</span><span class="err">（</span><span class="n">直到内存限制</span><span class="err">）</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">【</span><span class="n">重要</span><span class="err">】</span><span class="n">可靠传输时</span><span class="err">，</span><span class="n">数据会保留直到被所有</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="n">确认</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">3.5</span><span class="w"> </span><span class="n">触发数据发送</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">哪个线程</span><span class="err">？</span><span class="w">                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">取决于</span><span class="w"> </span><span class="n">PublishMode</span><span class="w"> </span><span class="n">配置</span><span class="err">：</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">【</span><span class="n">同步模式</span><span class="w"> </span><span class="n">SYNCHRONOUS</span><span class="err">】</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">当前用户线程直接发送</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="nl">StatefulWriter</span><span class="p">:</span><span class="err">:</span><span class="n">unsent_change_added_to_history</span><span class="p">()</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">send_any_unsent_changes</span><span class="p">()</span><span class="w">  </span><span class="err">←</span><span class="w"> </span><span class="n">同线程立即执行</span><span class="w">                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">特点</span><span class="err">：</span><span class="w">                                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">•</span><span class="w"> </span><span class="k">write</span><span class="p">()</span><span class="w"> </span><span class="n">阻塞直到数据发送完成</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">•</span><span class="w"> </span><span class="n">低延迟</span><span class="err">（</span><span class="n">无线程切换</span><span class="err">）</span><span class="w">                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">•</span><span class="w"> </span><span class="n">适合实时性要求高的场景</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">【</span><span class="n">异步模式</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="err">】</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">数据入队</span><span class="err">，</span><span class="n">由</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span><span class="w"> </span><span class="n">发送</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="nl">FlowController</span><span class="p">:</span><span class="err">:</span><span class="n">add_new_sample</span><span class="p">()</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nl">FlowControllerAsyncPublishMode</span><span class="p">:</span><span class="err">:</span><span class="n">wake_up</span><span class="p">()</span><span class="w">  </span><span class="err">←</span><span class="w"> </span><span class="n">唤醒后台线程</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span><span class="w"> </span><span class="n">工作流程</span><span class="err">：</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running</span><span class="p">)</span><span class="w"> </span><span class="err">{</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="k">for</span><span class="w"> </span><span class="k">each</span><span class="w"> </span><span class="nl">async_writer</span><span class="p">:</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">               </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">send_any_unsent_changes</span><span class="p">();</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="n">wait_until</span><span class="p">(</span><span class="n">next_wakeup</span><span class="p">);</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">流控或新数据唤醒</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">}</span><span class="w">                                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">特点</span><span class="err">：</span><span class="w">                                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">•</span><span class="w"> </span><span class="k">write</span><span class="p">()</span><span class="w"> </span><span class="n">立即返回</span><span class="err">（</span><span class="n">非阻塞</span><span class="err">）</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">•</span><span class="w"> </span><span class="n">支持流量控制</span><span class="err">（</span><span class="n">FlowController</span><span class="err">）</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">•</span><span class="w"> </span><span class="n">支持批量发送优化</span><span class="w">                                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">【</span><span class="n">关键代码</span><span class="err">】</span><span class="n">src</span><span class="o">/</span><span class="n">cpp</span><span class="o">/</span><span class="n">rtps</span><span class="o">/</span><span class="n">writer</span><span class="o">/</span><span class="n">StatefulWriter</span><span class="p">.</span><span class="nl">cpp</span><span class="p">:</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">bool</span><span class="w"> </span><span class="nl">StatefulWriter</span><span class="p">:</span><span class="err">:</span><span class="n">unsent_change_added_to_history</span><span class="p">(...)</span><span class="w"> </span><span class="err">{</span><span class="w">           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">is_async</span><span class="p">())</span><span class="w"> </span><span class="err">{</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="nl">FlowControllerAsyncPublishMode</span><span class="p">:</span><span class="err">:</span><span class="n">wake_up</span><span class="p">(</span><span class="n">this</span><span class="p">);</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">异步</span><span class="err">：</span><span class="n">通知后台线程</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span><span class="w">                                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="err">{</span><span class="w">                                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="k">return</span><span class="w"> </span><span class="n">send_any_unsent_changes</span><span class="p">();</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">同步</span><span class="err">：</span><span class="n">立即发送</span><span class="w">          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">}</span><span class="w">                                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">}</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">【</span><span class="n">匹配与发送阶段</span><span class="err">】</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">4.</span><span class="w"> </span><span class="n">遍历所有匹配的</span><span class="w"> </span><span class="n">Reader</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="nl">StatefulWriter</span><span class="p">:</span><span class="err">:</span><span class="n">send</span><span class="p">(...)</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">each</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nl">m_matchedReaders</span><span class="p">:</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">send_change_to_reader</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader_proxy</span><span class="p">)</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">5.</span><span class="w"> </span><span class="n">数据发送</span><span class="err">（</span><span class="n">StatefulWriter</span><span class="err">）</span><span class="w">                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="mf">5.1</span><span class="w"> </span><span class="n">添加到</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="w"> </span><span class="n">的</span><span class="w"> </span><span class="n">outstanding_changes</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="nl">ReaderProxy</span><span class="p">:</span><span class="err">:</span><span class="n">outstanding_changes</span><span class="o">[</span><span class="n">seq_num</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">           </span><span class="n">change</span><span class="p">,</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">           </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UNDERWAY</span><span class="p">,</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">在途</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">           </span><span class="n">times_nack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w">                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">}</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="mf">5.2</span><span class="w"> </span><span class="n">通过网络层发送</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">send_data_to_locators</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader_proxy</span><span class="o">-&gt;</span><span class="n">locators</span><span class="p">)</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">           </span><span class="err">└──</span><span class="w"> </span><span class="n">UDP</span><span class="o">/</span><span class="n">TCP</span><span class="o">/</span><span class="n">SHM</span><span class="w"> </span><span class="n">发送</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="mf">5.3</span><span class="w"> </span><span class="n">启动重传定时器</span><span class="err">（</span><span class="n">可靠传输</span><span class="err">）</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">└──</span><span class="w"> </span><span class="n">设置超时回调</span><span class="err">，</span><span class="n">超时后重传</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">【</span><span class="n">网络层</span><span class="err">】</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">6.</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">消息封装与发送</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="nl">RTPSMessageGroup</span><span class="p">:</span><span class="err">:</span><span class="n">send</span><span class="p">(...)</span><span class="w">                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">创建</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">消息头</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nl">Header</span><span class="p">:</span><span class="w"> </span><span class="n">protocol</span><span class="w"> </span><span class="n">version</span><span class="p">,</span><span class="w"> </span><span class="n">vendor</span><span class="w"> </span><span class="n">ID</span><span class="p">,</span><span class="w"> </span><span class="n">guid</span><span class="w"> </span><span class="k">prefix</span><span class="w">             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nl">Submessages</span><span class="p">:</span><span class="w">                                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="k">DATA</span><span class="w"> </span><span class="nl">submessage</span><span class="p">:</span><span class="w"> </span><span class="n">序列号</span><span class="err">、</span><span class="n">时间戳</span><span class="err">、</span><span class="n">序列化数据</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">可选</span><span class="w"> </span><span class="nl">HEARTBEAT</span><span class="p">:</span><span class="w"> </span><span class="n">提醒</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="n">确认</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">调用</span><span class="w"> </span><span class="n">Transport</span><span class="w"> </span><span class="nl">层</span><span class="p">:</span><span class="w"> </span><span class="n">send_to_locator</span><span class="p">()</span><span class="w">                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="nl">UDP</span><span class="p">:</span><span class="w"> </span><span class="n">sendto</span><span class="p">()</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="nl">TCP</span><span class="p">:</span><span class="w"> </span><span class="n">send</span><span class="p">()</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="nl">SHM</span><span class="p">:</span><span class="w"> </span><span class="n">写入共享内存</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="12">1.2 关键代码详解</h3>
+<p><strong>DataWriter::write() 流程：</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/dds/publisher/DataWriter.hpp</span>
+<span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">DataWriter::write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 获取实现类</span>
+<span class="w">    </span><span class="n">DataWriterImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_impl</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 2. 序列化数据</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="w"> </span><span class="n">payload</span><span class="p">;</span>
+<span class="w">    </span><span class="n">impl</span><span class="o">-&gt;</span><span class="n">type_</span><span class="o">-&gt;</span><span class="n">serialize</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">payload</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 3. 委托给 RTPSWriter</span>
+<span class="w">    </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">impl</span><span class="o">-&gt;</span><span class="n">writer_</span><span class="o">-&gt;</span><span class="n">new_change</span><span class="p">(</span>
+<span class="w">        </span><span class="p">[</span><span class="o">&amp;</span><span class="n">payload</span><span class="p">]()</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">payload</span><span class="p">.</span><span class="n">length</span><span class="p">;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                              </span><span class="c1">// 变更类型</span>
+<span class="w">        </span><span class="n">HANDLE_NIL</span><span class="w">                          </span><span class="c1">// 实例句柄</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 4. 拷贝序列化数据</span>
+<span class="w">    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 5. 添加到 History</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">impl</span><span class="o">-&gt;</span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">ReturnCode_t</span><span class="o">::</span><span class="n">RETCODE_ERROR</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 6. 触发发送（异步或同步）</span>
+<span class="w">    </span><span class="c1">// StatefulWriter 会自动将 change 发送给所有匹配的 Readers</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ReturnCode_t</span><span class="o">::</span><span class="n">RETCODE_OK</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>RTPSWriter::new_change()：</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/RTPSWriter.cpp</span>
+<span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="nf">RTPSWriter::new_change</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">uint32_t</span><span class="p">()</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">dataSizeCalculator</span><span class="p">,</span>
+<span class="w">    </span><span class="n">ChangeKind_t</span><span class="w"> </span><span class="n">changeKind</span><span class="p">,</span>
+<span class="w">    </span><span class="n">InstanceHandle_t</span><span class="w"> </span><span class="n">handle</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="c1">// 1. 计算数据大小</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dataSizeCalculator</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 2. 从缓存池分配 CacheChange</span>
+<span class="w">    </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mp_history</span><span class="o">-&gt;</span><span class="n">create_change</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 3. 填充元数据</span>
+<span class="w">    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">changeKind</span><span class="p">;</span>
+<span class="w">    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">writerGUID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m_guid</span><span class="p">;</span>
+<span class="w">    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">instanceHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handle</span><span class="p">;</span>
+<span class="w">    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">++</span><span class="n">m_current_sequence_number</span><span class="p">;</span>
+<span class="w">    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sourceTimestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Time_t</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">change</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>StatefulWriter::send()：</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/StatefulWriter.cpp</span>
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatefulWriter::send</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 上锁保护</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">RecursiveTimedMutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">guard</span><span class="p">(</span><span class="n">mp_mutex</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 2. 遍历所有匹配的 ReaderProxy</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">m_matchedReaders</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 3. 添加到该 Reader 的在途队列</span>
+<span class="w">        </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">add_change_for_reader</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 4. 发送数据</span>
+<span class="w">        </span><span class="n">send_data_to_reader</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 5. 如果是可靠传输，启动重传定时器</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">m_isReliable</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">schedule_nack_response</span><span class="p">(</span><span class="n">reader</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="reader">二、Reader 接收数据流程</h2>
+<h3 id="21">2.1 整体流程图</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                           </span><span class="n">Reader</span><span class="w"> </span><span class="err">接收数据流程</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
+
+<span class="err">【网络层】</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">1.</span><span class="w"> </span><span class="err">接收</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="err">消息</span><span class="w">                                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">Transport</span><span class="w"> </span><span class="err">层接收到</span><span class="w"> </span><span class="n">UDP</span><span class="o">/</span><span class="n">TCP</span><span class="o">/</span><span class="n">SHM</span><span class="w"> </span><span class="err">数据</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">MessageReceiver</span><span class="p">::</span><span class="n">processCDRMsg</span><span class="p">()</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="err">解析</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">Header</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Submessages</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">【</span><span class="n">RTPS</span><span class="w"> </span><span class="n">Layer</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="err">处理阶段】</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">2.</span><span class="w"> </span><span class="err">分发到对应的</span><span class="w"> </span><span class="n">Reader</span><span class="w">                                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">RTPSParticipantImpl</span><span class="p">::</span><span class="n">receive</span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="w">                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">根据</span><span class="w"> </span><span class="n">entityId</span><span class="w"> </span><span class="err">找到目标</span><span class="w"> </span><span class="n">Reader</span><span class="w">                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="err">调用</span><span class="w"> </span><span class="n">RTPSReader</span><span class="p">::</span><span class="n">processDataMsg</span><span class="p">()</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">3.</span><span class="w"> </span><span class="err">解析</span><span class="w"> </span><span class="n">DATA</span><span class="w"> </span><span class="n">Submessage</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">RTPSReader</span><span class="p">::</span><span class="n">processDataMsg</span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="err">提取信息：</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">writer_guid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="o">.</span><span class="n">writerGUID</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">seq_num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="o">.</span><span class="n">sequenceNumber</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="o">.</span><span class="n">serializedPayload</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">timestamp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="o">.</span><span class="n">sourceTimestamp</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">查找匹配的</span><span class="w"> </span><span class="n">WriterProxy</span><span class="w">                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">Reader</span><span class="p">::</span><span class="n">matched_writer_lookup</span><span class="p">(</span><span class="n">writer_guid</span><span class="p">)</span><span class="w">                   </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">4.</span><span class="w"> </span><span class="err">序列号检查与去重</span><span class="w">                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">StatefulReader</span><span class="p">::</span><span class="n">processDataMsg</span><span class="p">(</span><span class="o">...</span><span class="p">)</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">检查</span><span class="w"> </span><span class="n">WriterProxy</span><span class="p">::</span><span class="n">received_sequence_numbers</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="err">情况</span><span class="w"> </span><span class="n">A</span><span class="err">：</span><span class="n">seq_num</span><span class="w"> </span><span class="err">已经收到过</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">丢弃（重复数据）</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="err">情况</span><span class="w"> </span><span class="n">B</span><span class="err">：</span><span class="n">seq_num</span><span class="w"> </span><span class="err">是期望的下一个</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">正常接收</span><span class="w">                                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="err">情况</span><span class="w"> </span><span class="n">C</span><span class="err">：</span><span class="n">seq_num</span><span class="w"> </span><span class="err">大于期望值（丢包！）</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">└──</span><span class="w"> </span><span class="err">标记</span><span class="w"> </span><span class="n">missing_changes</span><span class="p">[</span><span class="n">expect</span><span class="o">..</span><span class="n">seq_num</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">└──</span><span class="w"> </span><span class="err">存储当前数据</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">5.</span><span class="w"> </span><span class="err">存入</span><span class="w"> </span><span class="n">ReaderHistory</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">ReaderHistory</span><span class="p">::</span><span class="n">received_change</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">sample_size</span><span class="p">)</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">根据</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="err">策略存储：</span><span class="w">                                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="n">KEEP_LAST</span><span class="p">:</span><span class="w"> </span><span class="err">保留最近</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="err">个</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">KEEP_ALL</span><span class="p">:</span><span class="w">  </span><span class="err">保留所有</span><span class="w">                                          </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">6.</span><span class="w"> </span><span class="err">触发回调（异步通知）</span><span class="w">                                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">ReaderListener</span><span class="p">::</span><span class="n">onNewCacheChangeAdded</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="n">change</span><span class="p">)</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">应用层实现此回调来处理数据</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">【可靠传输反馈】</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">7.</span><span class="w"> </span><span class="err">发送</span><span class="w"> </span><span class="n">ACKNACK</span><span class="err">（</span><span class="n">StatefulReader</span><span class="err">）</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">如果启用了可靠传输：</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="mf">7.1</span><span class="w"> </span><span class="err">更新</span><span class="w"> </span><span class="n">received_sequence_numbers</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="mf">7.2</span><span class="w"> </span><span class="err">检查是否有缺失的序列号</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">missing_changes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_missing_sequence_numbers</span><span class="p">()</span><span class="w">         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="mf">7.3</span><span class="w"> </span><span class="err">构建</span><span class="w"> </span><span class="n">ACKNACK</span><span class="w"> </span><span class="n">Submessage</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="n">Base</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">last_received_seq</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w">                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="n">Bitmap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">接收状态位图</span><span class="w">                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="mf">7.4</span><span class="w"> </span><span class="err">发送</span><span class="w"> </span><span class="n">ACKNACK</span><span class="w"> </span><span class="err">给</span><span class="w"> </span><span class="n">Writer</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">└──</span><span class="w"> </span><span class="err">告知</span><span class="w"> </span><span class="n">Writer</span><span class="w"> </span><span class="err">哪些收到了，哪些缺失了</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">【应用层】</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="err">┌────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w"> </span><span class="mf">8.</span><span class="w"> </span><span class="err">应用读取数据</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="n">DataReader</span><span class="p">::</span><span class="n">take_next_sample</span><span class="p">(</span><span class="nb nb-Type">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">SampleInfo</span><span class="o">*</span><span class="w"> </span><span class="n">info</span><span class="p">)</span><span class="w">           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="err">从</span><span class="w"> </span><span class="n">ReaderHistory</span><span class="w"> </span><span class="err">读取数据</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="err">反序列化：</span><span class="n">type_</span><span class="o">-&gt;</span><span class="n">deserialize</span><span class="p">(</span><span class="o">&amp;</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="p">,</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">├──</span><span class="w"> </span><span class="err">填充</span><span class="w"> </span><span class="n">SampleInfo</span><span class="err">（时间戳、序列号等）</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="err">从</span><span class="w"> </span><span class="n">History</span><span class="w"> </span><span class="err">移除</span><span class="w"> </span><span class="n">change</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="22">2.2 关键代码详解</h3>
+<p><strong>MessageReceiver::processCDRMsg()：</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/messages/MessageReceiver.cpp</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">MessageReceiver::processCDRMsg</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">Locator_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">source</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">Locator_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">destination</span><span class="p">,</span>
+<span class="w">    </span><span class="n">CDRMessage_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="c1">// 1. 解析 RTPS Header</span>
+<span class="w">    </span><span class="n">Header_t</span><span class="w"> </span><span class="n">header</span><span class="p">;</span>
+<span class="w">    </span><span class="n">CDRMessage</span><span class="o">::</span><span class="n">readHeader</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">header</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 2. 遍历所有 Submessages</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">msg</span><span class="p">.</span><span class="n">pos</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">length</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SubmessageHeader_t</span><span class="w"> </span><span class="n">submsg_header</span><span class="p">;</span>
+<span class="w">        </span><span class="n">CDRMessage</span><span class="o">::</span><span class="n">readSubmessageHeader</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">submsg_header</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">submsg_header</span><span class="p">.</span><span class="n">submessageId</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">DATA</span><span class="p">:</span>
+<span class="w">                </span><span class="n">processDataSubmessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="n">submsg_header</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">HEARTBEAT</span><span class="p">:</span>
+<span class="w">                </span><span class="n">processHeartbeatSubmessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="n">submsg_header</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="k">case</span><span class="w"> </span><span class="no">ACKNACK</span><span class="p">:</span>
+<span class="w">                </span><span class="n">processAckNackSubmessage</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="n">submsg_header</span><span class="p">);</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="c1">// ... 其他子消息类型</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>RTPSReader::processDataMsg()：</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/reader/RTPSReader.cpp</span>
+<span class="kt">bool</span><span class="w"> </span><span class="nf">RTPSReader::processDataMsg</span><span class="p">(</span>
+<span class="w">    </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">,</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">unique_lock</span><span class="o">&lt;</span><span class="n">RecursiveTimedMutex</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">lock</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">    </span><span class="c1">// 1. 查找匹配的 WriterProxy</span>
+<span class="w">    </span><span class="n">WriterProxy</span><span class="o">*</span><span class="w"> </span><span class="n">writer_proxy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">matched_writer_lookup</span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">writerGUID</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">writer_proxy</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 如果接受未知 Writer 的数据</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">m_acceptMessagesFromUnknownWriters</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w">  </span><span class="c1">// 拒绝数据</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. 序列号检查（StatefulReader）</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer_proxy</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 检查是否是重复数据</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer_proxy</span><span class="o">-&gt;</span><span class="n">received_change_set</span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w">  </span><span class="c1">// 重复，丢弃</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 检查是否有丢包</span>
+<span class="w">        </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">expected_seq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_proxy</span><span class="o">-&gt;</span><span class="n">next_expected_sequence_number</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">expected_seq</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 标记缺失的序列号</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">expected_seq</span><span class="p">;</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">seq</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">writer_proxy</span><span class="o">-&gt;</span><span class="n">missing_changes_add</span><span class="p">(</span><span class="n">seq</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 存入 History</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">mp_history</span><span class="o">-&gt;</span><span class="n">received_change</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="p">.</span><span class="n">length</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. 触发回调</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">mp_listener</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">mp_listener</span><span class="o">-&gt;</span><span class="n">onNewCacheChangeAdded</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">change</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="vs">三、可靠传输 vs 尽力传输对比</h2>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Reliable (可靠)</th>
+<th>Best-Effort (尽力)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>确认机制</strong></td>
+<td>HEARTBEAT + ACKNACK</td>
+<td>无</td>
+</tr>
+<tr>
+<td><strong>重传</strong></td>
+<td>支持</td>
+<td>不支持</td>
+</tr>
+<tr>
+<td><strong>顺序保证</strong></td>
+<td>严格按序</td>
+<td>不保证</td>
+</tr>
+<tr>
+<td><strong>丢包处理</strong></td>
+<td>自动重传</td>
+<td>丢弃</td>
+</tr>
+<tr>
+<td><strong>延迟</strong></td>
+<td>较高（等待确认）</td>
+<td>较低</td>
+</tr>
+<tr>
+<td><strong>带宽</strong></td>
+<td>较高（确认开销）</td>
+<td>较低</td>
+</tr>
+<tr>
+<td><strong>应用场景</strong></td>
+<td>关键数据（控制指令）</td>
+<td>高频数据（传感器）</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="acknack-heartbeat">四、ACKNACK 与 HEARTBEAT 交互</h2>
+<div class="codehilite"><pre><span></span><code>场景：Reliable 传输，发生丢包
+────────────────────────────────────────────────────────────────────────
+
+Writer (StatefulWriter)              Reader (StatefulReader)
+        │                                    │
+        │── DATA(Seq#1) ────────────────────│ ✅ 收到
+        │── DATA(Seq#2) ────────────────────│ ❌ 丢失！
+        │── DATA(Seq#3) ────────────────────│ ✅ 收到
+        │                                    │
+        │                                    │ 检测到 Seq#2 缺失
+        │                                    │ missing_changes = {#2}
+        │                                    │
+        │── HEARTBEAT(First=1, Last=3) ─────│ "我有1-3，请确认"
+        │                                    │
+        │◄────── ACKNACK(Base=2) ────────────│  "2收到，但3之前缺2"
+        │      Bitmap: 101 (1=收到, 0=缺失)   │
+        │                                    │
+        │   ReaderProxy 检查：                │
+        │   - #1: ACKED                      │
+        │   - #2: NACKED (需要重传)           │
+        │   - #3: 未确认                      │
+        │                                    │
+        │── DATA(Seq#2) 【重传】─────────────│ ✅ 收到
+        │   [重传标记]                        │
+        │                                    │ missing_changes 清空
+        │                                    │
+        │◄────── ACKNACK(Base=4) ────────────│  "4之前都收到了"
+        │      (Final Flag = true)            │
+        │                                    │
+        └── 可以从 History 删除 #1,#2,#3      │
+                                           │
+</code></pre></div>
+<hr/>
+<h2 id="_2">五、完整数据流图</h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                    完整数据流：应用 → 网络 → 应用                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+【发送端】                                    【接收端】
+┌──────────────┐                              ┌──────────────┐
+│   应用数据    │                              │   应用数据    │
+└──────┬───────┘                              └──────┬───────┘
+       │                                             │
+       ▼                                             ▼
+┌──────────────┐                              ┌──────────────┐
+│  DataWriter  │                              │  DataReader  │
+│  - write()   │                              │  - take()    │
+└──────┬───────┘                              └──────┬───────┘
+       │                                             │
+       ▼                                             ▼
+┌──────────────┐                              ┌──────────────┐
+│ RTPSWriter   │◄────── RTPS Message ─────────►│ RTPSReader   │
+│ - new_change │      (UDP/TCP/SHM)            │ - processData│
+│ - History    │                              │ - History    │
+└──────┬───────┘                              └──────┬───────┘
+       │                                             │
+       ▼                                             ▼
+┌──────────────┐                              ┌──────────────┐
+│   Transport  │                              │   Transport  │
+│  (Socket层)   │                              │  (Socket层)   │
+└──────┬───────┘                              └──────┬───────┘
+       │                                             │
+       └──────────────────► 网络 ◄──────────────────┘
+
+【Reliable 额外流程】
+Writer ◄──────── ACKNACK ──────── Reader
+  │                               │
+  ├── HEARTBEAT ────────────────►│
+  │  (定期发送，提醒确认)           │
+  │                               │
+  │◄──────── NACK (丢失报告) ─────┤
+  │                               │
+  ├── 重传丢失的数据 ─────────────►│
+  │                               │
+  │◄──────── ACK (最终确认) ──────┤
+</code></pre></div>
+<hr/>
+<h2 id="_3">六、关键源码解析</h2>
+<h3 id="61">6.1 发送端核心调用链</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 完整调用链：应用层 → DDS层 → RTPS层 → 传输层</span>
+
+<span class="c1">// 1. 应用层调用</span>
+<span class="n">DataWriter</span><span class="o">::</span><span class="n">write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">DataWriterImpl</span><span class="o">::</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">序列化数据</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">RTPSWriter</span><span class="o">::</span><span class="n">new_change</span><span class="p">(</span><span class="n">size_calculator</span><span class="p">,</span><span class="w"> </span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">handle</span><span class="p">)</span>
+<span class="w">        </span><span class="err">└──</span><span class="w"> </span><span class="n">创建</span><span class="w"> </span><span class="n">CacheChange_t</span>
+<span class="w">        </span><span class="err">└──</span><span class="w"> </span><span class="n">分配序列号</span>
+<span class="w">        </span><span class="err">└──</span><span class="w"> </span><span class="n">填充元数据</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">RTPSWriter</span><span class="o">::</span><span class="n">send</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+<span class="w">        </span><span class="err">└──</span><span class="w"> </span><span class="n">StatefulWriter</span><span class="o">::</span><span class="n">send</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+<span class="w">            </span><span class="err">└──</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="o">:</span>
+<span class="w">                </span><span class="err">├──</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="o">::</span><span class="n">add_change_for_reader</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+<span class="w">                </span><span class="err">└──</span><span class="w"> </span><span class="n">send_data_to_reader</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span>
+<span class="w">                    </span><span class="err">└──</span><span class="w"> </span><span class="n">RTPSMessageGroup</span><span class="o">::</span><span class="n">send</span><span class="p">()</span>
+<span class="w">                        </span><span class="err">└──</span><span class="w"> </span><span class="n">构建</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">消息</span>
+<span class="w">                        </span><span class="err">└──</span><span class="w"> </span><span class="n">Transport</span><span class="o">::</span><span class="n">send_to_locator</span><span class="p">()</span>
+<span class="w">                            </span><span class="err">└──</span><span class="w"> </span><span class="n">UDP</span><span class="o">/</span><span class="n">TCP</span><span class="o">/</span><span class="n">SHM</span><span class="w"> </span><span class="n">发送</span>
+</code></pre></div>
+<h3 id="62">6.2 接收端核心调用链</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 完整调用链：传输层 → RTPS层 → DDS层 → 应用层</span>
+
+<span class="c1">// 1. 传输层接收</span>
+<span class="n">Transport</span><span class="o">::</span><span class="n">receive</span><span class="p">()</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">MessageReceiver</span><span class="o">::</span><span class="n">processCDRMsg</span><span class="p">()</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">解析</span><span class="w"> </span><span class="n">RTPS</span><span class="w"> </span><span class="n">Header</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">Submessage</span><span class="o">:</span>
+<span class="w">        </span><span class="err">└──</span><span class="w"> </span><span class="n">processDataSubmessage</span><span class="p">()</span>
+<span class="w">            </span><span class="err">└──</span><span class="w"> </span><span class="n">RTPSParticipantImpl</span><span class="o">::</span><span class="n">find_reader</span><span class="p">(</span><span class="n">entityId</span><span class="p">)</span>
+<span class="w">            </span><span class="err">└──</span><span class="w"> </span><span class="n">RTPSReader</span><span class="o">::</span><span class="n">processDataMsg</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+<span class="w">                </span><span class="err">└──</span><span class="w"> </span><span class="n">StatefulReader</span><span class="o">::</span><span class="n">processDataMsg</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+<span class="w">                    </span><span class="err">├──</span><span class="w"> </span><span class="n">WriterProxy</span><span class="o">::</span><span class="n">lookup</span><span class="p">(</span><span class="n">writer_guid</span><span class="p">)</span>
+<span class="w">                    </span><span class="err">├──</span><span class="w"> </span><span class="n">WriterProxy</span><span class="o">::</span><span class="n">received_change_set</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span><span class="w"> </span><span class="c1">// 去重检查</span>
+<span class="w">                    </span><span class="err">├──</span><span class="w"> </span><span class="n">ReaderHistory</span><span class="o">::</span><span class="n">received_change</span><span class="p">(</span><span class="n">change</span><span class="p">)</span>
+<span class="w">                    </span><span class="err">└──</span><span class="w"> </span><span class="n">ReaderListener</span><span class="o">::</span><span class="n">onNewCacheChangeAdded</span><span class="p">()</span>
+<span class="w">                        </span><span class="err">└──</span><span class="w"> </span><span class="n">触发应用回调</span>
+<span class="w">                        </span><span class="err">└──</span><span class="w"> </span><span class="n">DataReader</span><span class="o">::</span><span class="n">take_next_sample</span><span class="p">()</span>
+<span class="w">                            </span><span class="err">└──</span><span class="w"> </span><span class="n">反序列化数据</span>
+<span class="w">                            </span><span class="err">└──</span><span class="w"> </span><span class="n">返回给应用</span>
+</code></pre></div>
+<h3 id="63">6.3 数据生命周期</h3>
+<div class="codehilite"><pre><span></span><code>【发送端数据生命周期】
+
+应用数据
+    │
+    ▼ (write)
+序列化 → CacheChange_t
+    │
+    ▼ (add_change)
+WriterHistory [暂存]
+    │
+    ▼ (send)
+网络传输
+    │
+    ▼ (收到 ACK)
+从 History 删除
+
+─────────────────────────────────────────
+
+【接收端数据生命周期】
+
+网络接收
+    │
+    ▼ (processDataMsg)
+反序列化 → CacheChange_t
+    │
+    ▼ (received_change)
+ReaderHistory [暂存]
+    │
+    ▼ (take)
+应用处理
+    │
+    ▼ (return_loan)
+从 History 删除
+</code></pre></div>
+<hr/>
+<h2 id="_4">总结</h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>Writer 关键操作</th>
+<th>Reader 关键操作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>准备</strong></td>
+<td>创建 CacheChange，分配序列号</td>
+<td>接收网络数据，解析消息</td>
+</tr>
+<tr>
+<td><strong>存储</strong></td>
+<td>存入 WriterHistory</td>
+<td>存入 ReaderHistory</td>
+</tr>
+<tr>
+<td><strong>传输</strong></td>
+<td>发送给所有匹配的 Readers</td>
+<td>接收并检查序列号</td>
+</tr>
+<tr>
+<td><strong>确认</strong></td>
+<td>等待 ACKNACK，必要时重传</td>
+<td>发送 ACKNACK 反馈</td>
+</tr>
+<tr>
+<td><strong>清理</strong></td>
+<td>收到 ACK 后删除</td>
+<td>应用读取后删除</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<p><em>文档版本: 1.0<br/>
+最后更新: 2026-03-10<br/>
+作者: 旭旭助手</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

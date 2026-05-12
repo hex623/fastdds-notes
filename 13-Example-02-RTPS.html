@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example 02: RTPS - 底层 API 实战 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item active" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 13-Example-02-RTPS</div>
+        <h1 id="example-02-rtps-api">Example 02: RTPS - 底层 API 实战</h1>
+<p><strong>示例路径</strong>: <code>Fast-DDS/examples/cpp/rtps/</code><br/>
+<strong>学习目标</strong>: 理解 RTPS 层 API，掌握比 DDS 层更细粒度的控制<br/>
+<strong>难度</strong>: ⭐⭐ 进阶<br/>
+<strong>预计时长</strong>: 45分钟</p>
+<hr/>
+<h2 id="_1">🎯 学习目标</h2>
+<ol>
+<li>理解 RTPS 层与 DDS 层的区别</li>
+<li>掌握 RTPSWriter 和 RTPSReader 的直接使用</li>
+<li>理解 History、CacheChange 等底层概念</li>
+<li>学习自定义序列化/反序列化</li>
+</ol>
+<hr/>
+<h2 id="rtps-vs-dds">📚 RTPS vs DDS 对比</h2>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>DDS 层</th>
+<th>RTPS 层</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>抽象级别</strong></td>
+<td>高（面向 Topic）</td>
+<td>低（面向 Endpoint）</td>
+</tr>
+<tr>
+<td><strong>易用性</strong></td>
+<td>简单，开箱即用</td>
+<td>复杂，需要更多配置</td>
+</tr>
+<tr>
+<td><strong>灵活性</strong></td>
+<td>受限（标准 QoS）</td>
+<td>高（可定制协议参数）</td>
+</tr>
+<tr>
+<td><strong>性能</strong></td>
+<td>好</td>
+<td>更好（减少开销）</td>
+</tr>
+<tr>
+<td><strong>适用场景</strong></td>
+<td>一般应用</td>
+<td>性能敏感、协议研究</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键区别</strong>:<br/>
+- DDS 层：DataWriter → 主题名 → DataReader<br/>
+- RTPS 层：RTPSWriter → GUID → RTPSReader（无主题概念）</p>
+<hr/>
+<h2 id="_2">📁 源码结构</h2>
+<div class="codehilite"><pre><span></span><code>rtps/
+├── CMakeLists.txt
+├── README.md
+├── Application.hpp/cpp       # 应用基类
+├── WriterApp.hpp/cpp         # RTPS Writer 实现
+├── ReaderApp.hpp/cpp         # RTPS Reader 实现
+├── CLIParser.hpp             # 命令行解析
+└── HelloWorld.hpp            # 数据类型（IDL生成）
+</code></pre></div>
+<hr/>
+<h2 id="_3">🔍 核心源码分析</h2>
+<h3 id="1-rtps">1. RTPS 实体创建流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// RTPS 层不需要 DomainParticipant、Publisher、Subscriber</span>
+<span class="c1">// 直接使用 RTPSDomain 创建 RTPSParticipant</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">WriterApp::init</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Step 1: 创建 RTPSParticipant</span>
+<span class="w">    </span><span class="c1">// RTPSParticipant 是 RTPS 层的入口</span>
+<span class="w">    </span><span class="n">RTPSParticipantAttributes</span><span class="w"> </span><span class="n">participant_attr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">participant_attr</span><span class="p">.</span><span class="n">setName</span><span class="p">(</span><span class="s">"RTPSWriterParticipant"</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 配置发现协议（可以禁用发现，使用静态配置）</span>
+<span class="w">    </span><span class="n">participant_attr</span><span class="p">.</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="n">DiscoveryProtocol</span><span class="o">::</span><span class="n">SIMPLE</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">rtps_participant_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RTPSDomain</span><span class="o">::</span><span class="n">createParticipant</span><span class="p">(</span>
+<span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">               </span><span class="c1">// Domain ID</span>
+<span class="w">        </span><span class="n">participant_attr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Step 2: 注册类型（同 DDS 层）</span>
+<span class="w">    </span><span class="n">HelloWorldTypeSupport</span><span class="w"> </span><span class="n">type_support</span><span class="p">;</span>
+<span class="w">    </span><span class="n">type_support</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">rtps_participant_</span><span class="p">,</span><span class="w"> </span><span class="n">type_support</span><span class="p">.</span><span class="n">get_type_name</span><span class="p">());</span>
+
+<span class="w">    </span><span class="c1">// Step 3: 创建 RTPSWriter</span>
+<span class="w">    </span><span class="c1">// 不需要 Topic，直接指定 TopicName 和 TypeName</span>
+<span class="w">    </span><span class="n">HistoryAttributes</span><span class="w"> </span><span class="n">history_attr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">history_attr</span><span class="p">.</span><span class="n">payloadMaxSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">255</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最大 payload 大小</span>
+<span class="w">    </span><span class="n">writer_history_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">WriterHistory</span><span class="p">(</span><span class="n">history_attr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">WriterAttributes</span><span class="w"> </span><span class="n">writer_attr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">writer_attr</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">topicKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NO_KEY</span><span class="p">;</span><span class="w">  </span><span class="c1">// 无 Key（非实例化）</span>
+<span class="w">    </span><span class="n">writer_attr</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">reliabilityKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE</span><span class="p">;</span><span class="w">  </span><span class="c1">// 可靠传输</span>
+<span class="w">    </span><span class="n">writer_attr</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">topicName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"HelloWorldTopic"</span><span class="p">;</span>
+<span class="w">    </span><span class="n">writer_attr</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">typeName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">type_support</span><span class="p">.</span><span class="n">get_type_name</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 创建 Writer，传入 History</span>
+<span class="w">    </span><span class="n">rtps_writer_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RTPSDomain</span><span class="o">::</span><span class="n">createRTPSWriter</span><span class="p">(</span>
+<span class="w">        </span><span class="n">rtps_participant_</span><span class="p">,</span>
+<span class="w">        </span><span class="n">writer_attr</span><span class="p">,</span>
+<span class="w">        </span><span class="n">writer_history_</span><span class="p">,</span>
+<span class="w">        </span><span class="k">this</span><span class="p">);</span><span class="w">  </span><span class="c1">// Listener</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>学习要点</strong>:<br/>
+- RTPS 层直接操作 History，而不是通过 DataWriter<br/>
+- 需要手动管理 History 的生命周期<br/>
+- TopicName 只是标识，不参与 Topic 对象创建</p>
+<hr/>
+<h3 id="2">2. 自定义序列化</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// RTPS 层需要手动序列化数据</span>
+<span class="kt">bool</span><span class="w"> </span><span class="nf">WriterApp::serialize_data</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">HelloWorld</span><span class="o">&amp;</span><span class="w"> </span><span class="n">hello</span><span class="p">,</span>
+<span class="w">    </span><span class="n">SerializedPayload_t</span><span class="o">*</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 计算序列化后的大小</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">data_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w">  </span><span class="c1">// index</span>
+<span class="w">                       </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">size</span><span class="p">();</span><span class="w">  </span><span class="c1">// message</span>
+
+<span class="w">    </span><span class="c1">// 分配 payload 内存</span>
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">reserve</span><span class="p">(</span><span class="n">data_size</span><span class="p">);</span>
+<span class="w">    </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data_size</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 手动序列化（简单示例）</span>
+<span class="w">    </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 写入 index</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">hello</span><span class="p">.</span><span class="n">index</span><span class="p">(),</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">));</span>
+<span class="w">    </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 写入 message 长度</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">msg_len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">size</span><span class="p">();</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">msg_len</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">));</span>
+<span class="w">    </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 写入 message 内容</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">().</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">msg_len</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 在 Writer 中创建 CacheChange 并写入</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">WriterApp::run</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">stop_signal_</span><span class="p">.</span><span class="n">load</span><span class="p">())</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 创建 CacheChange</span>
+<span class="w">        </span><span class="c1">// CacheChange 是 RTPS 传输的基本单元</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_history_</span><span class="o">-&amp;</span><span class="n">gt</span><span class="p">;</span><span class="n">create_change</span><span class="p">(</span>
+<span class="w">            </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">                    </span><span class="c1">// ChangeKind：数据有效</span>
+<span class="w">            </span><span class="n">type_support_</span><span class="p">.</span><span class="n">get_key</span><span class="p">());</span><span class="w"> </span><span class="c1">// InstanceHandle（无 Key 时为无效值）</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 序列化数据到 change-&gt;serializedPayload</span>
+<span class="w">            </span><span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+<span class="w">            </span><span class="n">hello</span><span class="p">.</span><span class="n">index</span><span class="p">(</span><span class="o">++</span><span class="n">index</span><span class="p">);</span>
+<span class="w">            </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">(</span><span class="s">"Hello World"</span><span class="p">);</span>
+
+<span class="w">            </span><span class="n">serialize_data</span><span class="p">(</span><span class="n">hello</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="p">);</span>
+
+<span class="w">            </span><span class="c1">// 添加到 History，触发发送</span>
+<span class="w">            </span><span class="n">writer_history_</span><span class="o">-&amp;</span><span class="n">gt</span><span class="p">;</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="w"> </span><span class="s">"Message Hello World with index "</span><span class="w"> </span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="w"> </span><span class="n">index</span><span class="w"> </span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="w"> </span><span class="s">" SENT"</span><span class="w"> </span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">this_thread</span><span class="o">::</span><span class="n">sleep_for</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>学习要点</strong>:<br/>
+- CacheChange_t 是 RTPS 层的核心数据结构<br/>
+- 包含序列化后的 payload、序列号、时间戳等<br/>
+- WriterHistory 管理 CacheChange 的存储和生命周期</p>
+<hr/>
+<h3 id="3-rtps-reader">3. RTPS Reader 实现</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Reader 同样需要手动反序列化</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">ReaderApp::onNewCacheChangeAdded</span><span class="p">(</span>
+<span class="w">    </span><span class="n">RTPSReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">change</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 收到新的 CacheChange</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ALIVE</span><span class="p">)</span><span class="w">  </span><span class="c1">// 确认是有效数据（不是删除通知）</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">HelloWorld</span><span class="w"> </span><span class="n">hello</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 反序列化</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">deserialize_data</span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">hello</span><span class="p">))</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Message: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">message</span><span class="p">()</span>
+<span class="w">                      </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" with index "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">hello</span><span class="p">.</span><span class="n">index</span><span class="p">()</span>
+<span class="w">                      </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" RECEIVED"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 🔴 重要：Reader 必须释放 CacheChange</span>
+<span class="w">    </span><span class="c1">// 与 DDS 层不同，RTPS 层不自动管理内存</span>
+<span class="w">    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">getHistory</span><span class="p">()</span><span class="o">-&amp;</span><span class="n">gt</span><span class="p">;</span><span class="n">remove_change</span><span class="p">(</span><span class="k">const_cast</span><span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span><span class="n">CacheChange_t</span><span class="o">*&amp;</span><span class="n">gt</span><span class="p">;(</span><span class="n">change</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">ReaderApp::deserialize_data</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">SerializedPayload_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">payload</span><span class="p">,</span>
+<span class="w">    </span><span class="n">HelloWorld</span><span class="o">*</span><span class="w"> </span><span class="n">hello</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="p">.</span><span class="n">data</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 读取 index</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">index</span><span class="p">;</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="o">&amp;</span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">));</span>
+<span class="w">    </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">);</span>
+<span class="w">    </span><span class="n">hello</span><span class="o">-&gt;</span><span class="n">index</span><span class="p">(</span><span class="n">index</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 读取 message 长度</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">msg_len</span><span class="p">;</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg_len</span><span class="p">,</span><span class="w"> </span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">));</span>
+<span class="w">    </span><span class="n">ptr</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">uint32_t</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 读取 message 内容</span>
+<span class="w">    </span><span class="n">hello</span><span class="o">-&gt;</span><span class="n">message</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">((</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">ptr</span><span class="p">,</span><span class="w"> </span><span class="n">msg_len</span><span class="p">));</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>学习要点</strong>:<br/>
+- Reader 需要手动释放 CacheChange，否则内存泄漏<br/>
+- onNewCacheChangeAdded 是 RTPSReaderListener 的回调<br/>
+- 需要处理 ChangeKind（ALIVE/NOT_ALIVE_DISPOSED 等）</p>
+<hr/>
+<h2 id="rtps">🏗️ RTPS 架构图</h2>
+<div class="codehilite"><pre><span></span><code>RTPS Layer Architecture
+═══════════════════════════════════════════════════════
+
+Writer Side:
+┌─────────────────────────────────────────────────────┐
+│  Application                                        │
+│  └── serialize() → create CacheChange → add History │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────┐
+│  RTPSWriter                                         │
+│  ├── WriterHistory (CacheChange queue)              │
+│  └── RTPSParticipant                                │
+│      └── RTPSDomain (static factory)                │
+└────────────────────┬────────────────────────────────┘
+                     │ 网络发送
+                     ▼
+
+Reader Side:
+┌─────────────────────────────────────────────────────┐
+│  RTPSReader                                         │
+│  └── onNewCacheChangeAdded()                        │
+│      └── deserialize() → process → remove_change()  │
+└────────────────────┬────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────┐
+│  Application                                        │
+└─────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="_4">🚀 运行示例</h2>
+<h3 id="_5">编译</h3>
+<div class="codehilite"><pre><span></span><code><span class="nb">cd</span><span class="w"> </span>~/Documents/GitHub/Fast-DDS/examples/cpp/rtps
+mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..
+make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+</code></pre></div>
+<h3 id="_6">运行</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 终端 1：启动 Reader</span>
+./rtps<span class="w"> </span>reader
+
+<span class="c1"># 终端 2：启动 Writer</span>
+./rtps<span class="w"> </span>writer
+</code></pre></div>
+<h3 id="_7">预期输出</h3>
+<p><strong>Reader</strong>:</p>
+<div class="codehilite"><pre><span></span><code>Registering RTPS Reader
+RTPS Reader running. Please press Ctrl+C to stop the RTPS Reader at any time.
+Remote endpoint with GUID 01.0f.da.70.f5.ea.d7.9b.00.00.00.00|0.0.1.3 matched.
+Message: Hello World with index 1 RECEIVED
+Message: Hello World with index 2 RECEIVED
+...
+</code></pre></div>
+<p><strong>注意</strong>: 输出显示 GUID，这是 RTPS 层的端点标识（DDS 层隐藏了这些细节）</p>
+<hr/>
+<h2 id="_8">🧪 实验任务</h2>
+<h3 id="1-dds-rtps">实验 1：对比 DDS 和 RTPS 层性能</h3>
+<p>使用相同的硬件和测试场景：<br/>
+1. 运行 hello_world 示例，记录延迟和吞吐量<br/>
+2. 运行 rtps 示例，记录延迟和吞吐量<br/>
+3. 对比结果</p>
+<p><strong>预期</strong>: RTPS 层略快（减少了 DDS 层的抽象开销）</p>
+<h3 id="2_1">实验 2：禁用发现机制</h3>
+<p>修改代码，使用静态端点配置：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 禁用自动发现</span>
+<span class="n">participant_attr</span><span class="p">.</span><span class="n">builtin</span><span class="p">.</span><span class="n">discovery_config</span><span class="p">.</span><span class="n">discoveryProtocol</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="n">DiscoveryProtocol</span><span class="o">::</span><span class="n">NONE</span><span class="p">;</span>
+
+<span class="c1">// 手动添加远程 Reader 的 Locator</span>
+<span class="n">Locator_t</span><span class="w"> </span><span class="n">remote_locator</span><span class="p">;</span>
+<span class="c1">// ... 配置 remote_locator</span>
+<span class="n">writer_attr</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">remoteLocatorList</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">remote_locator</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>观察</strong>: Writer 是否能直接发送数据到 Reader？</p>
+<hr/>
+<h2 id="_9">📚 与笔记关联</h2>
+<table>
+<thead>
+<tr>
+<th>本示例概念</th>
+<th>对应笔记</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTPSDomain</td>
+<td><a href="01-RTPS-Source-Analysis.html#rtpsdomain">01 RTPS源码分析</a></td>
+</tr>
+<tr>
+<td>RTPSWriter/RTPSReader</td>
+<td><a href="01-RTPS-Source-Analysis.html#rtpswriter--rtpsreader">01 RTPS源码分析</a></td>
+</tr>
+<tr>
+<td>CacheChange</td>
+<td><a href="09-Advanced-Topics.html#dds--rtps-完整调用链">09 进阶主题</a></td>
+</tr>
+<tr>
+<td>WriterHistory</td>
+<td><a href="09-Advanced-Topics.html#发送流程">09 进阶主题</a></td>
+</tr>
+<tr>
+<td>序列化</td>
+<td><a href="02-DDS-Layer-Architecture.html#cdr-序列化">02 类型系统</a></td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_10">✅ 学习检查清单</h2>
+<ul>
+<li>[ ] 理解 RTPS 层与 DDS 层的区别</li>
+<li>[ ] 掌握 RTPSParticipant 创建流程</li>
+<li>[ ] 理解 CacheChange 的作用</li>
+<li>[ ] 掌握 WriterHistory 的使用</li>
+<li>[ ] 理解手动序列化的过程</li>
+<li>[ ] 成功运行示例并观察 GUID</li>
+<li>[ ] 理解为什么需要手动释放 CacheChange</li>
+</ul>
+<hr/>
+<h2 id="_11">🎓 进阶思考</h2>
+<ol>
+<li>
+<p><strong>什么时候应该使用 RTPS 层而不是 DDS 层？</strong><br/>
+   - 需要极致性能优化时<br/>
+   - 需要自定义协议行为时<br/>
+   - 研究 RTPS 协议实现时<br/>
+   - 嵌入式系统资源受限时</p>
+</li>
+<li>
+<p><strong>RTPS 层的缺点是什么？</strong><br/>
+   - 代码复杂度更高<br/>
+   - 需要手动管理内存<br/>
+   - 缺少高级 QoS 支持<br/>
+   - 可移植性较差</p>
+</li>
+<li>
+<p><strong>CacheChange 的序列号是如何分配的？</strong><br/>
+   - 由 RTPSWriter 自动分配（递增）<br/>
+   - 用于可靠传输的重排序和去重<br/>
+   - 在 ACKNACK 机制中起关键作用</p>
+</li>
+</ol>
+<hr/>
+<p><em>下一个示例：<a href="13-Example-03-DiscoveryServer.html">Discovery Server 集中式发现</a></em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

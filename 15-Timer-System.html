@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 定时器系统详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item active" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 15-Timer-System</div>
+        <h1 id="fast-dds">Fast-DDS 定时器系统详解</h1>
+<p><strong>创建时间</strong>: 2026-03-13<br/>
+<strong>源码版本</strong>: Fast-DDS 3.5.0<br/>
+<strong>作者</strong>: 旭旭助手</p>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#一定时器系统概述">定时器系统概述</a></li>
+<li><a href="#二核心组件架构">核心组件架构</a></li>
+<li><a href="#三定时器类型与应用场景">定时器类型与应用场景</a></li>
+<li><a href="#四源码分析">源码分析</a></li>
+<li><a href="#五线程模型">线程模型</a></li>
+<li><a href="#六实战配置">实战配置</a></li>
+<li><a href="#七性能优化与常见问题">性能优化与常见问题</a></li>
+</ol>
+<hr/>
+<h2 id="_2">一、定时器系统概述</h2>
+<h3 id="11-dds">1.1 为什么 DDS 需要定时器？</h3>
+<p>DDS/RTPS 协议是<strong>时间敏感</strong>的分布式系统，需要精确的时间管理：</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>定时器作用</th>
+<th>超时后果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>心跳保活</strong></td>
+<td>检测远端节点是否存活</td>
+<td>误判节点离线</td>
+</tr>
+<tr>
+<td><strong>发现协议</strong></td>
+<td>周期性宣告 Participant/Endpoint</td>
+<td>发现延迟或失败</td>
+</tr>
+<tr>
+<td><strong>可靠传输</strong></td>
+<td>重传超时检测</td>
+<td>数据丢失</td>
+</tr>
+<tr>
+<td><strong>租约管理</strong></td>
+<td>检测资源过期</td>
+<td>资源泄漏</td>
+</tr>
+<tr>
+<td><strong>QoS 监控</strong></td>
+<td>Deadline/Liveliness 检测</td>
+<td>服务质量下降</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 定时器架构总览</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                    Application Layer                             │
+│         (用户通过 Listener/WaitSet 感知超时事件)                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     DDS Layer (超时检测)                         │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   Deadline   │  │  Liveliness  │  │  Lifespan    │          │
+│  │   Monitor    │  │   Monitor    │  │   Monitor    │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         │                 │                 │                   │
+└─────────┼─────────────────┼─────────────────┼───────────────────┘
+          │                 │                 │
+          ▼                 ▼                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     RTPS Layer (协议定时器)                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │  SPDP Timer  │  │  SEDP Timer  │  │  Heartbeat   │          │
+│  │ (发现宣告)    │  │ (端点发现)    │  │   Timer      │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│         │                 │                 │                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   NACK       │  │  KeepAlive   │  │  Lease       │          │
+│  │  Response    │  │   Timer      │  │  Duration    │          │
+│  │  (重传响应)   │  │ (连接保活)    │  │   Timer      │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   Timer Service (定时器服务层)                    │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │              TimedEventImpl (定时事件实现)                  │  │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │  │
+│  │  │   Timer 1    │  │   Timer 2    │  │   Timer N    │    │  │
+│  │  │ (截止时间)    │  │ (截止时间)    │  │ (截止时间)    │    │  │
+│  │  │   ↓↓↓        │  │   ↓↓↓        │  │   ↓↓↓        │    │  │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘    │  │
+│  │                                                           │  │
+│  │  ┌─────────────────────────────────────────────────────┐  │  │
+│  │  │  最小堆 / 优先队列 (按截止时间排序)                   │  │  │
+│  │  │  根节点 = 最近到期的定时器                           │  │  │
+│  │  └─────────────────────────────────────────────────────┘  │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                              │                                  │
+│                              ▼                                  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │            EventLoop / TimerThread (定时器线程)             │  │
+│  │  - 单线程按序执行回调                                       │  │
+│  │  - 支持高精度定时 (us 级)                                  │  │
+│  │  - 线程安全的事件队列                                      │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="_3">二、核心组件架构</h2>
+<h3 id="21">2.1 类层次结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌──────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">(</span><span class="err">抽象基类</span><span class="p">)</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌────────────────────────────────────────────────────────┐</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">virtual</span><span class="w"> </span><span class="nb nb-Type">void</span><span class="w"> </span><span class="n">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="nb">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="err">定时器到期时调用的回调函数</span><span class="w">                          </span><span class="err">│</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└────────────────────────────────────────────────────────┘</span><span class="w">  </span><span class="err">│</span>
+<span class="err">└───────────────────────────┬──────────────────────────────────┘</span>
+<span class="w">                            </span><span class="err">│</span><span class="w"> </span><span class="err">继承</span>
+<span class="w">        </span><span class="err">┌───────────────────┼───────────────────┐</span>
+<span class="w">        </span><span class="err">▼</span><span class="w">                   </span><span class="err">▼</span><span class="w">                   </span><span class="err">▼</span>
+<span class="err">┌───────────────┐</span><span class="w">  </span><span class="err">┌───────────────┐</span><span class="w">  </span><span class="err">┌───────────────┐</span>
+<span class="err">│</span><span class="w">  </span><span class="n">SPDPEvent</span><span class="w">    </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">SEDPEvent</span><span class="w">    </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">HeartbeatEvent</span><span class="err">│</span>
+<span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="err">发现宣告</span><span class="p">)</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="err">端点发现</span><span class="p">)</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="err">心跳检测</span><span class="p">)</span><span class="w">     </span><span class="err">│</span>
+<span class="err">└───────────────┘</span><span class="w">  </span><span class="err">└───────────────┘</span><span class="w">  </span><span class="err">└───────────────┘</span>
+<span class="w">        </span><span class="err">│</span><span class="w">                   </span><span class="err">│</span><span class="w">                   </span><span class="err">│</span>
+<span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">┌──────────────┐</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">┌──────────────┐</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">┌──────────────┐</span>
+<span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">NACK</span><span class="w">       </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">DeadlineMissed</span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">LivelinessLost</span><span class="err">│</span>
+<span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Response</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">Event</span><span class="w">      </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">Event</span><span class="w">      </span><span class="err">│</span>
+<span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Event</span><span class="w">       </span><span class="err">│</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">└──────────────┘</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">└──────────────┘</span>
+<span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">└──────────────┘</span><span class="w"> </span><span class="err">│</span><span class="w">                   </span><span class="err">│</span>
+<span class="w">        </span><span class="err">│</span><span class="w">                   </span><span class="err">│</span><span class="w">                   </span><span class="err">│</span>
+<span class="w">        </span><span class="err">└───────────────────┴───────────────────┘</span>
+<span class="w">                            </span><span class="err">│</span>
+<span class="w">                            </span><span class="err">▼</span>
+<span class="err">┌──────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                   </span><span class="n">TimedEventImpl</span><span class="w"> </span><span class="p">(</span><span class="err">实现类</span><span class="p">)</span><span class="w">                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="err">管理定时器状态</span><span class="w"> </span><span class="p">(</span><span class="n">PENDING</span><span class="p">,</span><span class="w"> </span><span class="n">RUNNING</span><span class="p">,</span><span class="w"> </span><span class="n">CANCELLED</span><span class="p">)</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="err">与</span><span class="w"> </span><span class="n">EventLoop</span><span class="w"> </span><span class="err">交互</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="err">支持一次性</span><span class="o">/</span><span class="err">周期性定时器</span><span class="w">                                    </span><span class="err">│</span>
+<span class="err">└──────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="22">2.2 核心类详解</h3>
+<h4 id="221-timedevent-">2.2.1 TimedEvent - 定时事件基类</h4>
+<p><strong>头文件</strong>: <code>include/fastdds/rtps/resources/TimedEvent.h</code></p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 定时器状态枚举</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">State</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">INACTIVE</span><span class="p">,</span><span class="w">    </span><span class="c1">// 未激活</span>
+<span class="w">        </span><span class="n">PENDING</span><span class="p">,</span><span class="w">     </span><span class="c1">// 等待执行</span>
+<span class="w">        </span><span class="n">RUNNING</span><span class="p">,</span><span class="w">     </span><span class="c1">// 正在执行回调</span>
+<span class="w">        </span><span class="n">CANCELLED</span><span class="w">    </span><span class="c1">// 已取消</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// 事件代码（传递给回调的原因）</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">EventCode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SUCCESS</span><span class="p">,</span><span class="w">     </span><span class="c1">// 正常到期</span>
+<span class="w">        </span><span class="n">CANCELLED</span><span class="p">,</span><span class="w">   </span><span class="c1">// 被取消</span>
+<span class="w">        </span><span class="n">ERROR</span><span class="w">        </span><span class="c1">// 错误</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// 构造函数</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="p">(</span>
+<span class="w">        </span><span class="n">asio</span><span class="o">::</span><span class="n">io_service</span><span class="o">&amp;</span><span class="w"> </span><span class="n">io_service</span><span class="p">,</span><span class="w">           </span><span class="c1">// ASIO IO 服务</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">callback</span><span class="p">,</span><span class="w">         </span><span class="c1">// 回调函数</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="w"> </span><span class="n">interval</span><span class="p">,</span><span class="w">     </span><span class="c1">// 定时间隔</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">auto_restart</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="w">               </span><span class="c1">// 是否周期性重复</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 启动定时器</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">restart_timer</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 取消定时器</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">cancel_timer</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 更新间隔</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">update_interval</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="w"> </span><span class="n">interval</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 获取状态</span>
+<span class="w">    </span><span class="n">State</span><span class="w"> </span><span class="nf">get_state</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">TimedEventImpl</span><span class="o">&gt;</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">  </span><span class="c1">// Pimpl 实现</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="222-timedeventimpl-">2.2.2 TimedEventImpl - 实现细节</h4>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">TimedEventImpl</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 核心属性</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">time_point</span><span class="w"> </span><span class="n">next_trigger_time_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 下次触发时间</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="w"> </span><span class="n">interval_</span><span class="p">;</span><span class="w">                       </span><span class="c1">// 定时间隔</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">auto_restart_</span><span class="p">;</span><span class="w">                                         </span><span class="c1">// 周期性标志</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="n">State</span><span class="o">&gt;</span><span class="w"> </span><span class="n">state_</span><span class="p">;</span><span class="w">                                  </span><span class="c1">// 当前状态</span>
+
+<span class="w">    </span><span class="c1">// ASIO 定时器对象</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">steady_timer</span><span class="w"> </span><span class="n">timer_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 回调函数</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="kt">void</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">callback_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 互斥锁（保护状态变更）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 核心方法</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">trigger</span><span class="p">();</span><span class="w">              </span><span class="c1">// 触发回调</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">reschedule</span><span class="p">();</span><span class="w">           </span><span class="c1">// 重新调度（周期性）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">cancel</span><span class="p">();</span><span class="w">               </span><span class="c1">// 取消</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="223-resourceevent-">2.2.3 ResourceEvent - 资源事件管理器</h4>
+<p><strong>头文件</strong>: <code>include/fastdds/rtps/resources/ResourceEvent.h</code></p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ResourceEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 单例模式（每个 DomainParticipant 一个实例）</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">ResourceEvent</span><span class="o">&amp;</span><span class="w"> </span><span class="n">get_instance</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 初始化事件循环</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">init_thread</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 停止事件循环</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">stop_thread</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 注册定时事件</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">register_timer</span><span class="p">(</span><span class="n">TimedEventImpl</span><span class="o">*</span><span class="w"> </span><span class="n">event</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 注销定时事件</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">unregister_timer</span><span class="p">(</span><span class="n">TimedEventImpl</span><span class="o">*</span><span class="w"> </span><span class="n">event</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 通知有新事件（唤醒事件循环）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">notify</span><span class="p">();</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// ASIO IO 上下文</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">io_context</span><span class="w"> </span><span class="n">io_context_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 工作守卫（保持 io_context 运行）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">asio</span><span class="o">::</span><span class="n">io_context</span><span class="o">::</span><span class="n">work</span><span class="o">&gt;</span><span class="w"> </span><span class="n">work_guard_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 事件循环线程</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="w"> </span><span class="n">event_thread_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 定时器集合（按截止时间排序）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">set</span><span class="o">&lt;</span><span class="n">TimedEventImpl</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="n">TimerComparator</span><span class="o">&gt;</span><span class="w"> </span><span class="n">timers_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 互斥锁</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 条件变量（用于唤醒）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">condition_variable</span><span class="w"> </span><span class="n">cv_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_4">三、定时器类型与应用场景</h2>
+<h3 id="31-dds">3.1 DDS 层定时器</h3>
+<h4 id="311-deadline-missed">3.1.1 Deadline Missed 检测</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景：检测数据是否在约定时间内更新</span>
+<span class="n">DataReaderQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 1秒截止期限</span>
+
+<span class="c1">// 内部定时器每 1 秒检查一次</span>
+<span class="c1">// 如果 1 秒内未收到新数据 → 触发 on_requested_deadline_missed()</span>
+</code></pre></div>
+<p><strong>定时器配置</strong>：<br/>
+- <strong>周期</strong>: <code>deadline.period</code><br/>
+- <strong>回调</strong>: <code>DeadlineMissedListener::on_requested_deadline_missed()</code><br/>
+- <strong>精度</strong>: 毫秒级</p>
+<h4 id="312-liveliness">3.1.2 Liveliness 检测</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景：检测 Writer 是否存活</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">liveliness</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">AUTOMATIC_LIVELINESS_QOS</span><span class="p">;</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">liveliness</span><span class="p">().</span><span class="n">lease_duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 10秒租约</span>
+
+<span class="c1">// 内部定时器：</span>
+<span class="c1">// - Writer 端：每 10 秒发送自动心跳</span>
+<span class="c1">// - Reader 端：每 10 秒检查是否收到心跳</span>
+</code></pre></div>
+<p><strong>定时器配置</strong>：<br/>
+- <strong>周期</strong>: <code>liveliness.lease_duration</code><br/>
+- <strong>回调</strong>: <code>LivelinessChangedListener::on_liveliness_changed()</code></p>
+<h4 id="313-lifespan">3.1.3 Lifespan 过期</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景：数据有效期管理</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">lifespan</span><span class="p">().</span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 数据5秒后过期</span>
+
+<span class="c1">// 内部定时器：样本写入时启动，5秒后标记为过期</span>
+</code></pre></div>
+<h3 id="32-rtps">3.2 RTPS 层定时器</h3>
+<h4 id="321-spdp">3.2.1 SPDP 发现宣告定时器</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码位置: src/cpp/rtps/builtin/discovery/participant/PDPSimple.cpp</span>
+
+<span class="c1">// 配置参数</span>
+<span class="k">const</span><span class="w"> </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">SPDP_RESEND_PERIOD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">      </span><span class="c1">// 每 3 秒重新宣告</span>
+<span class="k">const</span><span class="w"> </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">SPDP_LEASE_DURATION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">    </span><span class="c1">// 20 秒租约</span>
+
+<span class="c1">// 定时器行为</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SPDPResendEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 发送 SPDP 宣告 (DATA(p) 消息)</span>
+<span class="w">        </span><span class="n">send_participant_discovery_data</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 2. 重新调度（周期性）</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">auto_restart_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">reschedule</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>关键参数</strong>：<br/>
+| 参数 | 默认值 | 说明 |<br/>
+|------|-------|------|<br/>
+| <code>resend_period</code> | 3s | 宣告间隔 |<br/>
+| <code>lease_duration</code> | 20s | 租约有效期 |</p>
+<h4 id="322-sedp">3.2.2 SEDP 端点发现定时器</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 与 SPDP 类似，但针对 DataWriter/DataReader</span>
+<span class="k">const</span><span class="w"> </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">SEDP_RESEND_PERIOD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SEDPResendEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 宣告本地 DataWriter/DataReader</span>
+<span class="w">        </span><span class="n">announce_local_endpoints</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 2. 检查匹配状态</span>
+<span class="w">        </span><span class="n">check_endpoint_matches</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="323-heartbeat">3.2.3 Heartbeat 定时器</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 源码位置: src/cpp/rtps/writer/StatefulWriter.cpp</span>
+
+<span class="c1">// 配置参数</span>
+<span class="k">const</span><span class="w"> </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">HEARTBEAT_PERIOD</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">};</span><span class="w">  </span><span class="c1">// 每 10 秒发送心跳</span>
+<span class="k">const</span><span class="w"> </span><span class="n">Duration_t</span><span class="w"> </span><span class="n">NACK_RESP_DELAY</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">};</span><span class="w">  </span><span class="c1">// 100ms NACK 响应延迟</span>
+
+<span class="c1">// 两种 Heartbeat 定时器</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HeartbeatEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Mode</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">PERIODIC</span><span class="p">,</span><span class="w">     </span><span class="c1">// 周期性心跳（保活+触发确认）</span>
+<span class="w">        </span><span class="n">ON_DEMAND</span><span class="w">     </span><span class="c1">// 按需心跳（发送数据后立即发送）</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 构建 HEARTBEAT 子消息</span>
+<span class="w">        </span><span class="n">HeartbeatSubmessage</span><span class="w"> </span><span class="n">hb</span><span class="p">;</span>
+<span class="w">        </span><span class="n">hb</span><span class="p">.</span><span class="n">first_sn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">first_unacked_seq_</span><span class="p">;</span>
+<span class="w">        </span><span class="n">hb</span><span class="p">.</span><span class="n">last_sn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">last_sent_seq_</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 发送给所有匹配的 Reader</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">send_heartbeat_to_reader</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="n">hb</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h4 id="324-nack">3.2.4 NACK 响应延迟定时器</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 目的：批量处理 NACK，减少重传次数</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">NackResponseDelay</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 收集期间收到的所有 NACK</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">SequenceNumber_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">missing_seqs</span><span class="p">;</span>
+<span class="w">        </span><span class="n">collect_nack_requests</span><span class="p">(</span><span class="n">missing_seqs</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 批量重传</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">missing_seqs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">find_change_by_seq</span><span class="p">(</span><span class="n">seq</span><span class="p">);</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">resend_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 配置：100ms 延迟（FASTDDS 默认）</span>
+<span class="c1">// 优势：多个 Reader 同时丢包时，合并重传</span>
+</code></pre></div>
+<h4 id="325">3.2.5 可靠重传定时器</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 目的：未收到 ACK 时自动重传</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ResendDataEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 检查每个 Reader 的未确认列表</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">outstanding_changes_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">find_change</span><span class="p">(</span><span class="n">seq</span><span class="p">);</span>
+
+<span class="w">                </span><span class="c1">// 检查是否超时（指数退避）</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">send_time</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">calculate_backoff</span><span class="p">(</span><span class="n">retry_count_</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">resend_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">                    </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">retry_count_</span><span class="o">++</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 指数退避算法</span>
+<span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="w"> </span><span class="nf">calculate_backoff</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">retry_count</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="p">(</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">retry_count</span><span class="p">));</span><span class="w">  </span><span class="c1">// 100ms, 200ms, 400ms...</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="_5">四、源码分析</h2>
+<h3 id="41">4.1 定时器调度流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                      </span><span class="nx">定时器调度流程</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+
+<span class="mi">1</span><span class="p">.</span><span class="w"> </span><span class="nx">用户创建定时器</span>
+<span class="w">   </span><span class="err">├─</span><span class="w"> </span><span class="nx">TimedEvent</span><span class="w"> </span><span class="nx">event</span><span class="p">(</span><span class="nx">io_service</span><span class="p">,</span><span class="w"> </span><span class="nx">callback</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="nx">ms</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="mi">2</span><span class="p">.</span><span class="w"> </span><span class="nx">注册到</span><span class="w"> </span><span class="nx">ResourceEvent</span>
+<span class="w">   </span><span class="err">├─</span><span class="w"> </span><span class="nx">ResourceEvent</span><span class="o">::</span><span class="nx">register_timer</span><span class="p">(</span><span class="kd">impl</span><span class="p">);</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">├─</span><span class="w"> </span><span class="nx">插入</span><span class="w"> </span><span class="nx">timers_</span><span class="w"> </span><span class="nx">集合</span><span class="err">（</span><span class="nx">按截止时间排序</span><span class="err">）</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">└─</span><span class="w"> </span><span class="nx">notify</span><span class="p">()</span><span class="w"> </span><span class="nx">唤醒事件循环</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="mi">3</span><span class="p">.</span><span class="w"> </span><span class="nx">事件循环处理</span>
+<span class="w">   </span><span class="err">├─</span><span class="w"> </span><span class="nx">ResourceEvent</span><span class="o">::</span><span class="nx">event_loop</span><span class="p">()</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">├─</span><span class="w"> </span><span class="nx">获取最近到期的定时器</span><span class="err">（</span><span class="nx">timers_</span><span class="p">.</span><span class="nx">begin</span><span class="p">()</span><span class="err">）</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">├─</span><span class="w"> </span><span class="nx">计算等待时间</span><span class="err">：</span><span class="nx">wait_time</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">next_deadline</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">now</span><span class="p">()</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">├─</span><span class="w"> </span><span class="nx">cv_</span><span class="p">.</span><span class="nx">wait_for</span><span class="p">(</span><span class="nx">wait_time</span><span class="p">)</span><span class="w"> </span><span class="nx">或处理到期事件</span>
+<span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">└─</span><span class="w"> </span><span class="nx">触发回调</span><span class="err">：</span><span class="kd">impl</span><span class="o">-&gt;</span><span class="nx">trigger</span><span class="p">()</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="mi">4</span><span class="p">.</span><span class="w"> </span><span class="nx">回调执行</span>
+<span class="w">   </span><span class="err">├─</span><span class="w"> </span><span class="nx">用户回调函数执行</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span>
+<span class="mi">5</span><span class="p">.</span><span class="w"> </span><span class="nx">重新调度</span><span class="err">（</span><span class="nx">周期性</span><span class="err">）</span>
+<span class="w">   </span><span class="err">├─</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">auto_restart_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">   </span><span class="err">│</span><span class="w">      </span><span class="kd">impl</span><span class="o">-&gt;</span><span class="nx">next_trigger_time_</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">now</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">interval_</span><span class="p">;</span>
+<span class="w">   </span><span class="err">│</span><span class="w">      </span><span class="nx">timers_</span><span class="p">.</span><span class="nx">insert</span><span class="p">(</span><span class="kd">impl</span><span class="p">);</span>
+<span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="p">}</span>
+</code></pre></div>
+<h3 id="42">4.2 关键源码片段</h3>
+<h4 id="421">4.2.1 事件循环核心</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/resources/ResourceEvent.cpp</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">ResourceEvent::event_loop</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">running_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">unique_lock</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock</span><span class="p">(</span><span class="n">mutex_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">timers_</span><span class="p">.</span><span class="n">empty</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 没有定时器，等待通知</span>
+<span class="w">            </span><span class="n">cv_</span><span class="p">.</span><span class="n">wait</span><span class="p">(</span><span class="n">lock</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 获取最近到期的定时器</span>
+<span class="w">            </span><span class="k">auto</span><span class="o">*</span><span class="w"> </span><span class="n">next_timer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">*</span><span class="n">timers_</span><span class="p">.</span><span class="n">begin</span><span class="p">();</span>
+<span class="w">            </span><span class="k">auto</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">next_trigger_time_</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">now</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 定时器到期，移除并触发</span>
+<span class="w">                </span><span class="n">timers_</span><span class="p">.</span><span class="n">erase</span><span class="p">(</span><span class="n">timers_</span><span class="p">.</span><span class="n">begin</span><span class="p">());</span>
+<span class="w">                </span><span class="n">lock</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span>
+
+<span class="w">                </span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">state_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TimedEvent</span><span class="o">::</span><span class="n">State</span><span class="o">::</span><span class="n">RUNNING</span><span class="p">;</span>
+<span class="w">                </span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">trigger</span><span class="p">();</span>
+
+<span class="w">                </span><span class="c1">// 如果是周期性，重新调度</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">auto_restart_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">next_trigger_time_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">interval_</span><span class="p">;</span>
+<span class="w">                    </span><span class="n">lock</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">                    </span><span class="n">timers_</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">next_timer</span><span class="p">);</span>
+<span class="w">                    </span><span class="n">lock</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 等待到下一个定时器到期</span>
+<span class="w">                </span><span class="n">cv_</span><span class="p">.</span><span class="n">wait_until</span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="n">next_timer</span><span class="o">-&gt;</span><span class="n">next_trigger_time_</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="422-asio">4.2.2 ASIO 定时器实现</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 使用 ASIO 的 steady_timer 实现高精度定时</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TimedEventImpl</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">start_timer</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">timer_</span><span class="p">.</span><span class="n">expires_after</span><span class="p">(</span><span class="n">interval_</span><span class="p">);</span>
+<span class="w">        </span><span class="n">timer_</span><span class="p">.</span><span class="n">async_wait</span><span class="p">([</span><span class="k">this</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">asio</span><span class="o">::</span><span class="n">error_code</span><span class="o">&amp;</span><span class="w"> </span><span class="n">ec</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">ec</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">state_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">State</span><span class="o">::</span><span class="n">PENDING</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">trigger</span><span class="p">();</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">auto_restart_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">reschedule</span><span class="p">();</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">cancel</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock</span><span class="p">(</span><span class="n">mutex_</span><span class="p">);</span>
+<span class="w">        </span><span class="n">state_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">State</span><span class="o">::</span><span class="n">CANCELLED</span><span class="p">;</span>
+<span class="w">        </span><span class="n">timer_</span><span class="p">.</span><span class="n">cancel</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">steady_timer</span><span class="w"> </span><span class="n">timer_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="43">4.3 定时器精度分析</h3>
+<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────────────┐
+│                      定时器精度因素                           │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. 系统时钟精度                                             │
+│     - std::chrono::steady_clock: 纳秒级精度（现代系统）       │
+│     - 实际精度取决于 OS 调度（Linux ~1ms, Windows ~15ms）     │
+│                                                              │
+│  2. 线程调度延迟                                             │
+│     - 事件循环线程可能被其他线程抢占                          │
+│     - 使用高优先级线程可减少延迟                              │
+│                                                              │
+│  3. 回调执行时间                                             │
+│     - 如果回调执行时间长，会延迟后续定时器                    │
+│     - 建议：回调中只做轻量级操作，重活另起线程                │
+│                                                              │
+│  4. ASIO 定时器开销                                          │
+│     - epoll/kqueue/IOCP 系统调用开销                          │
+│     - 通常 &lt; 1ms                                              │
+│                                                              │
+│  典型精度：                                                   │
+│  - Linux (实时内核): ~100μs                                  │
+│  - Linux (普通内核): ~1-10ms                                 │
+│  - Windows: ~15ms                                            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<h2 id="_6">五、线程模型</h2>
+<h3 id="51">5.1 定时器线程配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 默认配置：单线程事件循环</span>
+<span class="c1">// 可通过以下方式优化：</span>
+
+<span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="c1">// 1. 启用异步发布（使用独立线程发送）</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS_PUBLISH_MODE</span><span class="p">;</span>
+
+<span class="c1">// 2. 配置接收线程数</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">listen_socket_buffer_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65536</span><span class="p">;</span>
+
+<span class="c1">// 3. 设置线程优先级（平台相关）</span>
+<span class="c1">// Linux: 使用 realtime 优先级</span>
+<span class="c1">// Windows: 使用 THREAD_PRIORITY_TIME_CRITICAL</span>
+</code></pre></div>
+<h3 id="52">5.2 线程安全性</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// TimedEvent 是线程安全的</span>
+
+<span class="c1">// 场景 1: 从回调中重启定时器（安全）</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MyEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 做一些工作...</span>
+
+<span class="w">        </span><span class="c1">// 安全：重启自己</span>
+<span class="w">        </span><span class="n">restart_timer</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 场景 2: 从其他线程取消定时器（安全）</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">other_thread_function</span><span class="p">(</span><span class="n">TimedEvent</span><span class="o">&amp;</span><span class="w"> </span><span class="n">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 安全：从任意线程取消</span>
+<span class="w">    </span><span class="n">event</span><span class="p">.</span><span class="n">cancel_timer</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="c1">// 实现机制：内部使用 mutex_ 保护状态变更</span>
+</code></pre></div>
+<h3 id="53">5.3 避免回调阻塞</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ❌ 错误：回调中执行耗时操作</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BadEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 阻塞事件循环！</span>
+<span class="w">        </span><span class="n">heavy_computation</span><span class="p">();</span><span class="w">  </span><span class="c1">// 耗时 500ms</span>
+<span class="w">        </span><span class="n">write_to_disk</span><span class="p">();</span><span class="w">      </span><span class="c1">// 耗时 200ms</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// ✅ 正确：异步处理</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GoodEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 提交到线程池异步执行</span>
+<span class="w">        </span><span class="n">thread_pool_</span><span class="p">.</span><span class="n">submit</span><span class="p">([]()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">heavy_computation</span><span class="p">();</span>
+<span class="w">            </span><span class="n">write_to_disk</span><span class="p">();</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_7">六、实战配置</h2>
+<h3 id="61">6.1 自定义定时器示例</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/resources/TimedEvent.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/resources/ResourceEvent.h&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">rtps</span><span class="p">;</span>
+
+<span class="c1">// 自定义定时器：定期监控网络质量</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">NetworkMonitorEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">NetworkMonitorEvent</span><span class="p">(</span><span class="n">asio</span><span class="o">::</span><span class="n">io_service</span><span class="o">&amp;</span><span class="w"> </span><span class="n">io</span><span class="p">)</span>
+<span class="w">        </span><span class="o">:</span><span class="w"> </span><span class="n">TimedEvent</span><span class="p">(</span><span class="n">io</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                     </span><span class="p">[</span><span class="k">this</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">check_network_quality</span><span class="p">();</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                     </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="w">  </span><span class="c1">// 每 5 秒检查</span>
+<span class="w">                     </span><span class="nb">true</span><span class="p">)</span><span class="w">                     </span><span class="c1">// 周期性</span>
+<span class="w">    </span><span class="p">{}</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">check_network_quality</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 统计丢包率</span>
+<span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">loss_rate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_packet_loss</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 2. 统计延迟</span>
+<span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">avg_latency</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_average_latency</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 3. 如果质量差，调整 QoS</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">loss_rate</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.05</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// 丢包率 &gt; 5%</span>
+<span class="w">            </span><span class="n">adjust_reliability_qos</span><span class="p">(</span><span class="n">HIGH_RELIABILITY</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Network: loss="</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">loss_rate</span><span class="w"> </span>
+<span class="w">                  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">", latency="</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">avg_latency</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"ms"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 使用</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">io_context</span><span class="w"> </span><span class="n">io_context</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">NetworkMonitorEvent</span><span class="w"> </span><span class="n">monitor</span><span class="p">(</span><span class="n">io_context</span><span class="p">);</span>
+<span class="w">    </span><span class="n">monitor</span><span class="p">.</span><span class="n">restart_timer</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 启动事件循环</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="w"> </span><span class="n">event_thread</span><span class="p">([</span><span class="o">&amp;</span><span class="n">io_context</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">io_context</span><span class="p">.</span><span class="n">run</span><span class="p">();</span>
+<span class="w">    </span><span class="p">});</span>
+
+<span class="w">    </span><span class="n">event_thread</span><span class="p">.</span><span class="n">join</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="62">6.2 动态调整定时器间隔</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AdaptiveHeartbeatEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">TimedEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">event</span><span class="p">(</span><span class="n">EventCode</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">send_heartbeat</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 根据网络状况动态调整心跳间隔</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">network_congested_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 网络拥塞：降低心跳频率，减少开销</span>
+<span class="w">            </span><span class="n">update_interval</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">30</span><span class="p">));</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 网络良好：提高心跳频率，更快检测故障</span>
+<span class="w">            </span><span class="n">update_interval</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">3</span><span class="p">));</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 重新启动（新间隔）</span>
+<span class="w">        </span><span class="n">restart_timer</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="63-qos">6.3 定时器与 QoS 联动</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置 Deadline 监控</span>
+<span class="n">DataReaderQos</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">;</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 1秒</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DeadlineListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataReaderListener</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_requested_deadline_missed</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">RequestedDeadlineMissedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Deadline missed! Total: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 启动故障恢复定时器</span>
+<span class="w">        </span><span class="n">recovery_timer_</span><span class="p">.</span><span class="n">restart_timer</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="w"> </span><span class="n">recovery_timer_</span><span class="p">{</span><span class="n">io_service_</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="k">this</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">attempt_recovery</span><span class="p">();</span>
+<span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="w"> </span><span class="nb">false</span><span class="p">};</span><span class="w">  </span><span class="c1">// 一次性</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_8">七、性能优化与常见问题</h2>
+<h3 id="71">7.1 定时器性能优化</h3>
+<table>
+<thead>
+<tr>
+<th>优化项</th>
+<th>建议</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>批量定时器</strong></td>
+<td>合并多个短周期定时器</td>
+<td>减少线程唤醒次数</td>
+</tr>
+<tr>
+<td><strong>适当周期</strong></td>
+<td>避免 &lt; 10ms 的高频定时器</td>
+<td>降低 CPU 占用</td>
+</tr>
+<tr>
+<td><strong>回调精简</strong></td>
+<td>只做轻量级操作，重活异步化</td>
+<td>避免阻塞事件循环</td>
+</tr>
+<tr>
+<td><strong>线程优先级</strong></td>
+<td>使用实时优先级（如需要）</td>
+<td>降低调度延迟</td>
+</tr>
+<tr>
+<td><strong>定时器复用</strong></td>
+<td>避免频繁创建/销毁</td>
+<td>减少内存分配</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 常见问题排查</h3>
+<table>
+<thead>
+<tr>
+<th>问题现象</th>
+<th>可能原因</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>定时器不触发</strong></td>
+<td>未调用 <code>restart_timer()</code></td>
+<td>检查初始化代码</td>
+</tr>
+<tr>
+<td><strong>触发延迟大</strong></td>
+<td>回调阻塞事件循环</td>
+<td>异步化耗时操作</td>
+</tr>
+<tr>
+<td><strong>CPU 占用高</strong></td>
+<td>定时器周期过短</td>
+<td>增大间隔或使用批量处理</td>
+</tr>
+<tr>
+<td><strong>内存泄漏</strong></td>
+<td>未取消周期性定时器</td>
+<td>析构前调用 <code>cancel_timer()</code></td>
+</tr>
+<tr>
+<td><strong>精度不足</strong></td>
+<td>系统负载高</td>
+<td>使用实时内核或专用线程</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73">7.3 调试技巧</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 启用定时器调试日志</span>
+<span class="cp">#define TIMED_EVENT_DEBUG 1</span>
+
+<span class="c1">// 打印定时器状态</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">print_timer_status</span><span class="p">(</span><span class="n">TimedEvent</span><span class="o">&amp;</span><span class="w"> </span><span class="n">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">event</span><span class="p">.</span><span class="n">get_state</span><span class="p">();</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">state_str</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="s">"INACTIVE"</span><span class="p">,</span><span class="w"> </span><span class="s">"PENDING"</span><span class="p">,</span><span class="w"> </span><span class="s">"RUNNING"</span><span class="p">,</span><span class="w"> </span><span class="s">"CANCELLED"</span><span class="p">};</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Timer state: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">state_str</span><span class="p">[</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">state</span><span class="p">)]</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 监控事件循环</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">InstrumentedResourceEvent</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">ResourceEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">event_loop</span><span class="p">()</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+<span class="w">        </span><span class="n">ResourceEvent</span><span class="o">::</span><span class="n">event_loop</span><span class="p">();</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">duration_cast</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="o">&gt;</span><span class="p">(</span><span class="n">end</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">);</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Event loop iteration: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">duration</span><span class="p">.</span><span class="n">count</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"ms"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_9">八、总结</h2>
+<h3 id="_10">核心要点</h3>
+<ol>
+<li>
+<p><strong>分层定时器</strong>：DDS 层（Deadline/Liveliness）+ RTPS 层（SPDP/SEDP/Heartbeat）</p>
+</li>
+<li>
+<p><strong>实现机制</strong>：基于 ASIO 的 <code>steady_timer</code> + 单线程事件循环 + 最小堆调度</p>
+</li>
+<li>
+<p><strong>精度</strong>：毫秒级（Linux ~1ms，Windows ~15ms），支持微秒级配置</p>
+</li>
+<li>
+<p><strong>关键定时器</strong>：<br/>
+   - SPDP: 3s 宣告周期，20s 租约<br/>
+   - Heartbeat: 10s 周期 + 100ms NACK 延迟<br/>
+   - 可靠重传：指数退避（100ms → 200ms → 400ms…）</p>
+</li>
+<li>
+<p><strong>最佳实践</strong>：<br/>
+   - 回调必须轻量，避免阻塞<br/>
+   - 周期性定时器记得取消<br/>
+   - 根据场景调整间隔（网络差时降低频率）</p>
+</li>
+</ol>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>最后更新: 2026-03-13</em><br/>
+<em>关联笔记: 03-Discovery-Mechanism.md, 09-Advanced-Topics.md</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

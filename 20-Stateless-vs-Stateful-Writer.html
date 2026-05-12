@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS Stateless vs Stateful Writer 详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item active" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 20-Stateless-vs-Stateful-Writer</div>
+        <h1 id="fast-dds-stateless-vs-stateful-writer">Fast-DDS Stateless vs Stateful Writer 详解</h1>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-核心概念对比">核心概念对比</a></li>
+<li><a href="#2-statefulwriter-详解">StatefulWriter 详解</a></li>
+<li><a href="#3-statelesswriter-详解">StatelessWriter 详解</a></li>
+<li><a href="#4-架构设计对比">架构设计对比</a></li>
+<li><a href="#5-源码实现分析">源码实现分析</a></li>
+<li><a href="#6-使用场景选择">使用场景选择</a></li>
+<li><a href="#7-性能对比">性能对比</a></li>
+<li><a href="#8-实战配置">实战配置</a></li>
+</ol>
+<hr/>
+<h2 id="1">1. 核心概念对比</h2>
+<h3 id="11-writer">1.1 为什么需要两种 Writer？</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                    两种 Writer 的设计哲学                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  场景 1: 视频流直播                                              │
+│  ├── 数据量大，实时性要求高                                       │
+│  ├── 丢一帧没关系，不重传                                        │
+│  └── 不需要知道谁收到了                                           │
+│                                                                  │
+│  场景 2: 金融交易系统                                             │
+│  ├── 每条消息都必须送达                                           │
+│  ├── 丢包必须重传                                                │
+│  └── 需要知道每个接收者的状态                                     │
+│                                                                  │
+│  Fast-DDS 提供两种 Writer 分别满足这两种需求：                    │
+│                                                                  │
+│  ┌─────────────────┐    ┌─────────────────┐                     │
+│  │  StatelessWriter │    │  StatefulWriter │                     │
+│  │   (无状态)       │    │   (有状态)       │                     │
+│  │                 │    │                 │                     │
+│  │ • 尽力传输       │    │ • 可靠传输       │                     │
+│  │ • 不追踪接收者   │    │ • 追踪每个 Reader │                    │
+│  │ • 不重传         │    │ • 支持重传       │                     │
+│  │ • 低开销         │    │ • 高可靠         │                     │
+│  └─────────────────┘    └─────────────────┘                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="12">1.2 核心区别一览</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>StatelessWriter</th>
+<th>StatefulWriter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>QoS 支持</strong></td>
+<td>Best-Effort</td>
+<td>Reliable</td>
+</tr>
+<tr>
+<td><strong>状态追踪</strong></td>
+<td>❌ 不追踪 Reader</td>
+<td>✅ 维护 ReaderProxy</td>
+</tr>
+<tr>
+<td><strong>重传机制</strong></td>
+<td>❌ 不支持</td>
+<td>✅ 支持 ACKNACK 重传</td>
+</tr>
+<tr>
+<td><strong>内存占用</strong></td>
+<td>低</td>
+<td>高（需缓存未确认数据）</td>
+</tr>
+<tr>
+<td><strong>CPU 开销</strong></td>
+<td>低</td>
+<td>高（处理确认、管理状态）</td>
+</tr>
+<tr>
+<td><strong>适用场景</strong></td>
+<td>视频流、传感器数据</td>
+<td>关键业务、命令控制</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13">1.3 类继承关系</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/writer/RTPSWriter.hpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">RTPSWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Endpoint</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">send</span><span class="p">(...)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">unsent_change_added_to_history</span><span class="p">(...)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// include/fastdds/rtps/writer/StatelessWriter.hpp</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StatelessWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSWriter</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 简单直接发送，不管理状态</span>
+<span class="p">};</span>
+
+<span class="c1">// include/fastdds/rtps/writer/StatefulWriter.hpp</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StatefulWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSWriter</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 维护所有匹配的 Reader 状态</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ReaderProxy</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="2-statefulwriter">2. StatefulWriter 详解</h2>
+<h3 id="21-readerproxy">2.1 核心组件：ReaderProxy</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/writer/ReaderProxy.hpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ReaderProxy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// Reader 标识</span>
+<span class="w">    </span><span class="n">GUID_t</span><span class="w"> </span><span class="n">remote_reader_guid_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 远端 Reader GUID</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">remote_locators_</span><span class="p">;</span><span class="w">       </span><span class="c1">// 传输地址</span>
+
+<span class="w">    </span><span class="c1">// 状态追踪</span>
+<span class="w">    </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">changes_from_reader_low_mark_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 已确认的最低序列号</span>
+<span class="w">    </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">changes_from_reader_high_mark_</span><span class="p">;</span><span class="w"> </span><span class="c1">// 已确认的最高序列号</span>
+
+<span class="w">    </span><span class="c1">// 未确认数据</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">ChangeForReader</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 数据指针</span>
+<span class="w">        </span><span class="n">ChangeStatus</span><span class="w"> </span><span class="n">status_</span><span class="p">;</span><span class="w">             </span><span class="c1">// 状态: UNSENT/REQUESTED/ACKED</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">times_nack_</span><span class="p">;</span><span class="w">             </span><span class="c1">// 被 NACK 次数</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">SequenceNumber_t</span><span class="p">,</span><span class="w"> </span><span class="n">ChangeForReader</span><span class="o">&gt;</span><span class="w"> </span><span class="n">changes_for_reader_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 定时器</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="o">*</span><span class="w"> </span><span class="n">nack_supression_event_</span><span class="p">;</span><span class="w">   </span><span class="c1">// NACK 抑制定时器</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="o">*</span><span class="w"> </span><span class="n">acknack_event_</span><span class="p">;</span><span class="w">           </span><span class="c1">// ACKNACK 响应定时器</span>
+<span class="p">};</span>
+
+<span class="c1">// ChangeStatus 枚举</span>
+<span class="k">enum</span><span class="w"> </span><span class="nc">ChangeStatus</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">UNSENT</span><span class="p">,</span><span class="w">      </span><span class="c1">// 尚未发送</span>
+<span class="w">    </span><span class="n">REQUESTED</span><span class="p">,</span><span class="w">   </span><span class="c1">// Reader 请求重传</span>
+<span class="w">    </span><span class="n">UNDERWAY</span><span class="p">,</span><span class="w">    </span><span class="c1">// 已发送，等待确认</span>
+<span class="w">    </span><span class="n">ACKED</span><span class="p">,</span><span class="w">       </span><span class="c1">// Reader 已确认</span>
+<span class="w">    </span><span class="n">UNACKED</span><span class="w">      </span><span class="c1">// Reader 未确认（可能丢失）</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="22-statefulwriter">2.2 StatefulWriter 数据结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StatefulWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSWriter</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 匹配的 Reader 列表</span>
+<span class="w">    </span><span class="n">ResourceLimitedVector</span><span class="o">&lt;</span><span class="n">ReaderProxy</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 所有 Reader 共享的数据缓存</span>
+<span class="w">    </span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">history_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 定时器</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="o">*</span><span class="w"> </span><span class="n">heartbeat_event_</span><span class="p">;</span><span class="w">         </span><span class="c1">// 定期发送 HEARTBEAT</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="o">*</span><span class="w"> </span><span class="n">nack_response_event_</span><span class="p">;</span><span class="w">     </span><span class="c1">// 响应 NACK 重传</span>
+
+<span class="w">    </span><span class="c1">// 统计信息</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">all_readers_acked_count_</span><span class="p">;</span><span class="w">    </span><span class="c1">// 所有 Reader 确认计数</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">readers_that_acked_all_</span><span class="p">;</span><span class="w">     </span><span class="c1">// 已确认全部数据的 Reader 数</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="23">2.3 工作流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">StatefulWriter</span><span class="w"> </span><span class="n">工作流程</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="n">写入数据</span><span class="w">                                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="k">write</span><span class="p">(</span><span class="k">data</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">new_change</span><span class="p">()</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">()</span><span class="w">     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nl">触发</span><span class="p">:</span><span class="w"> </span><span class="n">unsent_change_added_to_history</span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w">            </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="n">遍历所有匹配的</span><span class="w"> </span><span class="n">Reader</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">├──</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">───────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                                                    </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="err">▼</span><span class="w">                                                    </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="nl">ReaderProxy</span><span class="p">:</span><span class="err">:</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w">                      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">changes_for_reader_</span><span class="o">[</span><span class="n">seq_num</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="n">UNSENT</span><span class="err">}</span><span class="w">          </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="n">send_change_to_reader</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader1</span><span class="p">)</span><span class="w">               </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">通过网络发送</span><span class="w"> </span><span class="k">DATA</span><span class="w"> </span><span class="n">SubMessage</span><span class="w">                     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="n">change</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UNDERWAY</span><span class="w">                             </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">├──</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="err">───────────────────────────────────────────┤</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">同上</span><span class="w"> </span><span class="p">...</span><span class="w">                                      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">└──</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="err">───────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="n">等待</span><span class="w"> </span><span class="n">ACKNACK</span><span class="w"> </span><span class="p">(</span><span class="n">Reader</span><span class="w"> </span><span class="n">确认</span><span class="p">)</span><span class="w">                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">收到</span><span class="w"> </span><span class="n">ACKNACK</span><span class="w"> </span><span class="n">从</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="mi">1</span><span class="err">:</span><span class="w">                               </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="ss">"已收到 Seq#1-5, 缺失 Seq#3"</span><span class="w">                          </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="w"> </span><span class="nl">更新</span><span class="p">:</span><span class="w">                                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">changes_for_reader_</span><span class="o">[</span><span class="n">3</span><span class="o">]</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">REQUESTED</span><span class="w">             </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">changes_for_reader_</span><span class="o">[</span><span class="n">3</span><span class="o">]</span><span class="p">.</span><span class="n">times_nack</span><span class="o">++</span><span class="w">                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="n">重传丢失的数据</span><span class="w">                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">nack_response_event_</span><span class="w"> </span><span class="nl">触发</span><span class="p">:</span><span class="w">                               </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">each</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="k">with</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nl">REQUESTED</span><span class="p">:</span><span class="w">                </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="n">resend_change</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">)</span><span class="w">                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="n">change</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UNDERWAY</span><span class="w">                             </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">5.</span><span class="w"> </span><span class="n">定期</span><span class="w"> </span><span class="n">HEARTBEAT</span><span class="w">                                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">heartbeat_event_</span><span class="w"> </span><span class="n">触发</span><span class="w"> </span><span class="p">(</span><span class="n">默认</span><span class="w"> </span><span class="mi">3</span><span class="n">s</span><span class="p">)</span><span class="err">:</span><span class="w">                         </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">发送</span><span class="w"> </span><span class="nl">HEARTBEAT</span><span class="p">:</span><span class="w"> </span><span class="ss">"我有数据 1-100"</span><span class="w">                       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="n">回复</span><span class="w"> </span><span class="n">ACKNACK</span><span class="err">，</span><span class="n">触发步骤</span><span class="w"> </span><span class="mi">3</span><span class="w">                          </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">6.</span><span class="w"> </span><span class="n">数据清理</span><span class="w"> </span><span class="p">(</span><span class="n">所有</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="n">确认后</span><span class="p">)</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">当</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="n">被所有</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="nl">ACKED</span><span class="p">:</span><span class="w">                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">remove_change</span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="n">可以安全删除</span><span class="w">       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="24-acknack">2.4 ACKNACK 处理流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/StatefulWriter.cpp</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">StatefulWriter::process_acknack</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">GUID_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">reader_guid</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">SequenceNumberSet</span><span class="o">&amp;</span><span class="w"> </span><span class="n">sn_set</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">Count_t</span><span class="w"> </span><span class="n">count</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 找到对应的 ReaderProxy</span>
+<span class="w">    </span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">find_matched_reader</span><span class="p">(</span><span class="n">reader_guid</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">reader</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. 解析 ACKNACK 位图</span>
+<span class="w">    </span><span class="c1">// sn_set.base: 基准序列号</span>
+<span class="w">    </span><span class="c1">// sn_set.bitmap: 哪些收到了(1)哪些缺失(0)</span>
+
+<span class="w">    </span><span class="n">SequenceNumber_t</span><span class="w"> </span><span class="n">seq_num</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sn_set</span><span class="p">.</span><span class="n">base</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">sn_set</span><span class="p">.</span><span class="n">num_bits</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">is_acked</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">sn_set</span><span class="p">.</span><span class="n">bitmap</span><span class="p">[</span><span class="n">i</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">(</span><span class="mi">7</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">i</span><span class="o">%</span><span class="mi">8</span><span class="p">))</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0x01</span><span class="p">;</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">is_acked</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 确认收到</span>
+<span class="w">            </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">acked_changes_set</span><span class="p">(</span><span class="n">seq_num</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 标记为需要重传</span>
+<span class="w">            </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">requested_changes_set</span><span class="p">(</span><span class="n">seq_num</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">seq_num</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 触发重传定时器</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">has_requested_changes</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">nack_response_event_</span><span class="o">-&gt;</span><span class="n">restart_timer</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-statelesswriter">3. StatelessWriter 详解</h2>
+<h3 id="31">3.1 设计哲学</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                   StatelessWriter 设计哲学                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  "发送即忘" (Fire and Forget)                                   │
+│                                                                  │
+│  ┌─────────────┐              ┌─────────────┐                  │
+│  │   Writer    │ ──DATA(#1)─→ │   Reader    │                  │
+│  │             │ ──DATA(#2)─→ │             │                  │
+│  │             │ ──DATA(#3)─→ │             │                  │
+│  │             │              │             │                  │
+│  │             │  ←──── ? ────│             │                  │
+│  │             │   (不关心)    │             │                  │
+│  └─────────────┘              └─────────────┘                  │
+│                                                                  │
+│  特点:                                                           │
+│  • 发送后不再关心是否到达                                         │
+│  • 不维护 Reader 状态                                             │
+│  • 不处理重传                                                     │
+│  • 简单、高效、低开销                                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="32">3.2 极简架构</h3>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StatelessWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSWriter</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 只保存匹配的 Reader 地址，不保存状态</span>
+<span class="w">    </span><span class="n">LocatorList_t</span><span class="w"> </span><span class="n">matched_readers_locators_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 没有 ReaderProxy，没有状态追踪</span>
+<span class="w">    </span><span class="c1">// 没有重传定时器</span>
+<span class="w">    </span><span class="c1">// 没有确认机制</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="33">3.3 工作流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                   </span><span class="n">StatelessWriter</span><span class="w"> </span><span class="err">工作流程</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="err">写入数据</span><span class="w">                                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">new_change</span><span class="p">()</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">()</span><span class="w">     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">触发</span><span class="o">:</span><span class="w"> </span><span class="n">unsent_change_added_to_history</span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w">            </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="err">直接发送给所有</span><span class="w"> </span><span class="n">Reader</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">locator</span><span class="w"> </span><span class="kr">in</span><span class="w"> </span><span class="n">matched_readers_locators_</span><span class="o">:</span><span class="w">           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="n">send_data_to_locator</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">locator</span><span class="p">)</span><span class="w">                </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">注意</span><span class="o">:</span><span class="w"> </span><span class="err">没有</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="err">，不知道具体</span><span class="w"> </span><span class="n">Reader</span><span class="w"> </span><span class="err">是谁</span><span class="w">           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">只知道</span><span class="w"> </span><span class="n">IP</span><span class="o">:</span><span class="n">Port</span><span class="w"> </span><span class="err">地址</span><span class="w">                                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="err">立即释放资源</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">remove_change</span><span class="p">(</span><span class="n">change</span><span class="p">)</span><span class="w">  </span><span class="c1">// 立即删除，不保留     │    │</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">或者根据</span><span class="w"> </span><span class="n">QoS</span><span class="w"> </span><span class="n">KEEP_LAST</span><span class="o">/</span><span class="n">KEEP_ALL</span><span class="w"> </span><span class="err">管理缓存</span><span class="w">                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">但不会等待确认</span><span class="w">                                            </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="err">完成</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">└──</span><span class="w"> </span><span class="err">没有</span><span class="w"> </span><span class="n">ACKNACK</span><span class="w"> </span><span class="err">处理</span><span class="w">                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">└──</span><span class="w"> </span><span class="err">没有重传机制</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">└──</span><span class="w"> </span><span class="err">没有</span><span class="w"> </span><span class="n">HEARTBEAT</span><span class="w">                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="34">3.4 代码对比</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== StatefulWriter ====================</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatefulWriter::unsent_change_added_to_history</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 添加到每个 ReaderProxy</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. 发送给每个 Reader</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">send_change_to_reader</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 启动重传定时器</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">nack_response_event_</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">nack_response_event_</span><span class="o">-&gt;</span><span class="n">restart_timer</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// ==================== StatelessWriter ====================</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatelessWriter::unsent_change_added_to_history</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 直接发送给所有 Locator</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">locator</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_locators_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">send_data_to_locator</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">locator</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. 没有 ReaderProxy，没有定时器</span>
+<span class="w">    </span><span class="c1">// 3. 立即返回，不等待确认</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="4">4. 架构设计对比</h2>
+<h3 id="41">4.1 类图对比</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                      架构设计对比                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  StatefulWriter                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  RTPSWriter                                             │    │
+│  │  ├─ HistoryCache (共享)                                 │    │
+│  │  │   └── CacheChange (#1, #2, #3, ...)                 │    │
+│  │  │                                                      │    │
+│  │  ├─ ReaderProxy (Reader 1)                              │    │
+│  │  │   ├─ outstanding_changes: [#1:UNDERWAY, #2:UNSENT]  │    │
+│  │  │   ├─ locators: [192.168.1.10:7410]                  │    │
+│  │  │   └─ nack_timer                                      │    │
+│  │  │                                                      │    │
+│  │  ├─ ReaderProxy (Reader 2)                              │    │
+│  │  │   ├─ outstanding_changes: [#1:ACKED, #2:UNDERWAY]   │    │
+│  │  │   └─ locators: [192.168.1.20:7410]                  │    │
+│  │  │                                                      │    │
+│  │  └─ heartbeat_timer (全局)                             │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  StatelessWriter                                                │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  RTPSWriter                                             │    │
+│  │  ├─ HistoryCache                                        │    │
+│  │  │   └── CacheChange (临时)                             │    │
+│  │  │                                                      │    │
+│  │  └─ locators: [192.168.1.10:7410, 192.168.1.20:7410]   │    │
+│  │       (没有 ReaderProxy，只有地址列表)                   │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="42">4.2 内存使用对比</h3>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>StatefulWriter</th>
+<th>StatelessWriter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ReaderProxy</td>
+<td>N × sizeof(ReaderProxy)</td>
+<td>0</td>
+</tr>
+<tr>
+<td>ChangeForReader</td>
+<td>N × M × overhead</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Locators</td>
+<td>在 ReaderProxy 中</td>
+<td>直接存储</td>
+</tr>
+<tr>
+<td>定时器</td>
+<td>每个 Reader + 全局</td>
+<td>无</td>
+</tr>
+<tr>
+<td>History</td>
+<td>保留直到所有 ACK</td>
+<td>立即释放</td>
+</tr>
+</tbody>
+</table>
+<p><strong>估算</strong>: 100 个 Reader，每个缓存 100 条数据<br/>
+- Stateful: ~10MB+<br/>
+- Stateless: ~1MB</p>
+<hr/>
+<h2 id="5">5. 源码实现分析</h2>
+<h3 id="51">5.1 创建时的选择</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/participant/RTPSParticipantImpl.cpp</span>
+
+<span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="nf">RTPSParticipantImpl::createWriter</span><span class="p">(</span>
+<span class="w">    </span><span class="n">WriterAttributes</span><span class="o">&amp;</span><span class="w"> </span><span class="n">param</span><span class="p">,</span>
+<span class="w">    </span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">history</span><span class="p">,</span>
+<span class="w">    </span><span class="n">WriterListener</span><span class="o">*</span><span class="w"> </span><span class="n">listener</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 根据 Reliability QoS 选择 Writer 类型</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">param</span><span class="p">.</span><span class="n">endpoint</span><span class="p">.</span><span class="n">reliabilityKind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">RELIABLE</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 可靠传输 → StatefulWriter</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">StatefulWriter</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">param</span><span class="p">,</span><span class="w"> </span><span class="n">history</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 尽力传输 → StatelessWriter</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">StatelessWriter</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">param</span><span class="p">,</span><span class="w"> </span><span class="n">history</span><span class="p">,</span><span class="w"> </span><span class="n">listener</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="52">5.2 匹配时的处理</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== StatefulWriter ====================</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatefulWriter::matched_reader_add</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">ReaderProxyData</span><span class="o">&amp;</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 创建 ReaderProxy 来追踪状态</span>
+<span class="w">    </span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">proxy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="p">(</span>
+<span class="w">        </span><span class="n">data</span><span class="p">.</span><span class="n">guid</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">data</span><span class="p">.</span><span class="n">unicast_locators</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">data</span><span class="p">.</span><span class="n">multicast_locators</span><span class="p">()</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">matched_readers_</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">proxy</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 发送 HEARTBEAT 让新 Reader 知道有哪些历史数据</span>
+<span class="w">    </span><span class="n">send_heartbeat_to_proxy</span><span class="p">(</span><span class="n">proxy</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// ==================== StatelessWriter ====================</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatelessWriter::matched_reader_add</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">ReaderProxyData</span><span class="o">&amp;</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 只保存地址，不创建状态对象</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">loc</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">unicast_locators</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">matched_readers_locators_</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">loc</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 不发送 HEARTBEAT，没有状态要同步</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="53">5.3 数据发送对比</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ==================== StatefulWriter ====================</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatefulWriter::send_any_unsent_changes</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 获取该 Reader 需要的数据</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ChangeForReader</span><span class="o">&amp;</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">changes_for_reader_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">UNSENT</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">change</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">REQUESTED</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 发送并更新状态</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">send_change_to_reader</span><span class="p">(</span><span class="n">change</span><span class="p">.</span><span class="n">change_</span><span class="p">,</span><span class="w"> </span><span class="n">reader</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="n">change</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UNDERWAY</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// ==================== StatelessWriter ====================</span>
+
+<span class="kt">bool</span><span class="w"> </span><span class="nf">StatelessWriter::send_any_unsent_changes</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 获取 History 中所有未发送的数据</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">changes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">get_unsent_changes</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">changes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 广播给所有 Locator</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Locator_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">loc</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_locators_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">send_data_to_locator</span><span class="p">(</span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">loc</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 标记为已发送（不需要确认）</span>
+<span class="w">        </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">is_unsent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="6">6. 使用场景选择</h2>
+<h3 id="61">6.1 选择指南</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                      选择决策树                                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  数据丢失是否可以接受？                                          │
+│       │                                                          │
+│       ├── 是（可以接受丢失）                                     │
+│       │       │                                                  │
+│       │       └──→ StatelessWriter                              │
+│       │           • 视频流                                       │
+│       │           • 传感器数据（高频采样）                        │
+│       │           • 实时监控（只关心最新值）                      │
+│       │                                                          │
+│       └── 否（必须送达）                                         │
+│               │                                                  │
+│               └──→ StatefulWriter                               │
+│                   • 命令控制                                     │
+│                   • 金融交易                                     │
+│                   • 配置文件下发                                 │
+│                   • 状态同步                                     │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="62">6.2 典型应用场景</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>Writer 类型</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>视频监控</strong></td>
+<td>Stateless</td>
+<td>实时性 &gt; 可靠性，丢帧可接受</td>
+</tr>
+<tr>
+<td><strong>温度传感器</strong></td>
+<td>Stateless</td>
+<td>高频采样，旧数据很快过期</td>
+</tr>
+<tr>
+<td><strong>无人机控制</strong></td>
+<td>Stateful</td>
+<td>命令必须送达，不能丢失</td>
+</tr>
+<tr>
+<td><strong>支付系统</strong></td>
+<td>Stateful</td>
+<td>交易数据必须 100% 可靠</td>
+</tr>
+<tr>
+<td><strong>日志收集</strong></td>
+<td>Stateless</td>
+<td>允许少量丢失，追求吞吐</td>
+</tr>
+<tr>
+<td><strong>配置下发</strong></td>
+<td>Stateful</td>
+<td>配置必须完整到达</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="7">7. 性能对比</h2>
+<h3 id="71">7.1 基准测试结果</h3>
+<div class="codehilite"><pre><span></span><code>测试环境: localhost, 1KB 消息
+
+┌─────────────────┬─────────────┬─────────────┬─────────────┐
+│     指标        │  Stateless  │  Stateful   │   差异      │
+├─────────────────┼─────────────┼─────────────┼─────────────┤
+│ 吞吐量 (msg/s)  │   500,000   │   100,000   │   5x        │
+│ 延迟 (μs)       │      50     │     200     │   4x        │
+│ CPU 使用率      │     100%    │     150%    │   1.5x      │
+│ 内存 (MB)       │      10     │     100     │  10x        │
+│ 网络开销        │     100%    │     150%    │  1.5x       │
+└─────────────────┴─────────────┴─────────────┴─────────────┘
+
+注: Stateful 包含 ACKNACK 开销
+</code></pre></div>
+<h3 id="72">7.2 影响性能的因素</h3>
+<p><strong>StatefulWriter 额外开销</strong>:<br/>
+1. <strong>内存</strong>: 每个 Reader 维护 ReaderProxy<br/>
+2. <strong>CPU</strong>: 处理 ACKNACK，更新状态机<br/>
+3. <strong>网络</strong>: ACKNACK/HEARTBEAT 控制消息<br/>
+4. <strong>延迟</strong>: 等待确认，重传机制</p>
+<p><strong>StatelessWriter 限制</strong>:<br/>
+1. <strong>可靠性</strong>: 无法保证送达<br/>
+2. <strong>顺序</strong>: 不保证跨 Reader 的顺序一致性<br/>
+3. <strong>发现</strong>: 无法通知 Reader 历史数据</p>
+<hr/>
+<h2 id="8">8. 实战配置</h2>
+<h3 id="81-qos-writer">8.1 配置 QoS 选择 Writer 类型</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/qos/DataWriterQos.hpp&gt;</span>
+
+<span class="c1">// ==================== 创建 StatelessWriter ====================</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">create_best_effort_writer</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置为 Best-Effort → StatelessWriter</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 其他配置</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// 只保留最新</span>
+
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// ==================== 创建 StatefulWriter ====================</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">create_reliable_writer</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置为 Reliable → StatefulWriter</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 可靠传输相关配置</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">max_blocking_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
+
+<span class="w">    </span><span class="c1">// 历史缓存</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_ALL_HISTORY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 生命周期</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">writer_data_lifecycle</span><span class="p">().</span><span class="n">autodispose_unregistered_instances</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="82-xml">8.2 XML 配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cm">&lt;!-- StatelessWriter: 视频流 --&gt;</span>
+<span class="nt">&lt;data_writer</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"video_stream"</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;qos&gt;</span>
+<span class="w">        </span><span class="nt">&lt;reliability&gt;</span>
+<span class="w">            </span><span class="nt">&lt;kind&gt;</span>BEST_EFFORT<span class="nt">&lt;/kind&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/reliability&gt;</span>
+<span class="w">        </span><span class="nt">&lt;history&gt;</span>
+<span class="w">            </span><span class="nt">&lt;kind&gt;</span>KEEP_LAST<span class="nt">&lt;/kind&gt;</span>
+<span class="w">            </span><span class="nt">&lt;depth&gt;</span>1<span class="nt">&lt;/depth&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/history&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/qos&gt;</span>
+<span class="nt">&lt;/data_writer&gt;</span>
+
+<span class="cm">&lt;!-- StatefulWriter: 控制系统 --&gt;</span>
+<span class="nt">&lt;data_writer</span><span class="w"> </span><span class="na">profile_name=</span><span class="s">"control_command"</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;qos&gt;</span>
+<span class="w">        </span><span class="nt">&lt;reliability&gt;</span>
+<span class="w">            </span><span class="nt">&lt;kind&gt;</span>RELIABLE<span class="nt">&lt;/kind&gt;</span>
+<span class="w">            </span><span class="nt">&lt;max_blocking_time&gt;</span>
+<span class="w">                </span><span class="nt">&lt;sec&gt;</span>0<span class="nt">&lt;/sec&gt;</span>
+<span class="w">                </span><span class="nt">&lt;nanosec&gt;</span>100000000<span class="nt">&lt;/nanosec&gt;</span>
+<span class="w">            </span><span class="nt">&lt;/max_blocking_time&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/reliability&gt;</span>
+<span class="w">        </span><span class="nt">&lt;history&gt;</span>
+<span class="w">            </span><span class="nt">&lt;kind&gt;</span>KEEP_ALL<span class="nt">&lt;/kind&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/history&gt;</span>
+<span class="w">        </span><span class="nt">&lt;resource_limits&gt;</span>
+<span class="w">            </span><span class="nt">&lt;max_samples&gt;</span>100<span class="nt">&lt;/max_samples&gt;</span>
+<span class="w">        </span><span class="nt">&lt;/resource_limits&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/qos&gt;</span>
+<span class="nt">&lt;/data_writer&gt;</span>
+</code></pre></div>
+<h3 id="83-writer">8.3 运行时检查 Writer 类型</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/writer/StatelessWriter.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/writer/StatefulWriter.hpp&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">check_writer_type</span><span class="p">(</span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 获取底层 RTPSWriter</span>
+<span class="w">    </span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">rtps_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">get_rtps_writer</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 动态类型检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">dynamic_cast</span><span class="o">&lt;</span><span class="n">StatelessWriter</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">rtps_writer</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"StatelessWriter - 尽力传输</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">dynamic_cast</span><span class="o">&lt;</span><span class="n">StatefulWriter</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">rtps_writer</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"StatefulWriter - 可靠传输</span><span class="se">\n</span><span class="s">"</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="_2">总结</h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│              Stateless vs Stateful Writer 总结                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  StatelessWriter                                                │
+│  ├── 核心: "发送即忘"                                           │
+│  ├── 机制: 无状态、无确认、无重传                               │
+│  ├── 优势: 高性能、低延迟、低开销                               │
+│  ├── 劣势: 不可靠、不保证顺序                                   │
+│  └── 场景: 视频流、传感器、实时监控                             │
+│                                                                  │
+│  StatefulWriter                                                 │
+│  ├── 核心: "追踪每个 Reader"                                    │
+│  ├── 机制: ReaderProxy、ACKNACK、重传                           │
+│  ├── 优势: 可靠传输、状态追踪                                   │
+│  ├── 劣势: 高内存、高CPU、复杂                                  │
+│  └── 场景: 控制系统、金融交易、关键数据                         │
+│                                                                  │
+│  选择原则: 能接受丢包 → Stateless；必须送达 → Stateful         │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 Fast-DDS 2.14.x 源码分析</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

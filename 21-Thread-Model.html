@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 线程模型深度分析 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item active" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 21-Thread-Model</div>
+        <h1 id="fast-dds">Fast-DDS 线程模型深度分析</h1>
+<blockquote>
+<p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
+1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
+2. <strong>简化示例</strong>：为教学目的简化，省略了锁、异常处理等细节</p>
+<p><strong>重要更正</strong>：文中使用的 <code>AsyncWriterThread</code> 是<strong>概念性命名</strong>，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code></p>
+</blockquote>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-线程模型概览">线程模型概览</a></li>
+<li><a href="#2-核心线程详解">核心线程详解</a></li>
+<li><a href="#3-线程间通信机制">线程间通信机制</a></li>
+<li><a href="#4-线程安全设计">线程安全设计</a></li>
+<li><a href="#5-线程配置与调优">线程配置与调优</a></li>
+<li><a href="#6-线程问题排查">线程问题排查</a></li>
+<li><a href="#7-实战线程dump分析">实战：线程Dump分析</a></li>
+</ol>
+<hr/>
+<h2 id="1">1. 线程模型概览</h2>
+<h3 id="11">1.1 线程架构全景图</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                         </span><span class="n">Fast</span><span class="o">-</span><span class="n">DDS</span><span class="w"> </span><span class="err">线程模型全景</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">【主线程】应用层</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────────────────┐</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">用户代码</span><span class="w">                                                           </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">create_participant</span><span class="p">()</span><span class="w">                </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">()</span><span class="w">                                </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">()</span><span class="w">                                               </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">take</span><span class="p">()</span><span class="w">                                            </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────────────────┘</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                    </span><span class="err">│</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────┼─────────────────────────────────────┐</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                    </span><span class="err">【</span><span class="n">Fast</span><span class="o">-</span><span class="n">DDS</span><span class="w"> </span><span class="err">内部线程池】</span><span class="w">                          </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                                   </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────┐</span><span class="w">  </span><span class="err">┌─────────────────┐</span><span class="w">  </span><span class="err">┌─────────────────┐</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="nf">Event</span><span class="w"> </span><span class="n">Thread</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Async</span><span class="w"> </span><span class="n">Writer</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">Transport</span><span class="w">     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="n">Thread</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">    </span><span class="n">Threads</span><span class="w">      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">定时器处理</span><span class="w">    </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">状态机驱动</span><span class="w">    </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">异步数据发送</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="n">UDP接收</span><span class="w">       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">租约检查</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">流量控制</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="n">TCP连接管理</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">心跳</span><span class="o">/</span><span class="err">重传</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">批量发送</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="n">SHM事件</span><span class="w">       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="n">ResourceEvent</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">TransportLayer</span><span class="w"> </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└─────────────────┘</span><span class="w">  </span><span class="err">└─────────────────┘</span><span class="w">  </span><span class="err">└─────────────────┘</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                                   </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────┐</span><span class="w">  </span><span class="err">┌─────────────────┐</span><span class="w">  </span><span class="err">┌─────────────────┐</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Discovery</span><span class="w"> </span><span class="n">Thread</span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">Security</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">DB</span><span class="w"> </span><span class="n">Thread</span><span class="w">      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="err">可选</span><span class="p">)</span><span class="w">         </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="n">Server模式</span><span class="p">)</span><span class="w">    </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="n">PDP周期性发送</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="n">EDP匹配处理</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">加密</span><span class="o">/</span><span class="err">解密</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">持久化存储</span><span class="w">    </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">租约过期检测</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">认证握手</span><span class="w">      </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="err">•</span><span class="w"> </span><span class="err">数据查询</span><span class="w">      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">PDPEndpointImpl</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">SecurityManager</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="n">DiscoveryDB</span><span class="w">     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└─────────────────┘</span><span class="w">  </span><span class="err">└─────────────────┘</span><span class="w">  </span><span class="err">└─────────────────┘</span><span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                                   </span><span class="err">│</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────────────────────────────────────────────────┘</span><span class="w"> </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                    </span><span class="err">│</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">【系统层】网络</span><span class="o">/</span><span class="n">IO</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────────────────┐</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="n">UDP</span><span class="w"> </span><span class="n">Socket</span><span class="w"> </span><span class="p">(</span><span class="err">端口</span><span class="w"> </span><span class="mi">7400</span><span class="o">+</span><span class="p">)</span><span class="w">                                          </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="n">TCP</span><span class="w"> </span><span class="n">Socket</span><span class="w"> </span><span class="p">(</span><span class="err">可选</span><span class="p">)</span><span class="w">                                                </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="err">共享内存</span><span class="w"> </span><span class="p">(</span><span class="err">可选</span><span class="p">)</span><span class="w">                                                  </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────────────────┘</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                              </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="12">1.2 线程创建时机</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 线程创建时间线</span>
+
+<span class="err">【</span><span class="n">Participant</span><span class="w"> </span><span class="n">创建时</span><span class="err">】</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">ResourceEvent</span><span class="w"> </span><span class="p">(</span><span class="n">事件线程</span><span class="p">)</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">用于定时器</span><span class="err">：</span><span class="n">心跳</span><span class="err">、</span><span class="n">重传</span><span class="err">、</span><span class="n">租约检查</span>
+<span class="err">│</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">Transport</span><span class="w"> </span><span class="n">接收线程</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">UDP</span><span class="o">/</span><span class="n">TCP</span><span class="w"> </span><span class="n">接收线程</span><span class="w"> </span><span class="p">(</span><span class="n">每个</span><span class="w"> </span><span class="n">Transport</span><span class="w"> </span><span class="n">一个</span><span class="p">)</span>
+<span class="err">│</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">PDP</span><span class="w"> </span><span class="n">定时器线程</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">周期性广播参与者发现信息</span>
+<span class="err">│</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">Security</span><span class="w"> </span><span class="n">线程</span><span class="w"> </span><span class="p">(</span><span class="n">如果启用</span><span class="w"> </span><span class="n">DDS</span><span class="o">-</span><span class="n">Security</span><span class="p">)</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">认证握手</span><span class="err">、</span><span class="n">加密解密</span>
+
+<span class="err">【</span><span class="n">DataWriter</span><span class="w"> </span><span class="n">创建时</span><span class="w"> </span><span class="p">(</span><span class="n">ASYNC</span><span class="w"> </span><span class="n">模式</span><span class="p">)</span><span class="err">】</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span><span class="w"> </span><span class="p">(</span><span class="n">全局单例</span><span class="p">)</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">异步发送数据</span>
+
+<span class="err">【</span><span class="n">Discovery</span><span class="w"> </span><span class="n">Server</span><span class="w"> </span><span class="n">模式</span><span class="err">】</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">DiscoveryServer</span><span class="w"> </span><span class="n">线程</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">处理客户端请求</span><span class="err">、</span><span class="n">数据库维护</span>
+</code></pre></div>
+<hr/>
+<h2 id="2">2. 核心线程详解</h2>
+<h3 id="21-resourceevent">2.1 ResourceEvent (事件/定时器线程)</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/resources/ResourceEvent.h</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ResourceEvent</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 启动事件循环线程</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">init_thread</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 注册定时事件</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">register_timer</span><span class="p">(</span><span class="n">TimedEventImpl</span><span class="o">*</span><span class="w"> </span><span class="n">event</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">unregister_timer</span><span class="p">(</span><span class="n">TimedEventImpl</span><span class="o">*</span><span class="w"> </span><span class="n">event</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 唤醒线程 (新事件加入时)</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">notify</span><span class="p">();</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">run_io_service</span><span class="p">();</span><span class="w">  </span><span class="c1">// 线程主循环</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="w"> </span><span class="n">thread_</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 事件处理线程</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">io_service</span><span class="w"> </span><span class="n">io_service_</span><span class="p">;</span><span class="w">           </span><span class="c1">// ASIO IO服务</span>
+<span class="w">    </span><span class="n">asio</span><span class="o">::</span><span class="n">io_service</span><span class="o">::</span><span class="n">work</span><span class="w"> </span><span class="n">work_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 防止io_service退出</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span><span class="w">                      </span><span class="c1">// 保护定时器集合</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">condition_variable</span><span class="w"> </span><span class="n">cv_</span><span class="p">;</span><span class="w">            </span><span class="c1">// 唤醒条件变量</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">stop_</span><span class="p">;</span><span class="w">                </span><span class="c1">// 停止标志</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>工作流程</strong>:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">ResourceEvent</span><span class="w"> </span><span class="err">线程循环</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">初始化</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">stop_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">                                        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="c1">// 1. 计算下一个定时器到期时间                       │    │</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="n">next_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_earliest_timer</span><span class="p">();</span><span class="w">                </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="c1">// 2. 等待直到到期或被唤醒                           │    │</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="n">cv_</span><span class="p">.</span><span class="n">wait_until</span><span class="p">(</span><span class="n">next_timeout</span><span class="p">);</span><span class="w">                       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="c1">// 3. 执行所有到期的定时器回调                       │    │</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="n">for</span><span class="w"> </span><span class="p">(</span><span class="n">timer</span><span class="w"> </span><span class="kr">in</span><span class="w"> </span><span class="n">expired_timers</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">                     </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="n">timer</span><span class="o">-&gt;</span><span class="n">callback</span><span class="p">();</span><span class="w">                              </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="p">}</span><span class="w">                                                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">}</span><span class="w">                                                       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">定时器类型</span><span class="o">:</span><span class="w">                                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">HEARTBEAT</span><span class="w"> </span><span class="err">定时器</span><span class="w"> </span><span class="p">(</span><span class="n">StatefulWriter</span><span class="p">)</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">NACK</span><span class="w"> </span><span class="err">响应定时器</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="err">租约检查定时器</span><span class="w"> </span><span class="p">(</span><span class="n">PDP</span><span class="o">/</span><span class="n">Reader</span><span class="o">/</span><span class="n">Writer</span><span class="p">)</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="err">重传定时器</span><span class="w">                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<p><strong>典型定时器</strong>:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// StatefulWriter 的心跳定时器</span>
+<span class="n">TimedEvent</span><span class="w"> </span><span class="nf">heartbeat_event_</span><span class="p">(</span>
+<span class="w">    </span><span class="p">[</span><span class="k">this</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">send_heartbeat_to_all_readers</span><span class="p">();</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="n">heartbeat_period_</span><span class="w">  </span><span class="c1">// 默认 3s</span>
+<span class="p">);</span>
+
+<span class="c1">// Reader 的租约检查定时器</span>
+<span class="n">TimedEvent</span><span class="w"> </span><span class="nf">liveliness_check_event_</span><span class="p">(</span>
+<span class="w">    </span><span class="p">[</span><span class="k">this</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">check_reader_liveliness</span><span class="p">();</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="n">lease_duration_</span><span class="w">    </span><span class="c1">// 默认 10s</span>
+<span class="p">);</span>
+
+<span class="c1">// 可靠传输的重传定时器</span>
+<span class="n">TimedEvent</span><span class="w"> </span><span class="nf">nack_response_event_</span><span class="p">(</span>
+<span class="w">    </span><span class="p">[</span><span class="k">this</span><span class="p">]()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">perform_nack_responses</span><span class="p">();</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="n">nack_response_delay_</span><span class="w">  </span><span class="c1">// 默认 100ms</span>
+<span class="p">);</span>
+</code></pre></div>
+<h3 id="22-flowcontrollerasyncpublishmode">2.2 FlowControllerAsyncPublishMode (异步写入线程)</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FlowControllerAsyncPublishMode</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 全局单例</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span><span class="o">&amp;</span><span class="w"> </span><span class="n">get_instance</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 启动/停止</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">start</span><span class="p">();</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">stop</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 注册/注销 Writer</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">add_writer</span><span class="p">(</span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">);</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">remove_writer</span><span class="p">(</span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 唤醒线程</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">wake_up</span><span class="p">();</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">run</span><span class="p">();</span><span class="w">  </span><span class="c1">// 线程主循环</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="w"> </span><span class="n">thread_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">condition_variable</span><span class="w"> </span><span class="n">cv_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">unordered_set</span><span class="o">&lt;</span><span class="n">RTPSWriter</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">writers_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">atomic</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">running_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>工作流程</strong>:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                   </span><span class="nt">FlowControllerAsyncPublishMode</span><span class="w"> </span><span class="nt">线程循环</span><span class="w">                     </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">启动</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">│</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">     </span><span class="err">▼</span><span class="w">                                                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="nt">while</span><span class="w"> </span><span class="o">(</span><span class="nt">running_</span><span class="o">)</span><span class="w"> </span><span class="p">{</span><span class="w">                                      </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="n">std</span><span class="p">:</span><span class="o">:</span><span class="n">unique_lock</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="nf">lock</span><span class="p">(</span><span class="n">mutex_</span><span class="p">);</span><span class="w">         </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="err">//</span><span class="w"> </span><span class="err">1.</span><span class="w"> </span><span class="err">遍历所有异步</span><span class="w"> </span><span class="err">Writer</span><span class="w">                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="err">for</span><span class="w"> </span><span class="err">(RTPSWriter*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">writers_</span><span class="p">)</span><span class="w"> </span><span class="err">{</span><span class="w">              </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="o">//</span><span class="w"> </span><span class="mi">2</span><span class="o">.</span><span class="w"> </span><span class="err">检查</span><span class="w"> </span><span class="n">FlowController</span><span class="w"> </span><span class="err">是否允许发送</span><span class="w">          </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="n">if</span><span class="w"> </span><span class="p">(</span><span class="n">writer-</span><span class="o">&gt;</span><span class="n">flow_controller_-</span><span class="o">&gt;</span><span class="nf">schedule</span><span class="p">(</span><span class="err">...</span><span class="p">))</span><span class="w"> </span><span class="err">{</span><span class="w">  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">              </span><span class="o">//</span><span class="w"> </span><span class="mi">3</span><span class="o">.</span><span class="w"> </span><span class="err">发送未发送的数据</span><span class="w">                       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">              </span><span class="n">writer-</span><span class="o">&gt;</span><span class="nf">send_any_unsent_changes</span><span class="p">();</span><span class="w">          </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">          </span><span class="p">}</span><span class="w">                                               </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="err">}</span><span class="w">                                                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="nt">4</span><span class="o">.</span><span class="w"> </span><span class="nt">计算下次唤醒时间</span><span class="w"> </span><span class="o">(</span><span class="nt">流控或新数据</span><span class="o">)</span><span class="w">                </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="nt">auto</span><span class="w"> </span><span class="nt">next_wakeup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">calculate_next_wakeup</span><span class="o">();</span><span class="w">        </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                           </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="nt">5</span><span class="o">.</span><span class="w"> </span><span class="nt">等待直到唤醒</span><span class="w">                                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">      </span><span class="nt">cv_</span><span class="p">.</span><span class="nc">wait_until</span><span class="o">(</span><span class="nt">lock</span><span class="o">,</span><span class="w"> </span><span class="nt">next_wakeup</span><span class="o">);</span><span class="w">                 </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">}</span><span class="w">                                                       </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">唤醒场景</span><span class="o">:</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="nt">新数据写入</span><span class="w"> </span><span class="o">(</span><span class="nt">write</span><span class="o">()</span><span class="w"> </span><span class="nt">调用</span><span class="o">)</span><span class="w">                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="nt">FlowController</span><span class="w"> </span><span class="nt">令牌可用</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">•</span><span class="w"> </span><span class="nt">网络发送完成回调</span><span class="w">                                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="23-transport">2.3 Transport 接收线程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/transport/UDPTransportInterface.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">UDPTransportInterface</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 每个 UDP 端口一个接收线程</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">open_output_channel</span><span class="p">(</span><span class="n">Locator_t</span><span class="w"> </span><span class="n">locator</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 接收线程主函数</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">perform_listen_operation</span><span class="p">(</span><span class="n">UDPChannelResource</span><span class="o">*</span><span class="w"> </span><span class="n">channel</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="c1">// 线程创建</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">UDPTransportInterface::perform_listen_operation</span><span class="p">(</span><span class="n">UDPChannelResource</span><span class="o">*</span><span class="w"> </span><span class="n">channel</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">channel</span><span class="o">-&gt;</span><span class="n">alive</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 阻塞接收 UDP 数据</span>
+<span class="w">        </span><span class="kt">ssize_t</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">recvfrom</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">bytes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 2. 解析 RTPS 消息</span>
+<span class="w">            </span><span class="n">MessageReceiver</span><span class="w"> </span><span class="n">receiver</span><span class="p">;</span>
+<span class="w">            </span><span class="n">receiver</span><span class="p">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">bytes</span><span class="p">,</span><span class="w"> </span><span class="n">locator</span><span class="p">);</span>
+
+<span class="w">            </span><span class="c1">// 3. 分发到对应的 Participant/Reader/Writer</span>
+<span class="w">            </span><span class="n">dispatch_message</span><span class="p">(</span><span class="n">receiver</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>线程模型</strong>:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="nt">Transport</span><span class="w"> </span><span class="nt">接收线程模型</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">UDP</span><span class="w"> </span><span class="nt">端口分配</span><span class="o">:</span><span class="w">                                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nt">端口</span><span class="w"> </span><span class="nt">7410</span><span class="o">:</span><span class="w"> </span><span class="nt">参与者</span><span class="w"> </span><span class="nt">1</span><span class="w"> </span><span class="nt">的接收端口</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nt">端口</span><span class="w"> </span><span class="nt">7411</span><span class="o">:</span><span class="w"> </span><span class="nt">参与者</span><span class="w"> </span><span class="nt">1</span><span class="w"> </span><span class="nt">的内置发现端口</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nt">端口</span><span class="w"> </span><span class="nt">7420</span><span class="o">:</span><span class="w"> </span><span class="nt">参与者</span><span class="w"> </span><span class="nt">2</span><span class="w"> </span><span class="nt">的接收端口</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="o">...</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">线程创建</span><span class="o">:</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">for</span><span class="w"> </span><span class="nt">each</span><span class="w"> </span><span class="nt">opened</span><span class="w"> </span><span class="nt">channel</span><span class="o">:</span><span class="w">                                </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="nt">std</span><span class="p">::</span><span class="nd">thread</span><span class="w"> </span><span class="nt">t</span><span class="o">(</span><span class="nt">perform_listen_operation</span><span class="o">,</span><span class="w"> </span><span class="nt">channel</span><span class="o">);</span><span class="w">   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">     </span><span class="nt">t</span><span class="p">.</span><span class="nc">detach</span><span class="o">();</span><span class="w">  </span><span class="o">//</span><span class="w"> </span><span class="nt">分离线程</span><span class="err">，</span><span class="nt">独立运行</span><span class="w">                   </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">数据处理流程</span><span class="o">:</span><span class="w">                                                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">UDP</span><span class="w"> </span><span class="nt">接收线程</span><span class="w">                                                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">       </span><span class="err">▼</span><span class="w">                                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────────────────────────────────────────────────┐</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">1</span><span class="o">.</span><span class="w"> </span><span class="nt">接收原始字节流</span><span class="w">                                         </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">▼</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">2</span><span class="o">.</span><span class="w"> </span><span class="nt">解析</span><span class="w"> </span><span class="nt">RTPS</span><span class="w"> </span><span class="nt">Header</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">SubMessages</span><span class="w">                         </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">▼</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">3</span><span class="o">.</span><span class="w"> </span><span class="nt">根据</span><span class="w"> </span><span class="nt">GUID</span><span class="w"> </span><span class="nt">Prefix</span><span class="w"> </span><span class="nt">找到目标</span><span class="w"> </span><span class="nt">Participant</span><span class="w">                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">▼</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">4</span><span class="o">.</span><span class="w"> </span><span class="nt">分发给对应的</span><span class="w"> </span><span class="nt">Endpoint</span><span class="w"> </span><span class="o">(</span><span class="nt">Reader</span><span class="o">/</span><span class="nt">Writer</span><span class="o">)</span><span class="w">                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">▼</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nt">5</span><span class="o">.</span><span class="w"> </span><span class="nt">回调用户</span><span class="w"> </span><span class="nt">Listener</span><span class="w"> </span><span class="o">(</span><span class="nt">on_data_available</span><span class="o">)</span><span class="w">                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">↑</span><span class="w">                                                  </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">       </span><span class="err">└──</span><span class="w"> </span><span class="nt">可能触发新的事件</span><span class="w"> </span><span class="o">(</span><span class="nt">如发送</span><span class="w"> </span><span class="nt">ACKNACK</span><span class="o">)</span><span class="w">               </span><span class="err">│</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────────────────────────────────────────────────┘</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">注意</span><span class="o">:</span><span class="w"> </span><span class="nt">回调在用户线程还是</span><span class="w"> </span><span class="nt">Transport</span><span class="w"> </span><span class="nt">线程</span><span class="err">？</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">-</span><span class="w"> </span><span class="nt">默认</span><span class="o">:</span><span class="w"> </span><span class="nt">Transport</span><span class="w"> </span><span class="nt">线程直接回调</span><span class="w"> </span><span class="o">(</span><span class="nt">快速但阻塞接收</span><span class="o">)</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nt">-</span><span class="w"> </span><span class="nt">可选</span><span class="o">:</span><span class="w"> </span><span class="nt">通过线程池回调</span><span class="w"> </span><span class="o">(</span><span class="nt">避免阻塞</span><span class="o">)</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<h3 id="24-discovery">2.4 Discovery 线程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/builtin/discovery/participant/PDP.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">PDP</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 发现相关定时器由 ResourceEvent 线程执行</span>
+<span class="w">    </span><span class="c1">// 但复杂的发现逻辑可能创建独立线程</span>
+
+<span class="w">    </span><span class="n">TimedEvent</span><span class="w"> </span><span class="n">resend_participant_info_event_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 重发 PDP 信息</span>
+<span class="w">    </span><span class="n">TimedEvent</span><span class="w"> </span><span class="n">remove_remote_participants_event_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 清理过期参与者</span>
+<span class="p">};</span>
+
+<span class="c1">// Discovery Server 模式下的独立线程</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DiscoveryServerManager</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">start_processing_thread</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">stop_processing_thread</span><span class="p">();</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">process_discovery_requests</span><span class="p">();</span><span class="w">  </span><span class="c1">// 线程主循环</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="w"> </span><span class="n">processing_thread_</span><span class="p">;</span>
+<span class="w">    </span><span class="n">BlockingQueue</span><span class="o">&lt;</span><span class="n">DiscoveryRequest</span><span class="o">&gt;</span><span class="w"> </span><span class="n">request_queue_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>发现流程</strong>:</p>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                     </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">线程模型</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">Simple</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="p">(</span><span class="nx">默认</span><span class="p">):</span><span class="w">                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">使用</span><span class="w"> </span><span class="nx">ResourceEvent</span><span class="w"> </span><span class="nx">线程的定时器</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">      </span><span class="err">├──</span><span class="w"> </span><span class="nx">每</span><span class="w"> </span><span class="mi">3</span><span class="nx">s</span><span class="w"> </span><span class="nx">发送</span><span class="w"> </span><span class="nx">PDP</span><span class="w"> </span><span class="p">(</span><span class="nx">Participant</span><span class="w"> </span><span class="nx">Discovery</span><span class="p">)</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">      </span><span class="err">└──</span><span class="w"> </span><span class="nx">每</span><span class="w"> </span><span class="mi">10</span><span class="nx">s</span><span class="w"> </span><span class="nx">检查参与者租约</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">Server</span><span class="w"> </span><span class="nx">模式</span><span class="p">:</span><span class="w">                                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">ResourceEvent</span><span class="w"> </span><span class="nx">线程</span><span class="w"> </span><span class="p">(</span><span class="nx">定时器</span><span class="p">)</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">客户端</span><span class="p">:</span><span class="w"> </span><span class="nx">定期同步服务器</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                                                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">DiscoveryServerManager</span><span class="w"> </span><span class="nx">线程</span><span class="w"> </span><span class="p">(</span><span class="nx">独立</span><span class="p">)</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">      </span><span class="err">├──</span><span class="w"> </span><span class="nx">处理客户端注册请求</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">      </span><span class="err">├──</span><span class="w"> </span><span class="nx">维护发现数据库</span><span class="w">                                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">      </span><span class="err">└──</span><span class="w"> </span><span class="nx">响应查询请求</span><span class="w">                                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">线程交互</span><span class="p">:</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌──────────────────┐</span><span class="w">      </span><span class="err">┌──────────────────┐</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nx">Transport</span><span class="w"> </span><span class="nx">接收</span><span class="w">    </span><span class="err">│</span><span class="w">      </span><span class="err">│</span><span class="w"> </span><span class="nx">DiscoveryServer</span><span class="w">   </span><span class="err">│</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nx">线程</span><span class="w">              </span><span class="err">│─────→│</span><span class="w"> </span><span class="nx">线程</span><span class="w">              </span><span class="err">│</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="nx">收到PDP请求</span><span class="p">)</span><span class="w">    </span><span class="err">│</span><span class="w">      </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="nx">处理请求</span><span class="p">)</span><span class="w">        </span><span class="err">│</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──────────────────┘</span><span class="w">      </span><span class="err">└──────────────────┘</span><span class="w">                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">│</span><span class="w">                           </span><span class="err">│</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">│</span><span class="w">                           </span><span class="err">▼</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">│</span><span class="w">                  </span><span class="err">┌──────────────────┐</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">│</span><span class="w">                  </span><span class="err">│</span><span class="w"> </span><span class="nx">更新数据库</span><span class="w">       </span><span class="err">│</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">│</span><span class="w">                  </span><span class="err">└──────────────────┘</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">│</span><span class="w">                           </span><span class="err">│</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">           </span><span class="err">▼</span><span class="w">                           </span><span class="err">▼</span><span class="w">                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌──────────────────┐</span><span class="w">      </span><span class="err">┌──────────────────┐</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="nx">发送</span><span class="w"> </span><span class="nx">PDP</span><span class="w"> </span><span class="nx">响应</span><span class="w">    </span><span class="err">│</span><span class="w">      </span><span class="err">│</span><span class="w"> </span><span class="nx">广播更新</span><span class="w">         </span><span class="err">│</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="nx">异步发送</span><span class="p">)</span><span class="w">       </span><span class="err">│</span><span class="w">      </span><span class="err">│</span><span class="w"> </span><span class="p">(</span><span class="nx">给所有客户端</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──────────────────┘</span><span class="w">      </span><span class="err">└──────────────────┘</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="3">3. 线程间通信机制</h2>
+<h3 id="31">3.1 通信方式总览</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                    线程间通信机制                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. 条件变量 + 互斥锁 (最常见)                                   │
+│     ├── FlowControllerAsyncPublishMode 唤醒                                  │
+│     └── ResourceEvent 新定时器                                  │
+│                                                                  │
+│  2. 无锁队列 (Lock-free Queue)                                  │
+│     ├── Transport 接收数据缓冲                                  │
+│     └── Discovery Server 请求队列                               │
+│                                                                  │
+│  3. 回调机制 (Callback)                                         │
+│     ├── Listener 回调 (on_data_available)                       │
+│     └── 定时器回调                                              │
+│                                                                  │
+│  4. 原子变量 + 内存序 (Atomic)                                  │
+│     ├── 状态标志位                                              │
+│     └── 计数器                                                  │
+│                                                                  │
+│  5. ASIO IO Service (异步IO)                                    │
+│     └── ResourceEvent 的底层机制                                │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="32">3.2 关键通信场景</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景 1: write() 唤醒 FlowControllerAsyncPublishMode</span>
+
+<span class="c1">// 用户线程 (调用 write)</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">DataWriterImpl::write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// ... 序列化 ...</span>
+<span class="w">    </span><span class="n">history_</span><span class="o">-&gt;</span><span class="n">add_change</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 唤醒 FlowControllerAsyncPublishMode</span>
+<span class="w">    </span><span class="n">FlowControllerAsyncPublishMode</span><span class="o">::</span><span class="n">wake_up</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="c1">// FlowControllerAsyncPublishMode</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">FlowControllerAsyncPublishMode::wake_up</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock</span><span class="p">(</span><span class="n">mutex_</span><span class="p">);</span>
+<span class="w">    </span><span class="n">cv_</span><span class="p">.</span><span class="n">notify_one</span><span class="p">();</span><span class="w">  </span><span class="c1">// 唤醒等待的线程</span>
+<span class="p">}</span>
+
+<span class="c1">// ====================</span>
+
+<span class="c1">// 场景 2: Transport 接收回调到 Reader</span>
+
+<span class="c1">// Transport 接收线程</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">UDPTransportInterface::perform_listen_operation</span><span class="p">(...)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">recvfrom</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+
+<span class="w">    </span><span class="c1">// 解析后回调</span>
+<span class="w">    </span><span class="n">MessageReceiver</span><span class="w"> </span><span class="n">receiver</span><span class="p">;</span>
+<span class="w">    </span><span class="n">receiver</span><span class="p">.</span><span class="n">process_data</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+
+<span class="w">    </span><span class="c1">// 分发到 StatefulReader</span>
+<span class="w">    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">process_data_msg</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Reader 内部可能需要发送 ACKNACK</span>
+<span class="w">    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">send_acknack_to_writer</span><span class="p">(</span><span class="n">writer</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// ====================</span>
+
+<span class="c1">// 场景 3: 定时器触发心跳发送</span>
+
+<span class="c1">// ResourceEvent 线程</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">ResourceEvent::run_io_service</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">stop_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ASIO 等待定时器到期</span>
+<span class="w">        </span><span class="n">io_service_</span><span class="p">.</span><span class="n">run_one</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// 执行到期回调</span>
+<span class="w">        </span><span class="c1">// → StatefulWriter::send_heartbeat()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="4">4. 线程安全设计</h2>
+<h3 id="41">4.1 线程安全级别</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Fast-DDS 的线程安全保证</span>
+
+<span class="err">【</span><span class="n">线程安全</span><span class="w"> </span><span class="p">(</span><span class="n">Thread</span><span class="o">-</span><span class="n">Safe</span><span class="p">)</span><span class="err">】</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="w">  </span><span class="c1">// 单例，线程安全</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">DomainParticipant</span><span class="o">::</span><span class="n">create_xxx</span><span class="p">()</span><span class="w">           </span><span class="c1">// 工厂方法</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">DataWriter</span><span class="o">::</span><span class="n">write</span><span class="p">()</span><span class="w">                       </span><span class="c1">// 可并发调用</span>
+
+<span class="err">【</span><span class="n">需要外部同步</span><span class="w"> </span><span class="p">(</span><span class="n">Not</span><span class="w"> </span><span class="n">Thread</span><span class="o">-</span><span class="n">Safe</span><span class="p">)</span><span class="err">】</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">DataWriterListener</span><span class="w"> </span><span class="n">回调</span><span class="w">                   </span><span class="c1">// 由接收线程调用</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">如果回调中访问共享数据</span><span class="err">，</span><span class="n">需要加锁</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">用户自定义</span><span class="w"> </span><span class="n">TypeSupport</span><span class="w">                    </span><span class="c1">// 用户保证线程安全</span>
+
+<span class="err">【</span><span class="n">内部同步机制</span><span class="err">】</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">Mutex</span><span class="w"> </span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">recursive_mutex</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">Spinlock</span><span class="w"> </span><span class="p">(</span><span class="n">自旋锁</span><span class="err">，</span><span class="n">用于短时临界区</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">RWLock</span><span class="w"> </span><span class="p">(</span><span class="n">读写锁</span><span class="err">，</span><span class="n">用于读多写少场景</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="42">4.2 关键锁分析</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// StatefulWriter 的锁策略</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">StatefulWriter</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">RTPSWriter</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 保护 matched_readers_ 集合</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 保护 HistoryCache</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">cache_mutex_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// ReaderProxy 内部有自己的锁</span>
+<span class="w">    </span><span class="c1">// 减少锁粒度，避免全局锁竞争</span>
+<span class="p">};</span>
+
+<span class="c1">// 锁粒度设计</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">StatefulWriter::send_any_unsent_changes</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 获取读锁，遍历 Reader 列表</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">shared_lock</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">read_lock</span><span class="p">(</span><span class="n">mutex_</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">ReaderProxy</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">matched_readers_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 2. 每个 Reader 独立加锁</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">reader_lock</span><span class="p">(</span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 3. 处理该 Reader 的数据</span>
+<span class="w">        </span><span class="n">send_changes_to_reader</span><span class="p">(</span><span class="n">reader</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="43">4.3 死锁避免</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Fast-DDS 的锁顺序约定</span>
+
+<span class="err">【</span><span class="n">锁层级</span><span class="err">】</span>
+<span class="n">Level</span><span class="w"> </span><span class="mi">1</span><span class="o">:</span><span class="w"> </span><span class="n">Participant</span><span class="w"> </span><span class="n">级别锁</span>
+<span class="w">    </span><span class="err">↓</span>
+<span class="n">Level</span><span class="w"> </span><span class="mi">2</span><span class="o">:</span><span class="w"> </span><span class="n">Endpoint</span><span class="w"> </span><span class="p">(</span><span class="n">Writer</span><span class="o">/</span><span class="n">Reader</span><span class="p">)</span><span class="w"> </span><span class="n">级别锁</span>
+<span class="w">    </span><span class="err">↓</span>
+<span class="n">Level</span><span class="w"> </span><span class="mi">3</span><span class="o">:</span><span class="w"> </span><span class="n">ReaderProxy</span><span class="o">/</span><span class="n">WriterProxy</span><span class="w"> </span><span class="n">锁</span>
+<span class="w">    </span><span class="err">↓</span>
+<span class="n">Level</span><span class="w"> </span><span class="mi">4</span><span class="o">:</span><span class="w"> </span><span class="n">HistoryCache</span><span class="w"> </span><span class="n">锁</span>
+
+<span class="err">【</span><span class="n">规则</span><span class="err">】</span>
+<span class="mf">1.</span><span class="w"> </span><span class="n">必须按层级顺序获取锁</span>
+<span class="mf">2.</span><span class="w"> </span><span class="n">禁止反向获取</span><span class="w"> </span><span class="p">(</span><span class="n">会导致死锁</span><span class="p">)</span>
+<span class="mf">3.</span><span class="w"> </span><span class="n">同一层级内按地址排序获取</span>
+
+<span class="c1">// 示例: 正确的锁顺序</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">correct_lock_order</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock1</span><span class="p">(</span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock2</span><span class="p">(</span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">);</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock3</span><span class="p">(</span><span class="n">reader_proxy</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// 示例: 错误的锁顺序 (可能导致死锁)</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">wrong_lock_order</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock1</span><span class="p">(</span><span class="n">reader_proxy</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">);</span><span class="w">  </span><span class="c1">// Level 3</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock2</span><span class="p">(</span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">mutex_</span><span class="p">);</span><span class="w">         </span><span class="c1">// Level 2  ← 错误！</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="5">5. 线程配置与调优</h2>
+<h3 id="51">5.1 线程优先级配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/attributes/ThreadSettings.hpp&gt;</span>
+
+<span class="c1">// 配置各种线程的优先级</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_thread_priorities</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Transport 接收线程 - 高优先级 (实时数据)</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-&gt;</span>
+<span class="w">        </span><span class="n">set_thread_config</span><span class="p">({</span>
+<span class="w">            </span><span class="n">SCHED_FIFO</span><span class="p">,</span><span class="w">     </span><span class="c1">// 实时调度策略</span>
+<span class="w">            </span><span class="mi">80</span><span class="p">,</span><span class="w">             </span><span class="c1">// 优先级 80 (1-99)</span>
+<span class="w">            </span><span class="mh">0xFFFFFFFF</span><span class="p">,</span><span class="w">     </span><span class="c1">// CPU 亲和性掩码</span>
+<span class="w">            </span><span class="s">""</span><span class="w">              </span><span class="c1">// 线程名称</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// FlowControllerAsyncPublishMode - 中等优先级</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">thread_settings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SCHED_OTHER</span><span class="p">,</span><span class="w">    </span><span class="c1">// 普通调度</span>
+<span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">              </span><span class="c1">// 忽略</span>
+<span class="w">        </span><span class="mh">0xFFFFFFFF</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"AsyncWriter"</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// Event 线程 - 低优先级</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">event</span><span class="p">().</span><span class="n">thread_settings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SCHED_OTHER</span><span class="p">,</span>
+<span class="w">        </span><span class="mi">-10</span><span class="p">,</span><span class="w">            </span><span class="c1">// nice 值</span>
+<span class="w">        </span><span class="mh">0xFFFFFFFF</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"EventThread"</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="52-cpu">5.2 CPU 亲和性配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 将线程绑定到特定 CPU 核心</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_cpu_affinity</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 将接收线程绑定到 CPU 0-1</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-&gt;</span>
+<span class="w">        </span><span class="n">set_thread_config</span><span class="p">({</span>
+<span class="w">            </span><span class="n">SCHED_FIFO</span><span class="p">,</span>
+<span class="w">            </span><span class="mi">80</span><span class="p">,</span>
+<span class="w">            </span><span class="mb">0b00000011</span><span class="p">,</span><span class="w">  </span><span class="c1">// CPU 0 和 1</span>
+<span class="w">            </span><span class="s">"RecvThread"</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// 将 AsyncWriter 绑定到 CPU 2-3</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">thread_settings</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SCHED_FIFO</span><span class="p">,</span>
+<span class="w">        </span><span class="mi">70</span><span class="p">,</span>
+<span class="w">        </span><span class="mb">0b00001100</span><span class="p">,</span><span class="w">  </span><span class="c1">// CPU 2 和 3</span>
+<span class="w">        </span><span class="s">"AsyncWriter"</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// 其他线程使用剩余核心</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="53">5.3 线程数量调优</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 根据 CPU 核心数调整线程池大小</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">tune_thread_pool_size</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">num_cores</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="o">::</span><span class="n">hardware_concurrency</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Transport 接收线程: 通常与网络接口数相关</span>
+<span class="w">    </span><span class="c1">// 不需要太多，避免线程切换开销</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">max_num_threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="mi">4u</span><span class="p">,</span><span class="w"> </span><span class="n">num_cores</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// FlowControllerAsyncPublishMode: 全局只有一个，不需要调整</span>
+
+<span class="w">    </span><span class="c1">// Event 线程: 每个 Participant 一个</span>
+<span class="w">    </span><span class="c1">// 通常不需要调整</span>
+
+<span class="w">    </span><span class="c1">// Security 线程: 如果启用，可配置线程池</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">security</span><span class="p">().</span><span class="n">thread_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="mi">8u</span><span class="p">,</span><span class="w"> </span><span class="n">num_cores</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="6">6. 线程问题排查</h2>
+<h3 id="61">6.1 常见问题</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>现象</th>
+<th>可能原因</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CPU 100%</strong></td>
+<td>系统卡顿</td>
+<td>死循环、忙等待</td>
+<td>检查定时器间隔、使用条件变量</td>
+</tr>
+<tr>
+<td><strong>内存泄漏</strong></td>
+<td>内存持续增长</td>
+<td>线程未清理、队列积压</td>
+<td>检查线程生命周期、限制队列大小</td>
+</tr>
+<tr>
+<td><strong>数据延迟</strong></td>
+<td>高延迟</td>
+<td>线程阻塞、锁竞争</td>
+<td>减少锁粒度、使用异步模式</td>
+</tr>
+<tr>
+<td><strong>丢包</strong></td>
+<td>数据丢失</td>
+<td>接收线程阻塞</td>
+<td>增加接收缓冲区、使用独立线程池</td>
+</tr>
+<tr>
+<td><strong>连接失败</strong></td>
+<td>无法发现</td>
+<td>Discovery 线程阻塞</td>
+<td>检查网络防火墙、Discovery 配置</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62">6.2 诊断工具</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 1. 查看 Fast-DDS 线程</span>
+ps<span class="w"> </span>-T<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>your_app<span class="k">)</span><span class="w"> </span>-o<span class="w"> </span>pid,tid,comm,pcpu,pmem
+
+<span class="c1"># 2. 线程堆栈分析</span>
+gdb<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>your_app<span class="k">)</span><span class="w"> </span>-ex<span class="w"> </span><span class="s2">"thread apply all bt"</span><span class="w"> </span>-ex<span class="w"> </span><span class="s2">"quit"</span>
+
+<span class="c1"># 3. 实时性能监控</span>
+htop<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>your_app<span class="k">)</span>
+
+<span class="c1"># 4. 锁竞争分析</span>
+valgrind<span class="w"> </span>--tool<span class="o">=</span>drd<span class="w"> </span>./your_app
+
+<span class="c1"># 5. 系统调用跟踪</span>
+strace<span class="w"> </span>-f<span class="w"> </span>-e<span class="w"> </span>futex,write,read<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>your_app<span class="k">)</span>
+</code></pre></div>
+<h3 id="63">6.3 日志诊断</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 启用线程相关日志</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">enable_thread_logging</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Log</span><span class="o">::</span><span class="n">SetVerbosity</span><span class="p">(</span><span class="n">Log</span><span class="o">::</span><span class="n">Kind</span><span class="o">::</span><span class="n">Info</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 过滤线程相关日志</span>
+<span class="w">    </span><span class="n">Log</span><span class="o">::</span><span class="n">SetCategoryFilter</span><span class="p">(</span><span class="s">"THREAD"</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// 典型日志输出</span>
+<span class="p">[</span><span class="n">THREAD</span><span class="p">]</span><span class="w"> </span><span class="n">Creating</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span>
+<span class="p">[</span><span class="n">THREAD</span><span class="p">]</span><span class="w"> </span><span class="n">Starting</span><span class="w"> </span><span class="n">ResourceEvent</span><span class="w"> </span><span class="kr">thread</span>
+<span class="p">[</span><span class="n">THREAD</span><span class="p">]</span><span class="w"> </span><span class="n">Transport</span><span class="w"> </span><span class="n">receive</span><span class="w"> </span><span class="kr">thread</span><span class="w"> </span><span class="n">started</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">CPU</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">[</span><span class="n">THREAD</span><span class="p">]</span><span class="w"> </span><span class="n">Thread</span><span class="w"> </span><span class="n">priority</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="mi">80</span><span class="w"> </span><span class="p">(</span><span class="n">SCHED_FIFO</span><span class="p">)</span>
+</code></pre></div>
+<hr/>
+<h2 id="7-dump">7. 实战：线程Dump分析</h2>
+<h3 id="71-dump">7.1 获取线程Dump</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 在程序中打印线程状态</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">print_thread_dump</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"=== Fast-DDS Thread Dump ==="</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 1. ResourceEvent 线程</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"ResourceEvent Thread:"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"  - Active timers: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">resource_event_</span><span class="p">.</span><span class="n">get_timer_count</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"  - Next timeout: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">resource_event_</span><span class="p">.</span><span class="n">get_next_timeout</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. FlowControllerAsyncPublishMode</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"FlowControllerAsyncPublishMode:"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"  - Registered writers: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">async_writer_thread_</span><span class="p">.</span><span class="n">get_writer_count</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"  - Running: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">async_writer_thread_</span><span class="p">.</span><span class="n">is_running</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 3. Transport 线程</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Transport Threads:"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">transport</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">transports_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"  - "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">transport</span><span class="o">-&gt;</span><span class="n">get_name</span><span class="p">()</span><span class="w"> </span>
+<span class="w">                  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">": "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">transport</span><span class="o">-&gt;</span><span class="n">get_thread_count</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" threads"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. 锁状态</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Lock Statistics:"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"  - Mutex contention: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">get_mutex_contention_rate</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="72">7.2 典型问题分析</h3>
+<div class="codehilite"><pre><span></span><code>场景: CPU 使用率 100%
+
+线程Dump:
+Thread 1 (ResourceEvent): 
+  <span class="k">-</span> State: Running
+  <span class="k">-</span> Call stack: process_timers → send_heartbeat → ...
+  <span class="k">-</span> CPU Time: 95%
+
+分析:
+<span class="k">-</span> ResourceEvent 线程占用过高
+<span class="k">-</span> 可能是定时器间隔设置过短
+<span class="k">-</span> 或者回调函数执行时间过长
+
+解决方案:
+1. 增加心跳间隔
+2. 将耗时操作移到独立线程
+3. 使用多个 ResourceEvent 实例分担负载
+</code></pre></div>
+<hr/>
+<h2 id="_2">总结</h2>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="nx">Fast</span><span class="o">-</span><span class="nx">DDS</span><span class="w"> </span><span class="nx">线程模型总结</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">├─────────────────────────────────────────────────────────────────┤</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">核心线程</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">ResourceEvent</span><span class="p">:</span><span class="w"> </span><span class="nx">定时器</span><span class="err">、</span><span class="nx">心跳</span><span class="err">、</span><span class="nx">重传</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="nx">个</span><span class="o">/</span><span class="nx">Participant</span><span class="p">)</span><span class="w">        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">FlowControllerAsyncPublishMode</span><span class="p">:</span><span class="w"> </span><span class="nx">异步数据发送</span><span class="w"> </span><span class="p">(</span><span class="nx">全局1个</span><span class="p">)</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">Transport</span><span class="w"> </span><span class="nx">线程</span><span class="p">:</span><span class="w"> </span><span class="nx">网络接收</span><span class="w"> </span><span class="p">(</span><span class="nx">每个通道1个</span><span class="p">)</span><span class="w">                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">Discovery</span><span class="w"> </span><span class="nx">线程</span><span class="p">:</span><span class="w"> </span><span class="nx">发现协议</span><span class="w"> </span><span class="p">(</span><span class="nx">Simple用定时器</span><span class="p">,</span><span class="w"> </span><span class="nx">Server独立线程</span><span class="p">)</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">线程通信</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">条件变量</span><span class="p">:</span><span class="w"> </span><span class="nx">线程唤醒</span><span class="w"> </span><span class="p">(</span><span class="nx">AsyncWriter</span><span class="p">,</span><span class="w"> </span><span class="nx">Event</span><span class="p">)</span><span class="w">                    </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">无锁队列</span><span class="p">:</span><span class="w"> </span><span class="nx">数据缓冲</span><span class="w"> </span><span class="p">(</span><span class="nx">Transport</span><span class="p">)</span><span class="w">                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">回调机制</span><span class="p">:</span><span class="w"> </span><span class="nx">事件通知</span><span class="w"> </span><span class="p">(</span><span class="nx">Listener</span><span class="p">)</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">线程安全</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">层级锁设计</span><span class="p">:</span><span class="w"> </span><span class="nx">Participant</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">Endpoint</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">Proxy</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">Cache</span><span class="w">         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">避免死锁</span><span class="p">:</span><span class="w"> </span><span class="nx">按固定顺序获取锁</span><span class="w">                                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">减少竞争</span><span class="p">:</span><span class="w"> </span><span class="nx">细粒度锁</span><span class="err">、</span><span class="nx">无锁数据结构</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="nx">调优建议</span><span class="w">                                                        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">实时场景</span><span class="p">:</span><span class="w"> </span><span class="nx">SCHED_FIFO</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">CPU</span><span class="w"> </span><span class="nx">亲和性</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="nx">高吞吐</span><span class="p">:</span><span class="w"> </span><span class="nx">增加</span><span class="w"> </span><span class="nx">Transport</span><span class="w"> </span><span class="nx">线程</span><span class="err">、</span><span class="nx">调整缓冲区</span><span class="w">                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="nx">低延迟</span><span class="p">:</span><span class="w"> </span><span class="nx">减少线程切换</span><span class="err">、</span><span class="nx">避免锁竞争</span><span class="w">                           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                                  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 Fast-DDS 2.14.x 源码分析</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

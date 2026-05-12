@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS QoS 策略实现详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item active" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 04-QoS-Implementation</div>
+        <h1 id="fast-dds-qos">Fast-DDS QoS 策略实现详解</h1>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-qos-架构设计概述">QoS 架构设计概述</a></li>
+<li><a href="#2-核心组件详解">核心组件详解</a></li>
+<li><a href="#3-关键-qos-策略详解">关键 QoS 策略详解</a></li>
+<li><a href="#4-qos-兼容性检查机制">QoS 兼容性检查机制</a></li>
+<li><a href="#5-代码示例">代码示例</a></li>
+<li><a href="#6-最佳实践">最佳实践</a></li>
+</ol>
+<hr/>
+<h2 id="1-qos">1. QoS 架构设计概述</h2>
+<p>Fast-DDS 的 QoS（Quality of Service，服务质量）系统是基于 DDS（Data Distribution Service）标准实现的，提供了丰富的策略来控制数据通信的行为。QoS 架构的核心设计目标是：</p>
+<ul>
+<li><strong>灵活性</strong>：允许应用根据不同场景定制通信行为</li>
+<li><strong>可协商性</strong>：发布者和订阅者之间可以协商兼容的 QoS 设置</li>
+<li><strong>可扩展性</strong>：支持标准 DDS QoS 和厂商扩展 QoS</li>
+</ul>
+<h3 id="11">1.1 整体架构图</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                        QoS 架构层次                              │
+├─────────────────────────────────────────────────────────────────┤
+│  应用层 QoS  │  DataWriterQos / DataReaderQos / TopicQos        │
+├─────────────────────────────────────────────────────────────────┤
+│  策略层 QoS  │  DurabilityQosPolicy / ReliabilityQosPolicy ...   │
+├─────────────────────────────────────────────────────────────────┤
+│  参数层      │  Parameter_t (PID + length + value)              │
+├─────────────────────────────────────────────────────────────────┤
+│  传输层      │  CDRMessage (有线协议格式)                        │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="12-qos">1.2 QoS 分类</h3>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>说明</th>
+<th>代表策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>标准 DDS QoS</strong></td>
+<td>DDS 规范定义的标准策略</td>
+<td>Reliability, Durability, History</td>
+</tr>
+<tr>
+<td><strong>XTypes 扩展</strong></td>
+<td>DDS-XTypes 规范扩展</td>
+<td>DataRepresentation, TypeConsistency</td>
+</tr>
+<tr>
+<td><strong>eProsima 扩展</strong></td>
+<td>Fast-DDS 厂商特定扩展</td>
+<td>PublishMode, DataSharing, TransportConfig</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="2">2. 核心组件详解</h2>
+<h3 id="21-qospolicy-">2.1 QosPolicy - 策略基类</h3>
+<p>所有 QoS 策略都继承自 <code>QosPolicy</code> 基类，定义位于 <code>include/fastdds/dds/core/policy/QosPolicies.hpp</code>：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">//! 标记 QoS 是否被修改过</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">hasChanged</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">//! 构造函数</span>
+<span class="w">    </span><span class="k">explicit</span><span class="w"> </span><span class="n">QosPolicy</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">send_always</span><span class="p">)</span>
+<span class="w">        </span><span class="o">:</span><span class="w"> </span><span class="n">hasChanged</span><span class="p">(</span><span class="nb">false</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="w"> </span><span class="n">send_always_</span><span class="p">(</span><span class="n">send_always</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">//! 是否总是发送（即使未修改）</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">send_always</span><span class="p">()</span><span class="w"> </span><span class="k">const</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">send_always_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">//! 清除/重置策略</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="kr">inline</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">clear</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="k">protected</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">send_always_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>设计要点</strong>：<br/>
+- <code>hasChanged</code>：用于优化，避免发送未修改的 QoS<br/>
+- <code>send_always_</code>：某些关键策略（如 Reliability）需要始终在发现阶段发送<br/>
+- <code>clear()</code>：纯虚函数，子类必须实现重置逻辑</p>
+<h3 id="22-policymask-">2.2 PolicyMask - 策略掩码</h3>
+<p><code>PolicyMask</code> 用于高效表示一组 QoS 策略的状态，基于 <code>std::bitset</code> 实现：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">enum</span><span class="w"> </span><span class="nc">QosPolicyId_t</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint32_t</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">INVALID_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="n">USERDATA_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">    </span><span class="n">DURABILITY_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">    </span><span class="c1">// ... 更多策略 ID</span>
+<span class="w">    </span><span class="n">RELIABILITY_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">11</span><span class="p">,</span>
+<span class="w">    </span><span class="n">HISTORY_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">13</span><span class="p">,</span>
+<span class="w">    </span><span class="n">LIVELINESS_QOS_POLICY_ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="n">NEXT_QOS_POLICY_ID</span><span class="w">  </span><span class="c1">// 用于确定 bitset 大小</span>
+<span class="p">};</span>
+
+<span class="k">using</span><span class="w"> </span><span class="n">PolicyMask</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">bitset</span><span class="o">&lt;</span><span class="n">NEXT_QOS_POLICY_ID</span><span class="o">&gt;</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>使用场景</strong>：<br/>
+- 标记不兼容的 QoS 策略集合<br/>
+- 快速检查某个策略是否被设置<br/>
+- 批量操作多个策略</p>
+<h3 id="23-parameterlist-">2.3 ParameterList - 参数列表</h3>
+<p><code>ParameterList</code> 负责 QoS 参数的序列化和反序列化，是 RTPS 协议实现的关键：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ParameterList</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">//! 将封装头写入 CDR 消息</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">writeEncapsulationToCDRMsg</span><span class="p">(</span><span class="n">rtps</span><span class="o">::</span><span class="n">CDRMessage_t</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">//! 从 CDR 消息读取参数列表</span>
+<span class="w">    </span><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span><span class="w"> </span><span class="nc">Pred</span><span class="o">&gt;</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">readParameterListfromCDRMsg</span><span class="p">(</span>
+<span class="w">        </span><span class="n">rtps</span><span class="o">::</span><span class="n">CDRMessage_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">msg</span><span class="p">,</span>
+<span class="w">        </span><span class="n">Pred</span><span class="w"> </span><span class="n">processor</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">use_encapsulation</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos_size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">//! 从 Inline QoS 更新 CacheChange</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">updateCacheChangeFromInlineQos</span><span class="p">(</span>
+<span class="w">        </span><span class="n">rtps</span><span class="o">::</span><span class="n">CacheChange_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">change</span><span class="p">,</span>
+<span class="w">        </span><span class="n">rtps</span><span class="o">::</span><span class="n">CDRMessage_t</span><span class="o">*</span><span class="w"> </span><span class="n">msg</span><span class="p">,</span>
+<span class="w">        </span><span class="kt">uint32_t</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos_size</span><span class="p">);</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>参数 ID（PID）定义</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>PID</th>
+<th>值</th>
+<th>对应策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PID_DURABILITY</td>
+<td>0x001d</td>
+<td>DurabilityQosPolicy</td>
+</tr>
+<tr>
+<td>PID_RELIABILITY</td>
+<td>0x001a</td>
+<td>ReliabilityQosPolicy</td>
+</tr>
+<tr>
+<td>PID_HISTORY</td>
+<td>0x0040</td>
+<td>HistoryQosPolicy</td>
+</tr>
+<tr>
+<td>PID_DEADLINE</td>
+<td>0x0023</td>
+<td>DeadlineQosPolicy</td>
+</tr>
+<tr>
+<td>PID_LIVELINESS</td>
+<td>0x001b</td>
+<td>LivelinessQosPolicy</td>
+</tr>
+<tr>
+<td>PID_LIFESPAN</td>
+<td>0x002b</td>
+<td>LifespanQosPolicy</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-parameter_t-">2.4 Parameter_t - 参数基类</h3>
+<p>所有参数的基类，定义了 PID 和长度：</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Parameter_t</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">ParameterId_t</span><span class="w"> </span><span class="n">Pid</span><span class="p">;</span><span class="w">    </span><span class="c1">// 参数标识符</span>
+<span class="w">    </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">length</span><span class="p">;</span><span class="w">      </span><span class="c1">// 参数数据长度</span>
+
+<span class="w">    </span><span class="n">Parameter_t</span><span class="p">(</span><span class="n">ParameterId_t</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="kt">uint16_t</span><span class="w"> </span><span class="n">length</span><span class="p">)</span>
+<span class="w">        </span><span class="o">:</span><span class="w"> </span><span class="n">Pid</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">length</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-qos">3. 关键 QoS 策略详解</h2>
+<h3 id="31-reliabilityqospolicy">3.1 ReliabilityQosPolicy（可靠性策略）</h3>
+<p><strong>定义位置</strong>：<code>include/fastdds/dds/core/policy/QosPolicies.hpp</code></p>
+<p><strong>作用</strong>：控制数据传输的可靠性级别。</p>
+<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ReliabilityQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">//! 尽力而为 - 不保证数据到达</span>
+<span class="w">    </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x01</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 可靠传输 - 确保数据最终到达</span>
+<span class="w">    </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x02</span>
+<span class="p">}</span><span class="w"> </span><span class="n">ReliabilityQosPolicyKind</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">ReliabilityQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">ReliabilityQosPolicyKind</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">           </span><span class="c1">// 可靠性类型</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">max_blocking_time</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最大阻塞时间（默认 100ms）</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>特性对比</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>BEST_EFFORT</th>
+<th>RELIABLE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据确认</td>
+<td>无</td>
+<td>有（ACK/NACK）</td>
+</tr>
+<tr>
+<td>重传机制</td>
+<td>无</td>
+<td>有</td>
+</tr>
+<tr>
+<td>延迟</td>
+<td>低</td>
+<td>较高</td>
+</tr>
+<tr>
+<td>带宽占用</td>
+<td>低</td>
+<td>较高</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>实时视频、传感器数据</td>
+<td>关键命令、状态同步</td>
+</tr>
+</tbody>
+</table>
+<p><strong>兼容性规则</strong>：<br/>
+- Writer(BEST_EFFORT) + Reader(RELIABLE) = <strong>不兼容</strong><br/>
+- Writer(RELIABLE) + Reader(BEST_EFFORT) = <strong>兼容</strong><br/>
+- 必须满足：Writer 提供的可靠性 ≥ Reader 要求的可靠性</p>
+<h3 id="32-durabilityqospolicy">3.2 DurabilityQosPolicy（持久性策略）</h3>
+<p><strong>作用</strong>：控制数据在写入者生命周期结束后的保留行为。</p>
+<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">DurabilityQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">//! 数据不保留</span>
+<span class="w">    </span><span class="n">VOLATILE_DURABILITY_QOS</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 数据保留在写入者内存中</span>
+<span class="w">    </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 数据保留在服务内存中（需持久化服务）</span>
+<span class="w">    </span><span class="n">TRANSIENT_DURABILITY_QOS</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 数据保留在永久存储中</span>
+<span class="w">    </span><span class="n">PERSISTENT_DURABILITY_QOS</span><span class="w">  </span><span class="c1">// 当前版本不支持</span>
+<span class="p">}</span><span class="w"> </span><span class="n">DurabilityQosPolicyKind_t</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DurabilityQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">DurabilityQosPolicyKind_t</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 转换为 RTPS 层枚举</span>
+<span class="w">    </span><span class="kr">inline</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">DurabilityKind_t</span><span class="w"> </span><span class="nf">durabilityKind</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>持久性级别排序</strong>：</p>
+<div class="codehilite"><pre><span></span><code>VOLATILE &lt; TRANSIENT_LOCAL &lt; TRANSIENT &lt; PERSISTENT
+</code></pre></div>
+<p><strong>使用场景</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>说明</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VOLATILE</td>
+<td>只发给当前在线的订阅者</td>
+<td>实时流数据</td>
+</tr>
+<tr>
+<td>TRANSIENT_LOCAL</td>
+<td>新订阅者能获取历史数据</td>
+<td>状态主题、配置数据</td>
+</tr>
+<tr>
+<td>TRANSIENT</td>
+<td>跨会话保留（需外部服务）</td>
+<td>关键状态恢复</td>
+</tr>
+</tbody>
+</table>
+<p><strong>兼容性规则</strong>：<br/>
+- 必须满足：Writer 提供的持久性 ≥ Reader 要求的持久性<br/>
+- Writer(VOLATILE) + Reader(TRANSIENT_LOCAL) = <strong>不兼容</strong></p>
+<h3 id="33-historyqospolicy">3.3 HistoryQosPolicy（历史策略）</h3>
+<p><strong>作用</strong>：控制实例数据的缓存行为。</p>
+<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">HistoryQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">//! 只保留最近的 N 个样本</span>
+<span class="w">    </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 保留所有样本（直到资源限制）</span>
+<span class="w">    </span><span class="n">KEEP_ALL_HISTORY_QOS</span>
+<span class="p">}</span><span class="w"> </span><span class="n">HistoryQosPolicyKind</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">HistoryQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">HistoryQosPolicyKind</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span><span class="w">  </span><span class="c1">// 历史类型</span>
+<span class="w">    </span><span class="kt">int32_t</span><span class="w"> </span><span class="n">depth</span><span class="p">;</span><span class="w">              </span><span class="c1">// 保留深度（仅 KEEP_LAST 有效）</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>默认配置</strong>：<br/>
+- DataReader：KEEP_LAST，depth = 1<br/>
+- DataWriter：KEEP_LAST，depth = 1</p>
+<p><strong>与 ResourceLimits 的关系</strong>：</p>
+<div class="codehilite"><pre><span></span><code>总样本数 ≤ max_samples
+单个实例样本数 ≤ max_samples_per_instance
+实例数 ≤ max_instances
+
+一致性约束：max_samples ≥ max_instances × max_samples_per_instance
+</code></pre></div>
+<h3 id="34-deadlineqospolicy">3.4 DeadlineQosPolicy（截止期限策略）</h3>
+<p><strong>作用</strong>：定义数据更新的最大允许间隔。</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DeadlineQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">//! 数据更新的最大允许间隔</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">period</span><span class="p">;</span><span class="w">  </span><span class="c1">// 默认：无限</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>工作机制</strong>：<br/>
+- <strong>Writer</strong>：承诺每个实例至少每 <code>period</code> 时间更新一次<br/>
+- <strong>Reader</strong>：期望每个实例至少每 <code>period</code> 时间收到一次更新<br/>
+- <strong>违约处理</strong>：通过 Listener 回调通知应用层</p>
+<p><strong>兼容性规则</strong>：<br/>
+- 必须满足：Writer.deadline.period ≤ Reader.deadline.period<br/>
+- Writer 的截止期限必须比 Reader 的更严格（更短）</p>
+<p><strong>与 TimeBasedFilter 的关系</strong>：<br/>
+- Reader 的 <code>minimum_separation</code> 必须 ≤ <code>deadline.period</code><br/>
+- 否则配置不一致</p>
+<h3 id="35-lifespanqospolicy">3.5 LifespanQosPolicy（生命周期策略）</h3>
+<p><strong>作用</strong>：定义数据样本的有效期。</p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LifespanQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">//! 数据有效期</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">duration</span><span class="p">;</span><span class="w">  </span><span class="c1">// 默认：无限</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>工作机制</strong>：<br/>
+- 数据写入时开始计时<br/>
+- 过期数据不会被发送给新订阅者<br/>
+- 过期数据会从历史缓存中移除</p>
+<p><strong>使用场景</strong>：<br/>
+- 传感器数据（只关心最新值）<br/>
+- 限时有效的命令<br/>
+- 周期性状态报告</p>
+<h3 id="36-livelinessqospolicy">3.6 LivelinessQosPolicy（活跃性策略）</h3>
+<p><strong>作用</strong>：检测通信实体是否仍然活跃。</p>
+<div class="codehilite"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">LivelinessQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">octet</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">//! 自动维护活跃性</span>
+<span class="w">    </span><span class="n">AUTOMATIC_LIVELINESS_QOS</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 同一 Participant 内任一实体活跃即认为全部活跃</span>
+<span class="w">    </span><span class="n">MANUAL_BY_PARTICIPANT_LIVELINESS_QOS</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">//! 必须显式声明每个 Writer 的活跃性</span>
+<span class="w">    </span><span class="n">MANUAL_BY_TOPIC_LIVELINESS_QOS</span>
+<span class="p">}</span><span class="w"> </span><span class="n">LivelinessQosPolicyKind</span><span class="p">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">LivelinessQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">Parameter_t</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">LivelinessQosPolicyKind</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">lease_duration</span><span class="p">;</span><span class="w">       </span><span class="c1">// 租约期限</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">Duration_t</span><span class="w"> </span><span class="n">announcement_period</span><span class="p">;</span><span class="w">  </span><span class="c1">// 自动声明周期</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>活跃性级别排序</strong>：</p>
+<div class="codehilite"><pre><span></span><code>AUTOMATIC &lt; MANUAL_BY_PARTICIPANT &lt; MANUAL_BY_TOPIC
+</code></pre></div>
+<p><strong>兼容性规则</strong>：<br/>
+1. Writer.kind ≥ Reader.kind<br/>
+2. Writer.lease_duration ≤ Reader.lease_duration</p>
+<p><strong>应用场景</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>使用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AUTOMATIC</td>
+<td>常规数据发布，由中间件自动管理</td>
+</tr>
+<tr>
+<td>MANUAL_BY_PARTICIPANT</td>
+<td>一组相关 Writer 的集体活跃性管理</td>
+</tr>
+<tr>
+<td>MANUAL_BY_TOPIC</td>
+<td>需要精确控制每个 Topic 的活跃性</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="4-qos">4. QoS 兼容性检查机制</h2>
+<h3 id="41">4.1 匹配流程</h3>
+<p>QoS 兼容性检查在端点发现阶段（EDP）执行：</p>
+<div class="codehilite"><pre><span></span><code>WriterProxyData ←→ ReaderProxyData
+        ↓              ↓
+    valid_matching()
+        ↓
+   检查各项 QoS 兼容性
+        ↓
+   生成 PolicyMask（标记不兼容项）
+</code></pre></div>
+<h3 id="42">4.2 兼容性检查实现</h3>
+<p>核心代码位于 <code>src/cpp/rtps/builtin/discovery/endpoint/EDP.cpp</code>：</p>
+<div class="codehilite"><pre><span></span><code><span class="kt">bool</span><span class="w"> </span><span class="nf">EDP::valid_matching</span><span class="p">(</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">WriterProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">wdata</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">ReaderProxyData</span><span class="o">*</span><span class="w"> </span><span class="n">rdata</span><span class="p">,</span>
+<span class="w">    </span><span class="n">MatchingFailureMask</span><span class="o">&amp;</span><span class="w"> </span><span class="n">reason</span><span class="p">,</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">PolicyMask</span><span class="o">&amp;</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">reset</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 1. Reliability 检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">reliability</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span>
+<span class="w">        </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">reliability</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">dds</span><span class="o">::</span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">RELIABILITY_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. Durability 检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">durability</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">durability</span><span class="p">.</span><span class="n">kind</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DURABILITY_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. Ownership 检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">ownership</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">ownership</span><span class="p">.</span><span class="n">kind</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">OWNERSHIP_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 4. Deadline 检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">deadline</span><span class="p">.</span><span class="n">period</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">deadline</span><span class="p">.</span><span class="n">period</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DEADLINE_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 5. Liveliness 检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">liveliness</span><span class="p">.</span><span class="n">lease_duration</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">liveliness</span><span class="p">.</span><span class="n">lease_duration</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">LIVELINESS_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">wdata</span><span class="o">-&gt;</span><span class="n">liveliness</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">rdata</span><span class="o">-&gt;</span><span class="n">liveliness</span><span class="p">.</span><span class="n">kind</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">LIVELINESS_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 6. DataRepresentation 检查</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">checkDataRepresentationQos</span><span class="p">(</span><span class="n">wdata</span><span class="p">,</span><span class="w"> </span><span class="n">rdata</span><span class="p">))</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">fastdds</span><span class="o">::</span><span class="n">dds</span><span class="o">::</span><span class="n">DATAREPRESENTATION_QOS_POLICY_ID</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 存在不兼容策略时返回失败</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">incompatible_qos</span><span class="p">.</span><span class="n">any</span><span class="p">())</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">reason</span><span class="p">.</span><span class="n">set</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">incompatible_qos</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="43">4.3 不兼容通知机制</h3>
+<p>当检测到 QoS 不兼容时，会触发以下通知：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Reader 侧</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">no_match_reason</span><span class="p">.</span><span class="n">test</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">incompatible_qos</span><span class="p">)</span><span class="w"> </span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_listener</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">reader</span><span class="o">-&gt;</span><span class="n">get_listener</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">on_requested_incompatible_qos</span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mp_PDP</span><span class="o">-&gt;</span><span class="n">notify_incompatible_qos_matching</span><span class="p">(</span><span class="n">R</span><span class="o">-&gt;</span><span class="n">getGuid</span><span class="p">(),</span><span class="w"> </span><span class="n">wdatait</span><span class="o">-&gt;</span><span class="n">guid</span><span class="p">,</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Writer 侧</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">no_match_reason</span><span class="p">.</span><span class="n">test</span><span class="p">(</span><span class="n">MatchingFailureMask</span><span class="o">::</span><span class="n">incompatible_qos</span><span class="p">)</span><span class="w"> </span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">get_listener</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">get_listener</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">on_offered_incompatible_qos</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">);</span>
+<span class="w">    </span><span class="n">mp_PDP</span><span class="o">-&gt;</span><span class="n">notify_incompatible_qos_matching</span><span class="p">(</span><span class="n">W</span><span class="o">-&gt;</span><span class="n">getGuid</span><span class="p">(),</span><span class="w"> </span><span class="n">rdatait</span><span class="o">-&gt;</span><span class="n">guid</span><span class="p">,</span><span class="w"> </span><span class="n">incompatible_qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="44">4.4 兼容性检查规则汇总</h3>
+<table>
+<thead>
+<tr>
+<th>QoS 策略</th>
+<th>兼容性条件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Reliability</strong></td>
+<td>Writer ≥ Reader</td>
+<td>Writer 可靠性不能低于 Reader 要求</td>
+</tr>
+<tr>
+<td><strong>Durability</strong></td>
+<td>Writer ≥ Reader</td>
+<td>Writer 持久性不能低于 Reader 要求</td>
+</tr>
+<tr>
+<td><strong>Ownership</strong></td>
+<td>Writer == Reader</td>
+<td>必须完全相同</td>
+</tr>
+<tr>
+<td><strong>Deadline</strong></td>
+<td>Writer.period ≤ Reader.period</td>
+<td>Writer 更新频率必须更高</td>
+</tr>
+<tr>
+<td><strong>Liveliness</strong></td>
+<td>Writer.kind ≥ Reader.kind<br/>Writer.lease ≤ Reader.lease</td>
+<td>双重条件</td>
+</tr>
+<tr>
+<td><strong>DataRepresentation</strong></td>
+<td>Writer.offered ⊆ Reader.requested</td>
+<td>提供的数据表示必须在请求列表中</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="5">5. 代码示例</h2>
+<h3 id="51-reliability-qos">5.1 配置 Reliability QoS</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/qos/DataWriterQos.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/subscriber/qos/DataReaderQos.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="c1">// 配置可靠传输的 Writer</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_reliable_writer</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 设置为可靠传输</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置最大阻塞时间（write 操作可能阻塞）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">max_blocking_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
+
+<span class="w">    </span><span class="c1">// 设置为总是发送该 QoS</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">send_always_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 配置尽力而为传输的 Reader</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_best_effort_reader</span><span class="p">(</span><span class="n">DataReaderQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="52-durability-qos">5.2 配置 Durability QoS</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置 TRANSIENT_LOCAL 持久性（适用于状态主题）</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_transient_local_qos</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">wqos</span><span class="p">,</span><span class="w"> </span><span class="n">DataReaderQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rqos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Writer 配置</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Reader 配置</span>
+<span class="w">    </span><span class="n">rqos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 必须配合 History 使用</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">  </span><span class="c1">// 保留最近 10 个样本</span>
+
+<span class="w">    </span><span class="n">rqos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">rqos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置资源限制</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_instances</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples_per_instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="53-deadline-qos">5.3 配置 Deadline QoS</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置 1 秒截止期限</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_deadline_qos</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">wqos</span><span class="p">,</span><span class="w"> </span><span class="n">DataReaderQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rqos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// Writer：承诺每秒至少更新一次</span>
+<span class="w">    </span><span class="n">wqos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 1秒</span>
+
+<span class="w">    </span><span class="c1">// Reader：期望每秒至少收到一次</span>
+<span class="w">    </span><span class="n">rqos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 设置 Deadline 违约监听器</span>
+<span class="w">    </span><span class="k">class</span><span class="w"> </span><span class="nc">DeadlineListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="o">:</span>
+<span class="w">        </span><span class="kt">void</span><span class="w"> </span><span class="n">on_offered_deadline_missed</span><span class="p">(</span>
+<span class="w">            </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">            </span><span class="k">const</span><span class="w"> </span><span class="n">OfferedDeadlineMissedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Deadline missed! Total count: "</span><span class="w"> </span>
+<span class="w">                      </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="54-liveliness-qos">5.4 配置 Liveliness QoS</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 配置手动活跃性</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_manual_liveliness</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 使用 MANUAL_BY_TOPIC 模式</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">liveliness</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MANUAL_BY_TOPIC_LIVELINESS_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置租约期限为 5 秒</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">liveliness</span><span class="p">().</span><span class="n">lease_duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 应用层需要定期调用 assert_liveliness()</span>
+<span class="p">}</span>
+
+<span class="c1">// 在应用中使用</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">maintain_liveliness</span><span class="p">(</span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 定期调用（频率应高于 lease_duration）</span>
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">assert_liveliness</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="55-publishersubscriber-qos">5.5 完整的 Publisher/Subscriber QoS 配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/topic/Topic.hpp&gt;</span>
+
+<span class="c1">// 创建高性能实时传输配置</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_high_performance_qos</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 使用尽力而为传输（最低延迟）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 不保留历史数据</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VOLATILE_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 只保留最新样本</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 最小化资源分配</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_instances</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples_per_instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 数据快速过期（不缓存）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">lifespan</span><span class="p">().</span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
+
+<span class="w">    </span><span class="c1">// 使用异步发布模式（高吞吐场景）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS_PUBLISH_MODE</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// 创建高可靠性传输配置</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_high_reliability_qos</span><span class="p">(</span><span class="n">DataWriterQos</span><span class="o">&amp;</span><span class="w"> </span><span class="n">qos</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 可靠传输</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">max_blocking_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">  </span><span class="c1">// 1秒</span>
+
+<span class="w">    </span><span class="c1">// 本地持久化</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 保留所有历史</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_ALL_HISTORY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 充足的资源限制</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_instances</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples_per_instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 可靠 Writer 参数调优</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliable_writer_qos</span><span class="p">().</span><span class="n">times</span><span class="p">.</span><span class="n">heartbeat_period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">500000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 500ms</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliable_writer_qos</span><span class="p">().</span><span class="n">times</span><span class="p">.</span><span class="n">nack_response_delay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="56-qos">5.6 处理不兼容 QoS 通知</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/core/status/IncompatibleQosStatus.hpp&gt;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyWriterListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_offered_incompatible_qos</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">OfferedIncompatibleQosStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Incompatible QoS detected!"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Total incompatible count: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Last incompatible policy ID: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">last_policy_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 检查具体哪些策略不兼容</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">policy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">policies</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">policy</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Policy "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">policy</span><span class="p">.</span><span class="n">policy_id</span><span class="w"> </span>
+<span class="w">                          </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" incompatible count: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">policy</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="6">6. 最佳实践</h2>
+<h3 id="61-qos">6.1 场景化 QoS 配置指南</h3>
+<h4 id="1">场景 1：实时视频流</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：低延迟、可容忍丢包</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">video_qos</span><span class="p">;</span>
+
+<span class="c1">// 尽力而为传输</span>
+<span class="n">video_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 不持久化</span>
+<span class="n">video_qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VOLATILE_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 只保留最新帧</span>
+<span class="n">video_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="n">video_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="c1">// 数据快速过期</span>
+<span class="n">video_qos</span><span class="p">.</span><span class="n">lifespan</span><span class="p">().</span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">50000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 50ms</span>
+</code></pre></div>
+<h4 id="2_1">场景 2：机器人控制命令</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：高可靠、必须送达</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">command_qos</span><span class="p">;</span>
+
+<span class="c1">// 可靠传输</span>
+<span class="n">command_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 本地持久化（新订阅者可获取）</span>
+<span class="n">command_qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 保留最近 10 条命令</span>
+<span class="n">command_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="n">command_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+
+<span class="c1">// 设置截止期限（确保定期更新）</span>
+<span class="n">command_qos</span><span class="p">.</span><span class="n">deadline</span><span class="p">().</span><span class="n">period</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 100ms</span>
+</code></pre></div>
+<h4 id="3">场景 3：系统状态同步</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：状态一致性、历史可查</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">state_qos</span><span class="p">;</span>
+
+<span class="c1">// 可靠传输</span>
+<span class="n">state_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 本地持久化</span>
+<span class="n">state_qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 保留所有历史（直到资源限制）</span>
+<span class="n">state_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_ALL_HISTORY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 充足的资源限制</span>
+<span class="n">state_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+<span class="n">state_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_instances</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="n">state_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples_per_instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<h4 id="4">场景 4：传感器数据采集</h4>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 要求：高吞吐、可容忍部分丢失</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">sensor_qos</span><span class="p">;</span>
+
+<span class="c1">// 尽力而为传输</span>
+<span class="n">sensor_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BEST_EFFORT_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 不持久化</span>
+<span class="n">sensor_qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">VOLATILE_DURABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 保留最近的样本</span>
+<span class="n">sensor_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="n">sensor_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+
+<span class="c1">// 异步发布提高吞吐</span>
+<span class="n">sensor_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS_PUBLISH_MODE</span><span class="p">;</span>
+
+<span class="c1">// 数据有效期（防止发送过时的传感器数据）</span>
+<span class="n">sensor_qos</span><span class="p">.</span><span class="n">lifespan</span><span class="p">().</span><span class="n">duration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Duration_t</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">200000000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 200ms</span>
+</code></pre></div>
+<h3 id="62-qos">6.2 QoS 配置检查清单</h3>
+<p>在部署系统前，检查以下项目：</p>
+<table>
+<thead>
+<tr>
+<th>检查项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>可靠性匹配</strong></td>
+<td>Writer 可靠性 ≥ Reader 可靠性</td>
+</tr>
+<tr>
+<td><strong>持久性匹配</strong></td>
+<td>Writer 持久性 ≥ Reader 持久性</td>
+</tr>
+<tr>
+<td><strong>所有权一致</strong></td>
+<td>Writer 和 Reader 所有权类型相同</td>
+</tr>
+<tr>
+<td><strong>截止期限合理</strong></td>
+<td>Writer.deadline ≤ Reader.deadline</td>
+</tr>
+<tr>
+<td><strong>资源限制充足</strong></td>
+<td>max_samples ≥ max_instances × max_samples_per_instance</td>
+</tr>
+<tr>
+<td><strong>历史深度适配</strong></td>
+<td>根据数据更新频率和订阅者加入频率设置</td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 性能优化建议</h3>
+<ol>
+<li>
+<p><strong>最小化 History Depth</strong><br>
+   - 对于只关心最新值的场景，设置 <code>depth = 1</code><br/>
+   - 减少内存占用和 CPU 开销</br></p>
+</li>
+<li>
+<p><strong>使用 BEST_EFFORT 减少延迟</strong><br/>
+   - 实时性要求高的场景优先使用 BEST_EFFORT<br/>
+   - 避免 ACK/NACK 带来的延迟</p>
+</li>
+<li>
+<p><strong>合理设置 ResourceLimits</strong><br/>
+   - 过低的限制可能导致数据丢失<br/>
+   - 过高的限制浪费内存资源<br/>
+   - 根据实际数据量和实例数调整</p>
+</li>
+<li>
+<p><strong>Lifespan 与 Deadline 配合</strong><br/>
+   - 设置合理的 Lifespan 避免发送过期数据<br/>
+   - Deadline 用于检测数据更新异常</p>
+</li>
+<li>
+<p><strong>使用异步发布模式</strong><br/>
+   - 高吞吐场景使用 <code>ASYNCHRONOUS_PUBLISH_MODE</code><br/>
+   - 避免 write 操作阻塞应用线程</p>
+</li>
+</ol>
+<h3 id="64">6.4 常见错误与解决方案</h3>
+<table>
+<thead>
+<tr>
+<th>错误现象</th>
+<th>可能原因</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Writer/Reader 无法匹配</td>
+<td>QoS 不兼容</td>
+<td>检查不兼容通知，调整 QoS 配置</td>
+</tr>
+<tr>
+<td>数据延迟大</td>
+<td>RELIABLE 模式 ACK 延迟</td>
+<td>调整 heartbeat 和 nack 参数</td>
+</tr>
+<tr>
+<td>新订阅者收不到历史数据</td>
+<td>Durability 设置错误</td>
+<td>使用 TRANSIENT_LOCAL 并配置 History</td>
+</tr>
+<tr>
+<td>内存占用过高</td>
+<td>ResourceLimits 过大</td>
+<td>根据实际需求减小限制</td>
+</tr>
+<tr>
+<td>数据丢失</td>
+<td>History 深度不足</td>
+<td>增加 depth 或使用 KEEP_ALL</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_2">参考资料</h2>
+<ol>
+<li><strong>Fast-DDS 源码</strong>：<code>include/fastdds/dds/core/policy/QosPolicies.hpp</code></li>
+<li><strong>Fast-DDS 源码</strong>：<code>include/fastdds/dds/core/policy/ParameterTypes.hpp</code></li>
+<li><strong>Fast-DDS 源码</strong>：<code>src/cpp/rtps/builtin/discovery/endpoint/EDP.cpp</code></li>
+<li><strong>DDS 规范</strong>：OMG DDS Specification v1.4</li>
+<li><strong>RTPS 规范</strong>：OMG RTPS Specification v2.5</li>
+</ol>
+<hr/>
+<p><em>文档版本：V1.0</em><br/>
+<em>最后更新：2026-03-02</em><br/>
+<em>基于 Fast-DDS 版本：3.x</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

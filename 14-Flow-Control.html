@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 流量控制（Flow Control）详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item active" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 14-Flow-Control</div>
+        <h1 id="fast-dds-flow-control">Fast-DDS 流量控制（Flow Control）详解</h1>
+<blockquote>
+<p>📌 <strong>代码来源说明</strong>：本文中的代码示例分为两类：<br/>
+1. <strong>实际源码</strong>：来自 <a href="https://github.com/eProsima/Fast-DDS">Fast-DDS 官方仓库</a>，链接已标注<br/>
+2. <strong>简化示例</strong>：为教学目的简化，省略了锁、异常处理等细节</p>
+<p><strong>重要更正</strong>：文中使用的 <code>AsyncWriterThread</code> 是<strong>概念性命名</strong>，实际源码中的对应实现为 <code>FlowControllerAsyncPublishMode</code>，位于 <code>src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</code></p>
+</blockquote>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#1-流量控制概述">流量控制概述</a></li>
+<li><a href="#2-核心概念与架构">核心概念与架构</a></li>
+<li><a href="#3-publishmode发布模式">PublishMode（发布模式）</a></li>
+<li><a href="#4-flowcontroller流控器">FlowController（流控器）</a></li>
+<li><a href="#5-flowcontrollerasyncpublishmode异步写入">FlowControllerAsyncPublishMode（异步写入）</a></li>
+<li><a href="#6-源码解析">源码解析</a></li>
+<li><a href="#7-配置与调优">配置与调优</a></li>
+<li><a href="#8-实战示例">实战示例</a></li>
+<li><a href="#9-常见问题">常见问题</a></li>
+</ol>
+<hr/>
+<h2 id="1">1. 流量控制概述</h2>
+<h3 id="11">1.1 为什么需要流量控制？</h3>
+<p>在 DDS/RTPS 系统中，流量控制解决以下核心问题：</p>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                      流量控制要解决的问题                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  问题1: 发送速率 &gt; 接收速率                                       │
+│  ┌─────────┐    1000 msg/s    ┌─────────┐                      │
+│  │ Writer  │  ───────────────→ │ Reader  │ 只能处理 100 msg/s   │
+│  └─────────┘                   └─────────┘                      │
+│                       ↓                                         │
+│              数据堆积 → 内存溢出 → 丢包                          │
+│                                                                  │
+│  问题2: 突发流量 (Bursty Traffic)                                │
+│  ┌─────────┐                                                   │
+│  │ Writer  │  ▲▲▲ 突发发送 ▲▲▲                                 │
+│  └─────────┘   ↓                                               │
+│         网络拥塞 → 延迟抖动 → 服务质量下降                        │
+│                                                                  │
+│  问题3: 多 Writer 竞争带宽                                        │
+│  ┌─────┐ ┌─────┐ ┌─────┐                                       │
+│  │ W1  │ │ W2  │ │ W3  │  同时发送 → 带宽竞争 → 公平性问题       │
+│  └─────┘ └─────┘ └─────┘                                       │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="12-fast-dds">1.2 Fast-DDS 流量控制策略</h3>
+<p>Fast-DDS 提供两层流量控制机制：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>机制</th>
+<th>作用</th>
+<th>配置方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Writer 层</strong></td>
+<td>PublishMode</td>
+<td>控制写入模式（同步/异步）</td>
+<td>DataWriterQos</td>
+</tr>
+<tr>
+<td><strong>Network 层</strong></td>
+<td>FlowController</td>
+<td>控制网络发送速率</td>
+<td>PropertyPolicyQos</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="2">2. 核心概念与架构</h2>
+<h3 id="21">2.1 整体架构图</h3>
+<div class="codehilite"><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Application</span><span class="p">[</span><span class="s">"应用程序层"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">App</span><span class="p">[</span><span class="s">"用户代码"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">DDSLayer</span><span class="p">[</span><span class="s">"DDS/RTPS 层"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">DW</span><span class="p">[</span><span class="s">"DataWriter"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">WM</span><span class="p">[</span><span class="s">"WriterMutex"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">PublishMode</span><span class="p">[</span><span class="s">"发布模式决策"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">direction</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">        </span><span class="n">Sync</span><span class="p">[</span><span class="s">"SYNC&lt;br/&gt;同步模式"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">Async</span><span class="p">[</span><span class="s">"ASYNC&lt;br/&gt;异步模式"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">FlowControl</span><span class="p">[</span><span class="s">"流量控制层"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">direction</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">        </span><span class="n">FC</span><span class="p">[</span><span class="s">"FlowController&lt;br/&gt;流控器"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">AWT</span><span class="p">[</span><span class="s">"FlowControllerAsyncPublishMode&lt;br/&gt;异步写入模式"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">Queue</span><span class="p">[</span><span class="s">"发送队列"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Transport</span><span class="p">[</span><span class="s">"传输层"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">SHM</span><span class="p">[</span><span class="s">"SharedMemory&lt;br/&gt;共享内存"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">UDP</span><span class="p">[</span><span class="s">"UDP"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TCP</span><span class="p">[</span><span class="s">"TCP"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">App</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">write</span><span class="o">|</span><span class="w"> </span><span class="n">DW</span>
+<span class="w">    </span><span class="n">DW</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">获取模式</span><span class="o">|</span><span class="w"> </span><span class="n">PublishMode</span>
+<span class="w">    </span><span class="n">Sync</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">直接发送</span><span class="o">|</span><span class="w"> </span><span class="n">Transport</span>
+<span class="w">    </span><span class="n">Async</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">入队</span><span class="o">|</span><span class="w"> </span><span class="n">Queue</span>
+<span class="w">    </span><span class="n">Queue</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">调度</span><span class="o">|</span><span class="w"> </span><span class="n">FC</span>
+<span class="w">    </span><span class="n">FC</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">控制速率</span><span class="o">|</span><span class="w"> </span><span class="n">AWT</span>
+<span class="w">    </span><span class="n">AWT</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">实际发送</span><span class="o">|</span><span class="w"> </span><span class="n">Transport</span>
+<span class="w">    </span><span class="n">WM</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="o">-&gt;|</span><span class="err">同步保护</span><span class="o">|</span><span class="w"> </span><span class="n">DW</span>
+</code></pre></div>
+<h3 id="22">2.2 关键类关系</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 核心类层次结构</span>
+
+<span class="n">DataWriter</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">PublisherModeQosPolicy</span><span class="w">    </span><span class="c1">// 发布模式配置 (SYNC/ASYNC)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">FlowController</span><span class="w">            </span><span class="c1">// 流控器</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">FlowControllerDescriptor</span><span class="w">  </span><span class="c1">// 流控器描述</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">ReservationToken</span><span class="w">      </span><span class="c1">// 预留令牌</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">Schedules</span><span class="w">             </span><span class="c1">// 调度策略</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishMode</span><span class="w">         </span><span class="c1">// 异步写入线程 (全局)</span>
+
+<span class="c1">// 相关 QoS 策略</span>
+<span class="n">DataWriterQos</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">publish_mode</span><span class="w">              </span><span class="c1">// 发布模式</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">throughput_controller</span><span class="w">     </span><span class="c1">// 吞吐量控制器 (旧版)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">data_sharing</span><span class="w">              </span><span class="c1">// 数据共享配置</span>
+</code></pre></div>
+<hr/>
+<h2 id="3-publishmode">3. PublishMode（发布模式）</h2>
+<h3 id="31">3.1 两种发布模式</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/dds/core/policy/QosPolicies.hpp</span>
+
+<span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">PublishModeQosPolicyKind</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">uint8_t</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">SYNCHRONOUS</span><span class="p">,</span><span class="w">    </span><span class="c1">// 同步模式 - write() 直接发送</span>
+<span class="w">    </span><span class="n">ASYNCHRONOUS</span><span class="w">    </span><span class="c1">// 异步模式 - write() 入队，后台线程发送</span>
+<span class="p">};</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">PublishModeQosPolicy</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">QosPolicy</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">PublishModeQosPolicyKind</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PublishModeQosPolicyKind</span><span class="o">::</span><span class="n">SYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">flow_controller_name</span><span class="p">;</span><span class="w">  </span><span class="c1">// 关联的流控器名称</span>
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="32-synchronous">3.2 同步模式（SYNCHRONOUS）</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────┐
+│                    同步模式数据流                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  用户线程                                                    │
+│     │                                                        │
+│     ▼                                                        │
+│  write(data) ───────────────────────────────────────────────┐│
+│     │                                                       ││
+│     ▼                                                       ││
+│  ┌──────────────────────────────────────────────────────┐  ││
+│  │  DataWriter::write()                                 │  ││
+│  │  ├── 序列化数据                                      │  ││
+│  │  ├── 添加到 HistoryCache                            │  ││
+│  │  └── 直接调用 Transport 发送                        │  ││
+│  │       ↓                                              │  ││
+│  │  阻塞直到：                                          │  ││
+│  │  • 数据写入传输层 (UDP/TCP/SHM)                      │  ││
+│  │  • 或发送缓冲区已满 (Reliability QoS下)             │  ││
+│  └──────────────────────────────────────────────────────┘  ││
+│     │                                                       ││
+│     ▼                                                       ││
+│  write() 返回 ─────────────────────────────────────────────┘│
+│     │                                                        │
+│     ▼                                                        │
+│  用户线程继续执行                                             │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p><strong>特点</strong>：<br/>
+- ✅ 简单直观，调用即发送<br/>
+- ✅ 低延迟（没有队列延迟）<br/>
+- ❌ 阻塞用户线程<br/>
+- ❌ 突发流量可能导致发送阻塞</p>
+<h3 id="33-asynchronous">3.3 异步模式（ASYNCHRONOUS）</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────────────┐
+│                         异步模式数据流                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  用户线程                          FlowControllerAsyncPublishMode                    │
+│     │                                    │                              │
+│     ▼                                    ▼                              │
+│  write(data) ─────────────────────────────────────────────────────────┐│
+│     │                                                                 ││
+│     ▼                                                                 ││
+│  ┌──────────────────────────────────────────────────────┐            ││
+│  │  DataWriter::write()                                 │            ││
+│  │  ├── 序列化数据                                      │            ││
+│  │  ├── 添加到 HistoryCache                            │            ││
+│  │  └── 添加到 FlowController 队列                     │ ────────────┤│
+│  │       ↓                                              │    唤醒    ││
+│  └──────────────────────────────────────────────────────┘            ││
+│     │                                                                  ││
+│     ▼                                                                  ││
+│  write() 立即返回 ────────────────────────────────────────────────────┘│
+│     │                                                                   │
+│     ▼                                                                   │
+│  用户线程继续执行                                                        │
+│                                                                          │
+│                                    调度流程：                            │
+│                                    ┌─────────────────────────────┐      │
+│                                    │ 1. FlowController 获取令牌   │      │
+│                                    │ 2. 检查带宽限制              │      │
+│                                    │ 3. 实际发送数据              │      │
+│                                    │ 4. 更新统计信息              │      │
+│                                    │ 5. 释放令牌                  │      │
+│                                    └─────────────────────────────┘      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p><strong>特点</strong>：<br/>
+- ✅ 非阻塞，write() 立即返回<br/>
+- ✅ 支持流量整形（Traffic Shaping）<br/>
+- ✅ 批量发送优化<br/>
+- ❌ 引入队列延迟<br/>
+- ❌ 增加系统复杂度</p>
+<h3 id="34">3.4 模式选择指南</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐模式</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>低延迟要求 &lt; 1ms</td>
+<td>SYNC</td>
+<td>避免队列延迟</td>
+</tr>
+<tr>
+<td>高吞吐 &gt; 10K msg/s</td>
+<td>ASYNC</td>
+<td>批量发送优化</td>
+</tr>
+<tr>
+<td>突发流量</td>
+<td>ASYNC</td>
+<td>流量整形</td>
+</tr>
+<tr>
+<td>多 Writer 公平性</td>
+<td>ASYNC</td>
+<td>FlowController 调度</td>
+</tr>
+<tr>
+<td>简单应用</td>
+<td>SYNC</td>
+<td>配置简单</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="4-flowcontroller">4. FlowController（流控器）</h2>
+<h3 id="41-flowcontroller">4.1 FlowController 概述</h3>
+<p>FlowController 是异步模式下的核心组件，负责：<br/>
+1. <strong>速率限制</strong>：控制数据发送速率<br/>
+2. <strong>优先级调度</strong>：多 Writer 间的公平调度<br/>
+3. <strong>流量整形</strong>：平滑突发流量</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// include/fastdds/rtps/flowcontrol/FlowController.hpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FlowController</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 添加数据到流控队列</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">add_new_sample</span><span class="p">(</span>
+<span class="w">        </span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">time_point</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">max_blocking_time</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 获取下一个要发送的数据</span>
+<span class="w">    </span><span class="n">FlowControllerAction</span><span class="w"> </span><span class="nf">get_next_sample</span><span class="p">(</span>
+<span class="w">        </span><span class="n">RTPSWriter</span><span class="o">*&amp;</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="n">CacheChange_t</span><span class="o">*&amp;</span><span class="w"> </span><span class="n">change</span><span class="p">,</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">time_point</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">next_wake_up_time</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 配置流控器</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">configure</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">FlowControllerDescriptor</span><span class="o">&amp;</span><span class="w"> </span><span class="n">descriptor</span><span class="p">);</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">FlowControllerImpl</span><span class="o">*</span><span class="w"> </span><span class="n">impl_</span><span class="p">;</span><span class="w">  </span><span class="c1">// PIMPL 实现</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="42-flowcontroller">4.2 FlowController 类型</h3>
+<p>Fast-DDS 内置三种流控器：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 默认流控器 - 无限制</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">FASTDDS_FLOW_CONTROLLER_DEFAULT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerDefault"</span><span class="p">;</span>
+
+<span class="c1">// 推荐流控器 - 基于令牌的速率限制</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">FASTDDS_FLOW_CONTROLLER_FIXED_RATE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+
+<span class="c1">// 预留流控器 - 预留带宽 + 尽力而为</span>
+<span class="k">constexpr</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">FASTDDS_FLOW_CONTROLLER_RESERVED_BANDWIDTH</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerReservedBandwidth"</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="43">4.3 流控器架构</h3>
+<div class="codehilite"><pre><span></span><code><span class="nf">graph</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Writers</span><span class="p">[</span><span class="s">"多个 DataWriter"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">W1</span><span class="p">[</span><span class="s">"Writer 1&lt;br/&gt;优先级: HIGH"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">W2</span><span class="p">[</span><span class="s">"Writer 2&lt;br/&gt;优先级: NORMAL"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">W3</span><span class="p">[</span><span class="s">"Writer 3&lt;br/&gt;优先级: LOW"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">FlowController</span><span class="p">[</span><span class="s">"FlowController"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">direction</span><span class="w"> </span><span class="n">TB</span>
+<span class="w">        </span><span class="n">Q</span><span class="p">[</span><span class="s">"优先队列&lt;br/&gt;Priority Queue"</span><span class="p">]</span>
+<span class="w">        </span><span class="kr">Token</span><span class="p">[</span><span class="s">"令牌桶&lt;br/&gt;Token Bucket"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">Scheduler</span><span class="p">[</span><span class="s">"调度器&lt;br/&gt;Scheduler"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">Bandwidth</span><span class="p">[</span><span class="s">"带宽管理"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">Reserved</span><span class="p">[</span><span class="s">"预留带宽&lt;br/&gt;Reserved"</span><span class="p">]</span>
+<span class="w">        </span><span class="n">BestEffort</span><span class="p">[</span><span class="s">"尽力而为&lt;br/&gt;Best Effort"</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+
+<span class="w">    </span><span class="n">W1</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">add_sample</span><span class="o">|</span><span class="w"> </span><span class="n">Q</span>
+<span class="w">    </span><span class="n">W2</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">add_sample</span><span class="o">|</span><span class="w"> </span><span class="n">Q</span>
+<span class="w">    </span><span class="n">W3</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">add_sample</span><span class="o">|</span><span class="w"> </span><span class="n">Q</span>
+
+<span class="w">    </span><span class="n">Q</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">获取最高优先级</span><span class="o">|</span><span class="w"> </span><span class="n">Scheduler</span>
+<span class="w">    </span><span class="kt">Token</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">检查速率</span><span class="o">|</span><span class="w"> </span><span class="n">Scheduler</span>
+<span class="w">    </span><span class="n">Scheduler</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">分配带宽</span><span class="o">|</span><span class="w"> </span><span class="n">Reserved</span>
+<span class="w">    </span><span class="n">Scheduler</span><span class="w"> </span><span class="o">--&gt;|</span><span class="err">分配带宽</span><span class="o">|</span><span class="w"> </span><span class="n">BestEffort</span>
+</code></pre></div>
+<h3 id="44">4.4 令牌桶算法</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 令牌桶算法原理</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TokenBucket</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">tokens_</span><span class="p">;</span><span class="w">              </span><span class="c1">// 当前令牌数</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">max_tokens_</span><span class="p">;</span><span class="w">          </span><span class="c1">// 桶容量</span>
+<span class="w">    </span><span class="kt">float</span><span class="w"> </span><span class="n">tokens_per_period_</span><span class="p">;</span><span class="w">   </span><span class="c1">// 每个周期产生的令牌数</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">nanoseconds</span><span class="w"> </span><span class="n">period_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 周期</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">time_point</span><span class="w"> </span><span class="n">last_add_time_</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 尝试消耗 n 个令牌</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">consume</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 根据时间补充令牌</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">();</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">elapsed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">last_add_time_</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">new_tokens</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">elapsed</span><span class="p">.</span><span class="n">count</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">tokens_per_period_</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">period_</span><span class="p">.</span><span class="n">count</span><span class="p">();</span>
+<span class="w">        </span><span class="n">tokens_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="n">tokens_</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">new_tokens</span><span class="p">,</span><span class="w"> </span><span class="n">max_tokens_</span><span class="p">);</span>
+<span class="w">        </span><span class="n">last_add_time_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// 2. 检查并消耗令牌</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">tokens_</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">n</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">tokens_</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">  </span><span class="c1">// 允许发送</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w">  </span><span class="c1">// 需要等待</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 计算下次可用时间</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">nanoseconds</span><span class="w"> </span><span class="n">time_until_available</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">float</span><span class="w"> </span><span class="n">needed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">tokens_</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">nanoseconds</span><span class="p">(</span>
+<span class="w">            </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">needed</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">period_</span><span class="p">.</span><span class="n">count</span><span class="p">()</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">tokens_per_period_</span><span class="p">));</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<p><strong>工作流程</strong>：</p>
+<div class="codehilite"><pre><span></span><code>初始状态: 桶满 (max_tokens = 1000)
+
+Writer 请求发送 100 bytes:
+    │
+    ▼
+检查令牌: 1000 &gt;= 100 ✓
+    │
+    ▼
+消耗令牌: tokens = 900
+    │
+    ▼
+允许发送
+
+连续发送后:
+    tokens = 50 (&lt; 100)
+    │
+    ▼
+请求发送 100 bytes:
+    │
+    ▼
+检查令牌: 50 &lt; 100 ✗
+    │
+    ▼
+计算等待时间: 需要 50 个令牌
+    time = 50ms (假设 1000 tokens/s)
+    │
+    ▼
+阻塞/等待
+</code></pre></div>
+<hr/>
+<h2 id="5-flowcontrollerasyncpublishmode">5. FlowControllerAsyncPublishMode（异步写入线程）</h2>
+<h3 id="51">5.1 线程模型</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FlowControllerAsyncPublishMode</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 启动异步写入线程</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">start</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 停止异步写入线程</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">stop</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 将 Writer 添加到调度</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">add_writer</span><span class="p">(</span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 从调度中移除 Writer</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">remove_writer</span><span class="p">(</span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">);</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="n">run</span><span class="p">();</span><span class="w">  </span><span class="c1">// 主循环</span>
+
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">FlowControllerAsyncPublishModeState</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="kr">thread</span><span class="w"> </span><span class="n">thread_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 工作线程</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span><span class="w">             </span><span class="c1">// 保护 writers_ 集合</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">condition_variable</span><span class="w"> </span><span class="n">cv_</span><span class="p">;</span><span class="w">   </span><span class="c1">// 等待/唤醒</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">unordered_set</span><span class="o">&lt;</span><span class="n">RTPSWriter</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">writers_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 待调度的 Writers</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">running_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="n">FlowControllerAsyncPublishModeState</span><span class="w"> </span><span class="n">s_state_</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="52">5.2 主循环流程</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                   FlowControllerAsyncPublishMode::run()                       │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │   启动      │
+                    └─────────────┘
+                           │
+                           ▼
+            ┌──────────────────────────┐
+       ┌───│  while (running_)         │
+       │   └──────────────────────────┘
+       │              │
+       │              ▼
+       │   ┌──────────────────────┐
+       │   │ 1. 遍历所有 Writers   │
+       │   │    - 检查 FlowControl │
+       │   │    - 获取可发送数据   │
+       │   └──────────────────────┘
+       │              │
+       │              ▼
+       │   ┌──────────────────────┐
+       │   │ 2. 发送数据          │
+       │   │    - 调用 Transport   │
+       │   │    - 更新统计         │
+       │   └──────────────────────┘
+       │              │
+       │              ▼
+       │   ┌──────────────────────┐
+       │   │ 3. 计算下次唤醒时间  │
+       │   │    - 根据令牌桶      │
+       │   │    - 根据队列状态    │
+       │   └──────────────────────┘
+       │              │
+       │              ▼
+       │   ┌──────────────────────┐
+       └──→│ 4. 等待或继续        │
+           │    - cv_.wait_until() │
+           └──────────────────────┘
+</code></pre></div>
+<h3 id="53">5.3 唤醒机制</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 何时唤醒 FlowControllerAsyncPublishMode？</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">FlowControllerAsyncPublishMode::wake_up</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">lock_guard</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock</span><span class="p">(</span><span class="n">s_state_</span><span class="p">.</span><span class="n">mutex_</span><span class="p">);</span>
+<span class="w">    </span><span class="n">s_state_</span><span class="p">.</span><span class="n">cv_</span><span class="p">.</span><span class="n">notify_one</span><span class="p">();</span><span class="w">  </span><span class="c1">// 唤醒线程</span>
+<span class="p">}</span>
+
+<span class="c1">// 触发场景：</span>
+<span class="c1">// 1. 新数据写入 (DataWriter::write())</span>
+<span class="c1">// 2. 令牌桶补充令牌 (定时)</span>
+<span class="c1">// 3. 网络可用 (发送完成回调)</span>
+<span class="c1">// 4. 外部配置变更</span>
+</code></pre></div>
+<hr/>
+<h2 id="6">6. 源码解析</h2>
+<h3 id="61-datawriter">6.1 DataWriter 写入流程</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/fastdds/publisher/DataWriterImpl.cpp</span>
+
+<span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">DataWriterImpl::write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 序列化数据</span>
+<span class="w">    </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_new_change</span><span class="p">(</span><span class="n">data</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 2. 根据 PublishMode 决定发送方式</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">qos_</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SYNCHRONOUS</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 同步模式：直接发送</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">rtps_writer_</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">else</span><span class="w">  </span><span class="c1">// ASYNCHRONOUS</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 异步模式：添加到 FlowController</span>
+<span class="w">        </span><span class="n">FlowController</span><span class="o">*</span><span class="w"> </span><span class="n">fc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_flow_controller</span><span class="p">();</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fc</span><span class="o">-&gt;</span><span class="n">add_new_sample</span><span class="p">(</span>
+<span class="w">            </span><span class="n">rtps_writer_</span><span class="p">,</span>
+<span class="w">            </span><span class="n">change</span><span class="p">,</span>
+<span class="w">            </span><span class="n">max_blocking_time</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="62-flowcontroller">6.2 FlowController 调度实现</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/flowcontrol/FlowControllerImpl.hpp</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">FlowControllerImpl</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="n">FlowControllerAction</span><span class="w"> </span><span class="n">schedule</span><span class="p">(</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">time_point</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">next_wake_up_time</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 1. 按优先级遍历所有 Writers</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">writer_info</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">writers_</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 2. 检查是否满足发送条件</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">can_send</span><span class="p">(</span><span class="n">writer_info</span><span class="p">))</span>
+<span class="w">                </span><span class="k">continue</span><span class="p">;</span>
+
+<span class="w">            </span><span class="c1">// 3. 检查令牌桶</span>
+<span class="w">            </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_info</span><span class="p">.</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">serializedPayload</span><span class="p">.</span><span class="n">length</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">token_bucket_</span><span class="p">.</span><span class="n">consume</span><span class="p">(</span><span class="n">size</span><span class="p">))</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 4. 可以发送</span>
+<span class="w">                </span><span class="n">next_writer_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_info</span><span class="p">.</span><span class="n">writer</span><span class="p">;</span>
+<span class="w">                </span><span class="n">next_change_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer_info</span><span class="p">.</span><span class="n">change</span><span class="p">;</span>
+<span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="n">FlowControllerAction</span><span class="o">::</span><span class="n">SEND</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">else</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 5. 计算下次可用时间</span>
+<span class="w">                </span><span class="k">auto</span><span class="w"> </span><span class="n">wait_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">token_bucket_</span><span class="p">.</span><span class="n">time_until_available</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+<span class="w">                </span><span class="n">next_wake_up_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">min</span><span class="p">(</span><span class="n">next_wake_up_time</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">wait_time</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">FlowControllerAction</span><span class="o">::</span><span class="n">NO_ACTION</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="63-flowcontrollerasyncpublishmode">6.3 FlowControllerAsyncPublishMode 主循环</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// src/cpp/rtps/writer/FlowControllerAsyncPublishMode.cpp</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">FlowControllerAsyncPublishMode::run</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">s_state_</span><span class="p">.</span><span class="n">running_</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">unique_lock</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="o">&gt;</span><span class="w"> </span><span class="n">lock</span><span class="p">(</span><span class="n">s_state_</span><span class="p">.</span><span class="n">mutex_</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 1. 遍历所有 Writers 进行调度</span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">next_wakeup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">+</span>
+<span class="w">                          </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">milliseconds</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">s_state_</span><span class="p">.</span><span class="n">writers_</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">FlowController</span><span class="o">*</span><span class="w"> </span><span class="n">fc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">get_flow_controller</span><span class="p">();</span>
+<span class="w">            </span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">w</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span>
+<span class="w">            </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">;</span>
+
+<span class="w">            </span><span class="c1">// 2. 获取下一个要发送的数据</span>
+<span class="w">            </span><span class="k">auto</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fc</span><span class="o">-&gt;</span><span class="n">get_next_sample</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">change</span><span class="p">,</span><span class="w"> </span><span class="n">next_wakeup</span><span class="p">);</span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">action</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">FlowControllerAction</span><span class="o">::</span><span class="n">SEND</span><span class="p">)</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 3. 解锁后发送（避免持有锁时进行网络IO）</span>
+<span class="w">                </span><span class="n">lock</span><span class="p">.</span><span class="n">unlock</span><span class="p">();</span>
+<span class="w">                </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">send</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+<span class="w">                </span><span class="n">lock</span><span class="p">.</span><span class="n">lock</span><span class="p">();</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="c1">// 4. 等待直到下次调度时间</span>
+<span class="w">        </span><span class="n">s_state_</span><span class="p">.</span><span class="n">cv_</span><span class="p">.</span><span class="n">wait_until</span><span class="p">(</span><span class="n">lock</span><span class="p">,</span><span class="w"> </span><span class="n">next_wakeup</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="7">7. 配置与调优</h2>
+<h3 id="71-publishmode">7.1 配置 PublishMode</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/qos/DataWriterQos.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="c1">// 方法1: XML 配置（推荐用于生产环境）</span>
+<span class="cm">/*</span>
+<span class="cm">&lt;data_writer profile_name="async_writer"&gt;</span>
+<span class="cm">    &lt;qos&gt;</span>
+<span class="cm">        &lt;publishMode&gt;</span>
+<span class="cm">            &lt;kind&gt;ASYNCHRONOUS&lt;/kind&gt;</span>
+<span class="cm">            &lt;flowControllerName&gt;FastDDSFlowControllerFixedRate&lt;/flowControllerName&gt;</span>
+<span class="cm">        &lt;/publishMode&gt;</span>
+<span class="cm">    &lt;/qos&gt;</span>
+<span class="cm">&lt;/data_writer&gt;</span>
+<span class="cm">*/</span>
+
+<span class="c1">// 方法2: 代码配置</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_async_writer</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 设置为异步模式</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 指定流控器（可选，默认使用 FastDDSFlowControllerDefault）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 创建 DataWriter</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="72-flowcontroller">7.2 配置 FlowController</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/attributes/PropertyPolicyQos.hpp&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">configure_flow_controller</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 方式1: 使用内置流控器（最简单）</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 方式2: 自定义流控器（XML配置）</span>
+<span class="w">    </span><span class="cm">/*</span>
+<span class="cm">    &lt;flow_controller name="my_custom_controller"&gt;</span>
+<span class="cm">        &lt;max_bytes_per_period&gt;10000&lt;/max_bytes_per_period&gt;</span>
+<span class="cm">        &lt;period_ms&gt;100&lt;/period_ms&gt;</span>
+<span class="cm">        &lt;scheduler&gt;FIFO&lt;/scheduler&gt;</span>
+<span class="cm">    &lt;/flow_controller&gt;</span>
+<span class="cm">    */</span>
+
+<span class="w">    </span><span class="c1">// 方式3: 通过 PropertyPolicyQos 配置（代码方式）</span>
+<span class="w">    </span><span class="n">PropertyPolicyQos</span><span class="w"> </span><span class="n">properties</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置最大发送速率: 10KB/s</span>
+<span class="w">    </span><span class="n">properties</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.max_bytes_per_period"</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"10000"</span><span class="w">  </span><span class="c1">// 10000 bytes per period</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 配置周期: 100ms</span>
+<span class="w">    </span><span class="n">properties</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.period_ms"</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"100"</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 应用配置</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">properties</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">properties</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="73">7.3 关键参数调优指南</h3>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>说明</th>
+<th>默认值</th>
+<th>调优建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_bytes_per_period</code></td>
+<td>每周期最大发送字节数</td>
+<td>无限</td>
+<td>根据带宽限制设置</td>
+</tr>
+<tr>
+<td><code>period_ms</code></td>
+<td>令牌补充周期</td>
+<td>100ms</td>
+<td>越小越平滑，但CPU开销增加</td>
+</tr>
+<tr>
+<td><code>scheduler</code></td>
+<td>调度策略</td>
+<td>FIFO</td>
+<td>优先级敏感场景用 PRIORITY</td>
+</tr>
+</tbody>
+</table>
+<p><strong>计算示例</strong>：</p>
+<div class="codehilite"><pre><span></span><code>目标: 限制发送速率为 1 MB/s
+
+计算:
+    period_ms = 100ms = 0.1s
+    max_bytes_per_period = 1MB/s × 0.1s = 100KB = 102400 bytes
+
+配置:
+    max_bytes_per_period = 102400
+    period_ms = 100
+</code></pre></div>
+<h3 id="74-writer">7.4 多 Writer 优先级配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 为不同重要性的数据配置不同优先级</span>
+
+<span class="c1">// 关键数据 - 高优先级</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">critical_qos</span><span class="p">;</span>
+<span class="n">critical_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="n">critical_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"high_priority_fc"</span><span class="p">;</span>
+
+<span class="c1">// 普通数据 - 默认优先级</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">normal_qos</span><span class="p">;</span>
+<span class="n">normal_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="n">normal_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerDefault"</span><span class="p">;</span>
+
+<span class="c1">// 后台数据 - 低优先级</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">background_qos</span><span class="p">;</span>
+<span class="n">background_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="n">background_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"low_priority_fc"</span><span class="p">;</span>
+</code></pre></div>
+<hr/>
+<h2 id="8">8. 实战示例</h2>
+<h3 id="81-1">8.1 示例1: 视频流流量控制</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 发送 1080p 视频流，限制带宽不超过 4Mbps</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">setup_video_stream_writer</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 视频流适合异步模式（数据量大，允许延迟）</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 计算: 4Mbps = 4,000,000 bits/s = 500,000 bytes/s</span>
+<span class="w">    </span><span class="c1">// 周期 100ms，则每周期 50,000 bytes</span>
+<span class="w">    </span><span class="n">PropertyPolicyQos</span><span class="w"> </span><span class="n">properties</span><span class="p">;</span>
+<span class="w">    </span><span class="n">properties</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.max_bytes_per_period"</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"50000"</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">properties</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.period_ms"</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"100"</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">properties</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">properties</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 其他 QoS 优化</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BEST_EFFORT</span><span class="p">;</span><span class="w">  </span><span class="c1">// 视频允许丢帧</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// 只保留最新帧</span>
+
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">video_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">video_topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="82-2">8.2 示例2: 多优先级消息系统</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 控制系统，包含告警、状态、日志三种消息</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">setup_control_system</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// === 告警消息 - 最高优先级 ===</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">alarm_qos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">alarm_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 不限制速率，确保告警及时送达</span>
+<span class="w">    </span><span class="n">alarm_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerDefault"</span><span class="p">;</span>
+<span class="w">    </span><span class="n">alarm_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE</span><span class="p">;</span>
+<span class="w">    </span><span class="n">alarm_qos</span><span class="p">.</span><span class="n">durability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TRANSIENT_LOCAL</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">alarm_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">alarm_topic</span><span class="p">,</span><span class="w"> </span><span class="n">alarm_qos</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 状态消息 - 中等优先级，限速 ===</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">status_qos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">status_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">status_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 100 msg/s * 100 bytes/msg = 10KB/s</span>
+<span class="w">    </span><span class="n">PropertyPolicyQos</span><span class="w"> </span><span class="n">status_props</span><span class="p">;</span>
+<span class="w">    </span><span class="n">status_props</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.max_bytes_per_period"</span><span class="p">,</span><span class="w"> </span><span class="s">"1000"</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">status_props</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.period_ms"</span><span class="p">,</span><span class="w"> </span><span class="s">"100"</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">status_qos</span><span class="p">.</span><span class="n">properties</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">status_props</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">status_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">status_topic</span><span class="p">,</span><span class="w"> </span><span class="n">status_qos</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// === 日志消息 - 低优先级，严格限速 ===</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">log_qos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">log_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">log_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// 10 msg/s，避免占用太多带宽</span>
+<span class="w">    </span><span class="n">PropertyPolicyQos</span><span class="w"> </span><span class="n">log_props</span><span class="p">;</span>
+<span class="w">    </span><span class="n">log_props</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.max_bytes_per_period"</span><span class="p">,</span><span class="w"> </span><span class="s">"1000"</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">log_props</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.period_ms"</span><span class="p">,</span><span class="w"> </span><span class="s">"1000"</span><span class="w">  </span><span class="c1">// 1秒周期</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">log_qos</span><span class="p">.</span><span class="n">properties</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">log_props</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">log_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">log_topic</span><span class="p">,</span><span class="w"> </span><span class="n">log_qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="83-3">8.3 示例3: 突发流量整形</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 场景: 传感器周期性批量上报，需要平滑流量</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">setup_sensor_writer</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 传感器数据适合异步 + 流控</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerFixedRate"</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置较大的令牌桶，允许小突发</span>
+<span class="w">    </span><span class="n">PropertyPolicyQos</span><span class="w"> </span><span class="n">properties</span><span class="p">;</span>
+<span class="w">    </span><span class="n">properties</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.max_bytes_per_period"</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"50000"</span><span class="w">  </span><span class="c1">// 50KB 每 100ms</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">properties</span><span class="p">.</span><span class="n">properties</span><span class="p">().</span><span class="n">emplace_back</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"fastdds.flow_controller.period_ms"</span><span class="p">,</span>
+<span class="w">        </span><span class="s">"100"</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">properties</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">properties</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配合 History QoS 处理突发</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_ALL</span><span class="p">;</span><span class="w">  </span><span class="c1">// 保留所有数据直到发送</span>
+<span class="w">    </span><span class="n">qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w">  </span><span class="c1">// 限制队列大小</span>
+
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">sensor_writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">sensor_topic</span><span class="p">,</span><span class="w"> </span><span class="n">qos</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="9">9. 常见问题</h2>
+<h3 id="q1-write">Q1: 异步模式下，write() 会阻塞吗？</h3>
+<p><strong>答</strong>: 可能阻塞，取决于配置：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// max_blocking_time 参数控制最大阻塞时间</span>
+<span class="n">ReturnCode_t</span><span class="w"> </span><span class="nf">write</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span>
+<span class="w">    </span><span class="n">WriteParams</span><span class="o">&amp;</span><span class="w"> </span><span class="n">params</span><span class="p">,</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">duration</span><span class="o">&amp;</span><span class="w"> </span><span class="n">max_blocking_time</span><span class="p">);</span>
+
+<span class="c1">// 场景:</span>
+<span class="c1">// 1. 队列已满 -&gt; 阻塞直到有空间或超时</span>
+<span class="c1">// 2. 流控限制 -&gt; 阻塞直到获得令牌或超时</span>
+<span class="c1">// 3. 配置为非阻塞 -&gt; 立即返回 OUT_OF_RESOURCES</span>
+</code></pre></div>
+<h3 id="q2">Q2: 同步模式和异步模式的性能差异？</h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>SYNC</th>
+<th>ASYNC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>延迟</td>
+<td>低（直接发送）</td>
+<td>高（队列延迟）</td>
+</tr>
+<tr>
+<td>吞吐</td>
+<td>受限于应用线程</td>
+<td>可批量优化</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td>低</td>
+<td>高（额外线程）</td>
+</tr>
+<tr>
+<td>流控</td>
+<td>不支持</td>
+<td>支持</td>
+</tr>
+</tbody>
+</table>
+<h3 id="q3">Q3: 如何监控流控效果？</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 通过 Listener 监控</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MyWriterListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_offered_incompatible_qos</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">OfferedIncompatibleQosStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// QoS 不兼容时触发</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_publication_matched</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">PublicationMatchedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 匹配状态变化时触发</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 监控队列深度（自定义统计）</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FlowControlMonitor</span>
+<span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">check_queue_depth</span><span class="p">(</span><span class="n">RTPSWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 获取历史缓存大小</span>
+<span class="w">        </span><span class="kt">size_t</span><span class="w"> </span><span class="n">unsent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">get_unsent_changes</span><span class="p">().</span><span class="n">size</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">unsent</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">high_watermark_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 队列积压，可能需要调整流控参数</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="q4">Q4: 流控器可以动态调整吗？</h3>
+<p><strong>答</strong>: Fast-DDS 2.x 版本不支持运行时动态调整流控器参数。需要：<br/>
+1. 销毁旧的 DataWriter<br/>
+2. 修改 QoS 配置<br/>
+3. 创建新的 DataWriter</p>
+<p>或者通过自定义流控器实现动态调整逻辑。</p>
+<h3 id="q5-datawriter-flowcontroller">Q5: 多个 DataWriter 共享同一个 FlowController 吗？</h3>
+<p><strong>答</strong>: 取决于配置：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 默认情况下，每个 Writer 使用自己的流控器实例</span>
+<span class="c1">// 同名流控器会共享同一个控制器</span>
+
+<span class="c1">// Writer 1 和 Writer 2 共享流控器</span>
+<span class="n">qos1</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"shared_controller"</span><span class="p">;</span>
+<span class="n">qos2</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"shared_controller"</span><span class="p">;</span>
+
+<span class="c1">// Writer 3 使用独立流控器</span>
+<span class="n">qos3</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">flow_controller_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"FastDDSFlowControllerDefault"</span><span class="p">;</span>
+</code></pre></div>
+<hr/>
+<h2 id="_2">总结</h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                      流量控制要点回顾                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. PublishMode                                                 │
+│     • SYNC: 直接发送，低延迟，简单                               │
+│     • ASYNC: 队列缓冲，支持流控，适合高吞吐                       │
+│                                                                  │
+│  2. FlowController                                              │
+│     • 基于令牌桶算法                                             │
+│     • 支持速率限制和优先级调度                                    │
+│     • 内置三种类型: Default/FixedRate/ReservedBandwidth          │
+│                                                                  │
+│  3. FlowControllerAsyncPublishMode                                           │
+│     • 全局单线程调度所有异步 Writer                              │
+│     • 条件变量实现高效唤醒                                       │
+│                                                                  │
+│  4. 使用场景                                                    │
+│     • 视频流: ASYNC + 固定速率                                   │
+│     • 多优先级: 不同 Writer 使用不同流控器                       │
+│     • 突发流量: 大令牌桶 + History KEEP_ALL                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>基于 Fast-DDS 2.14.x 版本源码分析</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

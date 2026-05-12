@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-DDS 内存管理与分片传输详解 | Fast-DDS 学习笔记</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --fg: #c9d1d9;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #7ee787;
+    --panel: #161b22;
+    --border: #30363d;
+    --code-bg: #161b22;
+    --hover: #1f242c;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    line-height: 1.7; font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Layout */
+.container { display: flex; min-height: 100vh; }
+.sidebar {
+    width: 300px; flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: fixed; top: 0; left: 0; bottom: 0;
+    overflow-y: auto; z-index: 100;
+}
+.sidebar-header {
+    padding: 20px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel);
+    z-index: 10;
+}
+.sidebar-header h1 { margin: 0; font-size: 18px; color: var(--accent2); }
+.sidebar-header .subtitle { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.sidebar-header a.home { display: inline-block; margin-top: 8px; font-size: 13px; }
+.sidebar-nav { padding: 10px 0; }
+
+/* Nav tree */
+.nav-group { margin-bottom: 2px; }
+.nav-group-title {
+    padding: 8px 20px; font-size: 12px; text-transform: uppercase;
+    color: var(--muted); letter-spacing: 0.5px; cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+}
+.nav-group-title:hover { background: var(--hover); }
+.nav-group-title::after { content: "▸"; font-size: 10px; transition: transform .2s; }
+.nav-group.open > .nav-group-title::after { transform: rotate(90deg); }
+.nav-group-items { display: none; }
+.nav-group.open > .nav-group-items { display: block; }
+.nav-item {
+    display: block; padding: 6px 20px 6px 32px;
+    font-size: 13px; color: var(--fg);
+    border-left: 2px solid transparent;
+    transition: background .15s, border-color .15s;
+}
+.nav-item:hover { background: var(--hover); }
+.nav-item.active { border-left-color: var(--accent); background: var(--hover); color: var(--accent); }
+
+/* Main content */
+.main {
+    margin-left: 300px; flex: 1;
+    max-width: 900px; padding: 40px 50px;
+}
+.main h1 { font-size: 32px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-top: 0; }
+.main h2 { font-size: 24px; margin-top: 40px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.main h3 { font-size: 20px; margin-top: 30px; }
+.main h4 { font-size: 16px; color: var(--accent2); margin-top: 24px; }
+.main p { margin: 12px 0; }
+.main ul, .main ol { padding-left: 24px; }
+.main li { margin: 4px 0; }
+.main blockquote {
+    border-left: 4px solid var(--accent); margin: 16px 0; padding: 8px 16px;
+    background: var(--panel); color: var(--muted);
+}
+.main code {
+    background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+.main pre {
+    background: var(--code-bg); padding: 16px; border-radius: 8px;
+    overflow-x: auto; border: 1px solid var(--border);
+}
+.main pre code { background: none; padding: 0; }
+.main table {
+    width: 100%; border-collapse: collapse; margin: 16px 0;
+}
+.main th, .main td { padding: 8px 12px; border: 1px solid var(--border); }
+.main th { background: var(--panel); text-align: left; }
+.main tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.main img { max-width: 100%; border-radius: 6px; }
+.main hr { border: none; border-top: 1px solid var(--border); margin: 30px 0; }
+
+/* Breadcrumb */
+.breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+.breadcrumb a { color: var(--muted); }
+.breadcrumb a:hover { color: var(--accent); }
+
+/* Back-to-top */
+.back-to-top {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; opacity: 0; transition: opacity .3s;
+    z-index: 200; color: var(--fg);
+}
+.back-to-top.visible { opacity: 1; }
+
+/* Search */
+.search-box {
+    width: calc(100% - 40px); margin: 10px 20px;
+    padding: 8px 12px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); font-size: 13px;
+}
+.search-box:focus { outline: none; border-color: var(--accent); }
+
+/* Mobile */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; height: auto; }
+    .main { margin-left: 0; padding: 20px; }
+}
+
+/* CodeHilite */
+.codehilite { background: var(--code-bg); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.codehilite pre { background: none; padding: 0; border: none; }
+</style>
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>📚 Fast-DDS Notes</h1>
+            <p class="subtitle">Fast-DDS 学习笔记</p>
+            <a class="home" href="index.html">🏠 返回首页</a>
+        </div>
+        <input class="search-box" type="text" placeholder="🔍 搜索笔记...">
+        <nav class="sidebar-nav">
+        <div class="nav-group open">
+            <div class="nav-group-title">快速参考 <span>4</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="00-Core-Classes-Reference.html">00 Core Classes Reference</a>
+            <a class="nav-item" href="CODE_CORRECTIONS.html">CODE_CORRECTIONS</a>
+            <a class="nav-item" href="ORGANIZED-INDEX.html">ORGANIZED INDEX</a>
+            <a class="nav-item" href="index.html">README</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">理论基础 <span>21</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="01-RTPS-Source-Analysis.html">01 RTPS Source Analysis</a>
+            <a class="nav-item" href="01-RTPS-架构概览.html">01 RTPS 架构概览</a>
+            <a class="nav-item" href="02-DDS-Layer-Architecture.html">02 DDS Layer Architecture</a>
+            <a class="nav-item" href="02-DDS-发现机制.html">02 DDS 发现机制</a>
+            <a class="nav-item" href="03-Discovery-Mechanism.html">03 Discovery Mechanism</a>
+            <a class="nav-item" href="03-Discovery-Server.html">03 Discovery Server</a>
+            <a class="nav-item" href="03A-Discovery-Server-Detail.html">03A Discovery Server Detail</a>
+            <a class="nav-item" href="03B-Discovery-Server-Redundancy.html">03B Discovery Server Redundancy</a>
+            <a class="nav-item" href="03B-Topic-详解.html">03B Topic 详解</a>
+            <a class="nav-item" href="04-QoS-Implementation.html">04 QoS Implementation</a>
+            <a class="nav-item" href="04-消息传递机制.html">04 消息传递机制</a>
+            <a class="nav-item" href="05-Proxy-代理机制.html">05 Proxy 代理机制</a>
+            <a class="nav-item" href="05-Transport-Layer.html">05 Transport Layer</a>
+            <a class="nav-item" href="06-DDS到RTPS调用链.html">06 DDS到RTPS调用链</a>
+            <a class="nav-item" href="06-Security-Module.html">06 Security Module</a>
+            <a class="nav-item" href="07-Performance-Optimization.html">07 Performance Optimization</a>
+            <a class="nav-item" href="07-Topic-详解.html">07 Topic 详解</a>
+            <a class="nav-item" href="08-Debugging-Tools.html">08 Debugging Tools</a>
+            <a class="nav-item" href="08-Listener-与-WaitSet.html">08 Listener 与 WaitSet</a>
+            <a class="nav-item" href="A1-代码修正记录.html">A1 代码修正记录</a>
+            <a class="nav-item" href="A2-核心类速查表.html">A2 核心类速查表</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">进阶深入 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="09-Advanced-Topics.html">09 Advanced Topics</a>
+            <a class="nav-item" href="09-传输层与性能.html">09 传输层与性能</a>
+            <a class="nav-item" href="10-DDS-Security.html">10 DDS Security</a>
+            <a class="nav-item" href="10-Listener-WaitSet.html">10 Listener WaitSet</a>
+            <a class="nav-item" href="11-Transport-Performance.html">11 Transport Performance</a>
+            <a class="nav-item" href="12-DDS-Security.html">12 DDS Security</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">实战示例 <span>6</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="13-Example-01-HelloWorld.html">13 Example 01 HelloWorld</a>
+            <a class="nav-item" href="13-Example-02-RTPS.html">13 Example 02 RTPS</a>
+            <a class="nav-item" href="13-Example-03-DiscoveryServer.html">13 Example 03 DiscoveryServer</a>
+            <a class="nav-item" href="13-Example-04-13-QuickRef.html">13 Example 04 13 QuickRef</a>
+            <a class="nav-item" href="13-Examples-Index.html">13 Examples Index</a>
+            <a class="nav-item" href="13-Logging-System.html">13 Logging System</a>
+            </div>
+        </div>
+        <div class="nav-group open">
+            <div class="nav-group-title">专题深入 <span>18</span></div>
+            <div class="nav-group-items">
+            <a class="nav-item" href="14-Callback-Mechanism-Deep-Dive.html">14 Callback Mechanism Deep Dive</a>
+            <a class="nav-item" href="14-Flow-Control.html">14 Flow Control</a>
+            <a class="nav-item active" href="14-Memory-Fragmentation.html">14 Memory Fragmentation</a>
+            <a class="nav-item" href="14-SequenceNumber-Reliable-Transmission.html">14 SequenceNumber Reliable Transmission</a>
+            <a class="nav-item" href="15-Data-Transmission-Flow.html">15 Data Transmission Flow</a>
+            <a class="nav-item" href="15-Timer-System.html">15 Timer System</a>
+            <a class="nav-item" href="16-Threading-Model.html">16 Threading Model</a>
+            <a class="nav-item" href="17-Instance-Management.html">17 Instance Management</a>
+            <a class="nav-item" href="17-ROS2-Integration.html">17 ROS2 Integration</a>
+            <a class="nav-item" href="18-Interview-Questions.html">18 Interview Questions</a>
+            <a class="nav-item" href="18-Serialization.html">18 Serialization</a>
+            <a class="nav-item" href="19-RTPS-Message-Format.html">19 RTPS Message Format</a>
+            <a class="nav-item" href="20-Stateless-vs-Stateful-Writer.html">20 Stateless vs Stateful Writer</a>
+            <a class="nav-item" href="21-Thread-Model.html">21 Thread Model</a>
+            <a class="nav-item" href="21-Thread-Model-Detailed.html">21 Thread Model Detailed</a>
+            <a class="nav-item" href="22-Inter-Thread-Communication.html">22 Inter Thread Communication</a>
+            <a class="nav-item" href="23-Message-Transmission-Flow.html">23 Message Transmission Flow</a>
+            <a class="nav-item" href="24-Wireshark-Analysis.html">24 Wireshark Analysis</a>
+            </div>
+        </div>
+
+        </nav>
+    </aside>
+    <main class="main">
+        <div class="breadcrumb"><a href="index.html">🏠 首页</a> / 14-Memory-Fragmentation</div>
+        <h1 id="fast-dds">Fast-DDS 内存管理与分片传输详解</h1>
+<p><strong>创建时间</strong>: 2026-03-13<br/>
+<strong>源码版本</strong>: Fast-DDS 3.5.0<br/>
+<strong>作者</strong>: 旭旭助手</p>
+<hr/>
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#一为什么需要特殊内存管理">为什么需要特殊内存管理？</a></li>
+<li><a href="#二内存池机制">内存池机制</a></li>
+<li><a href="#三history-缓存机制">History 缓存机制</a></li>
+<li><a href="#四分片传输fragmentation">分片传输（Fragmentation）</a></li>
+<li><a href="#五零拷贝与共享内存">零拷贝与共享内存</a></li>
+<li><a href="#六实战代码示例">实战代码示例</a></li>
+<li><a href="#七性能调优建议">性能调优建议</a></li>
+</ol>
+<hr/>
+<h2 id="_2">一、为什么需要特殊内存管理？</h2>
+<h3 id="11">1.1 实时系统的内存挑战</h3>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>传统方案</th>
+<th>DDS 方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>分配延迟不确定</strong></td>
+<td><code>malloc/free</code> 可能触发系统调用</td>
+<td>预分配内存池，O(1) 获取</td>
+</tr>
+<tr>
+<td><strong>内存碎片化</strong></td>
+<td>频繁分配/释放导致碎片</td>
+<td>固定大小块管理</td>
+</tr>
+<tr>
+<td><strong>缓存不友好</strong></td>
+<td>随机内存访问</td>
+<td>连续内存 + 预取</td>
+</tr>
+<tr>
+<td><strong>大消息处理</strong></td>
+<td>单包限制（UDP ~64KB）</td>
+<td>自动分片重组</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-fast-dds">1.2 Fast-DDS 内存架构概览</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">Application</span><span class="w"> </span><span class="n">Layer</span><span class="w">                             </span><span class="err">│</span>
+<span class="err">│</span><span class="w">              </span><span class="p">(</span><span class="err">用户数据，序列化后的字节流</span><span class="p">)</span><span class="w">                          </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+<span class="w">                              </span><span class="err">│</span>
+<span class="w">                              </span><span class="err">▼</span>
+<span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                     </span><span class="n">CacheChange</span><span class="w"> </span><span class="p">(</span><span class="err">缓存单元</span><span class="p">)</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌─────────────┐</span><span class="w">  </span><span class="err">┌─────────────┐</span><span class="w">  </span><span class="err">┌─────────────────────────┐</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Sequence</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Serialized</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">FragmentInfo</span><span class="w"> </span><span class="p">(</span><span class="err">分片信息</span><span class="p">)</span><span class="w"> </span><span class="err">│</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Number</span><span class="w">     </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="n">Data</span><span class="w">       </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="err">如果是分片消息</span><span class="p">)</span><span class="w">        </span><span class="err">│</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="mi">64</span><span class="o">-</span><span class="n">bit</span><span class="p">)</span><span class="w">   </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="p">(</span><span class="n">payload</span><span class="p">)</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">                          </span><span class="err">│</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└─────────────┘</span><span class="w">  </span><span class="err">└─────────────┘</span><span class="w">  </span><span class="err">└─────────────────────────┘</span><span class="w">  </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+<span class="w">                              </span><span class="err">│</span>
+<span class="w">                              </span><span class="err">▼</span>
+<span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">HistoryCache</span><span class="w"> </span><span class="p">(</span><span class="err">历史缓存</span><span class="p">)</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">┌───────────────────────────────────────────────────────────┐</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">内存池</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">预分配数组</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="err">动态链表</span><span class="w"> </span><span class="p">(</span><span class="err">取决于</span><span class="w"> </span><span class="n">QoS</span><span class="p">)</span><span class="w">                 </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">┌─────┐</span><span class="w"> </span><span class="err">┌─────┐</span><span class="w"> </span><span class="err">┌─────┐</span><span class="w"> </span><span class="err">┌─────┐</span><span class="w"> </span><span class="err">┌─────┐</span><span class="w"> </span><span class="err">┌─────┐</span><span class="w">         </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="n">Chg</span><span class="w"> </span><span class="mi">1</span><span class="err">│→│</span><span class="n">Chg</span><span class="w"> </span><span class="mi">2</span><span class="err">│→│</span><span class="n">Chg</span><span class="w"> </span><span class="mi">3</span><span class="err">│→│</span><span class="n">Chg</span><span class="w"> </span><span class="mi">4</span><span class="err">│→│</span><span class="n">Chg</span><span class="w"> </span><span class="mi">5</span><span class="err">│→│</span><span class="n">Chg</span><span class="w"> </span><span class="mi">6</span><span class="err">│</span><span class="w">  </span><span class="o">...</span><span class="w">   </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">│</span><span class="w">  </span><span class="err">└─────┘</span><span class="w"> </span><span class="err">└─────┘</span><span class="w"> </span><span class="err">└─────┘</span><span class="w"> </span><span class="err">└─────┘</span><span class="w"> </span><span class="err">└─────┘</span><span class="w"> </span><span class="err">└─────┘</span><span class="w">         </span><span class="err">│</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="err">└───────────────────────────────────────────────────────────┘</span><span class="w">   </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+<span class="w">                              </span><span class="err">│</span>
+<span class="w">                              </span><span class="err">▼</span>
+<span class="err">┌─────────────────────────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                    </span><span class="n">Transport</span><span class="w"> </span><span class="n">Layer</span><span class="w">                               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">         </span><span class="p">(</span><span class="n">UDP</span><span class="o">/</span><span class="n">TCP</span><span class="o">/</span><span class="n">SHM</span><span class="err">，分片在此层处理</span><span class="p">)</span><span class="w">                            </span><span class="err">│</span>
+<span class="err">└─────────────────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+<hr/>
+<h2 id="_3">二、内存池机制</h2>
+<h3 id="21-cachechangepool-">2.1 CacheChangePool - 缓存单元池</h3>
+<p><strong>源码位置</strong>: <code>src/cpp/rtps/history/CacheChangePool.cpp</code></p>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CacheChangePool</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 初始化内存池</span>
+<span class="w">    </span><span class="n">CacheChangePool</span><span class="p">(</span>
+<span class="w">        </span><span class="kt">size_t</span><span class="w"> </span><span class="n">pool_size</span><span class="p">,</span><span class="w">           </span><span class="c1">// 池大小（初始分配数量）</span>
+<span class="w">        </span><span class="kt">size_t</span><span class="w"> </span><span class="n">max_pool_size</span><span class="p">,</span><span class="w">       </span><span class="c1">// 最大扩展数量</span>
+<span class="w">        </span><span class="kt">size_t</span><span class="w"> </span><span class="n">payload_size</span><span class="p">,</span><span class="w">        </span><span class="c1">// 每个 payload 的最大大小</span>
+<span class="w">        </span><span class="kt">bool</span><span class="w"> </span><span class="n">allow_growing</span><span class="w">          </span><span class="c1">// 是否允许动态增长</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 获取一个 CacheChange（O(1)）</span>
+<span class="w">    </span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="nf">allocate</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 归还 CacheChange（O(1)）</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">release</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">);</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">pool_</span><span class="p">;</span><span class="w">           </span><span class="c1">// 可用单元列表</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">CacheChange_t</span><span class="o">*&gt;</span><span class="w"> </span><span class="n">all_changes_</span><span class="p">;</span><span class="w">    </span><span class="c1">// 所有单元（用于清理）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">mutex</span><span class="w"> </span><span class="n">mutex_</span><span class="p">;</span><span class="w">                            </span><span class="c1">// 线程安全</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">current_pool_size_</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 当前池大小</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">max_pool_size_</span><span class="p">;</span><span class="w">                  </span><span class="c1">// 最大限制</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">allow_growing_</span><span class="p">;</span><span class="w">                    </span><span class="c1">// 是否可增长</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="22">2.2 内存分配策略</h3>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>配置方式</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>预分配固定池</strong></td>
+<td><code>pool_size = N</code>, <code>allow_growing = false</code></td>
+<td>内存受限嵌入式系统</td>
+</tr>
+<tr>
+<td><strong>可增长池</strong></td>
+<td><code>pool_size = N</code>, <code>allow_growing = true</code>, <code>max_pool_size = M</code></td>
+<td>通用场景（默认）</td>
+</tr>
+<tr>
+<td><strong>动态分配</strong></td>
+<td><code>pool_size = 0</code></td>
+<td>开发调试，不推荐生产</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23">2.3 代码示例：配置内存池</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 通过 QoS 配置 History 内存池</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">;</span>
+
+<span class="c1">// 设置 History 深度（缓存多少个样本）</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">  </span><span class="c1">// KeepLast(10)</span>
+
+<span class="c1">// 或者使用 KeepAll（需要配合 ResourceLimits）</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_ALL_HISTORY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 配置 ResourceLimits（资源限制）</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w">           </span><span class="c1">// 最大样本数</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_instances</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">          </span><span class="c1">// 最大实例数</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples_per_instance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="c1">// 每个实例最大样本</span>
+
+<span class="c1">// 预分配 vs 动态分配</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">writer_resource_limits</span><span class="p">().</span><span class="n">matched_subscriber_allocation</span><span class="p">.</span>
+<span class="w">    </span><span class="n">initial_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">   </span><span class="c1">// 初始分配5个匹配的 Reader 槽位</span>
+<span class="n">writer_qos</span><span class="p">.</span><span class="n">writer_resource_limits</span><span class="p">().</span><span class="n">matched_subscriber_allocation</span><span class="p">.</span>
+<span class="w">    </span><span class="n">maximum_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最多支持20个匹配的 Reader</span>
+</code></pre></div>
+<hr/>
+<h2 id="history">三、History 缓存机制</h2>
+<h3 id="31-writerhistory-vs-readerhistory">3.1 WriterHistory vs ReaderHistory</h3>
+<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────────────┐
+│                      WriterHistory                           │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  已发布但未确认的数据（可靠模式）                          │ │
+│  │  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                       │ │
+│  │  │Seq=5│ │Seq=6│ │Seq=7│ │Seq=8│  &lt;-- 等待 ACKNACK      │ │
+│  │  │Acked│ │     │ │     │ │     │                       │ │
+│  │  └─────┘ └─────┘ └─────┘ └─────┘                       │ │
+│  │                                                         │ │
+│  │  序列号管理：分配下一个可用的 SequenceNumber             │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│                      ReaderHistory                           │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │  已接收但未取走的数据                                      │ │
+│  │  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                       │ │
+│  │  │Seq=5│ │Seq=6│ │GAP  │ │Seq=8│  &lt;-- 缺 Seq=7          │ │
+│  │  │Read │ │     │ │     │ │     │                       │ │
+│  │  └─────┘ └─────┘ └─────┘ └─────┘                       │ │
+│  │                                                         │ │
+│  │  序列号管理：检测缺失、去重、排序                          │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="32-history">3.2 History 的两种模式</h3>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>说明</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KeepLast(N)</strong></td>
+<td>只保留最新的 N 个样本，旧的丢弃</td>
+<td>实时视频流、传感器数据</td>
+</tr>
+<tr>
+<td><strong>KeepAll</strong></td>
+<td>保留所有样本（直到 ResourceLimits 满）</td>
+<td>关键指令、交易数据</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意</strong>：KeepAll 需要配合 <code>ResourceLimits</code> 使用，否则内存会无限增长！</p>
+<h3 id="33-history">3.3 History 缓存的生命周期</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// WriterHistory 中的 CacheChange 状态流转</span>
+<span class="k">enum</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">ChangeState</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">ALIVE</span><span class="p">,</span><span class="w">           </span><span class="c1">// 新写入，未发送</span>
+<span class="w">    </span><span class="n">SENT</span><span class="p">,</span><span class="w">            </span><span class="c1">// 已发送，等待确认（可靠模式）</span>
+<span class="w">    </span><span class="n">ACKED</span><span class="p">,</span><span class="w">           </span><span class="c1">// 已确认，可以回收</span>
+<span class="w">    </span><span class="n">REPLACED</span><span class="w">         </span><span class="c1">// 被新样本替换（KeepLast模式下）</span>
+<span class="p">};</span>
+
+<span class="c1">// ReaderHistory 中的处理流程</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">on_received_data</span><span class="p">(</span><span class="n">CacheChange_t</span><span class="o">*</span><span class="w"> </span><span class="n">change</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 序列号检查（去重、排序）</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">last_processed_seq_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span><span class="w">  </span><span class="c1">// 重复数据，丢弃</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 2. 检查是否有缺失（GAP检测）</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">last_processed_seq_</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">mark_missing_changes</span><span class="p">(</span><span class="n">last_processed_seq_</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span>
+<span class="w">                            </span><span class="n">change</span><span class="o">-&gt;</span><span class="n">sequenceNumber</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 3. 插入 HistoryCache</span>
+<span class="w">    </span><span class="n">insert_to_history</span><span class="p">(</span><span class="n">change</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 4. 触发回调</span>
+<span class="w">    </span><span class="n">listener_</span><span class="o">-&gt;</span><span class="n">on_data_available</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="fragmentation">四、分片传输（Fragmentation）</h2>
+<h3 id="41">4.1 为什么需要分片？</h3>
+<p><strong>UDP 报文大小限制</strong>：<br/>
+- 理论上限：65,507 字节（IPv4）<br/>
+- 实际限制：通常 1,500 字节（以太网 MTU）<br/>
+- 大数据样本（如 1MB 图像）必须分片</p>
+<h3 id="42-fast-dds">4.2 Fast-DDS 分片架构</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────────────────────┐
+│                     大数据样本 (1MB)                             │
+│  ┌────────┬────────┬────────┬────────┬────────┬────────┐        │
+│  │Frag 0  │Frag 1  │Frag 2  │Frag 3  │  ...   │Frag N  │        │
+│  │(64KB)  │(64KB)  │(64KB)  │(64KB)  │        │(剩余)  │        │
+│  └────────┴────────┴────────┴────────┴────────┴────────┘        │
+│       │        │        │        │               │              │
+│       ▼        ▼        ▼        ▼               ▼              │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  DATA Frag Submessage (RTPS 协议层)                        │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌───────────────────┐   │  │
+│  │  │ fragmentStartingNum │  │ fragmentsInSubmessage │  │  │   │  │
+│  │  │ (起始分片号)        │  │ (本消息包含的分片数)   │  │  │   │  │
+│  │  └─────────────┘  └─────────────┘  └───────────────────┘   │  │
+│  │  ┌─────────────────────────────────────────────────────┐   │  │
+│  │  │ fragmentBytes (实际分片数据，最大约 64KB)              │   │  │
+│  │  └─────────────────────────────────────────────────────┘   │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="43">4.3 分片关键参数</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 在 TransportDescriptor 中配置</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">TransportDescriptor</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 最大传输单元（不包括 UDP/IP 头）</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">maxMessageSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65500</span><span class="p">;</span><span class="w">  </span><span class="c1">// 默认约 64KB</span>
+
+<span class="w">    </span><span class="c1">// 分片大小（实际 payload 大小）</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">maxInitialPeersRange</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w">  </span><span class="c1">// 初始发现阶段最大分片数</span>
+
+<span class="w">    </span><span class="c1">// 发送队列大小（控制并发分片数量）</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">sendBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65500</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">receiveBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65500</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="44">4.4 分片与重组流程</h3>
+<p><strong>发送端 (Writer)</strong>：</p>
+<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────────────┐
+│ 1. 用户调用 write(data, size=1MB)                             │
+│                         ↓                                    │
+│ 2. RTPSWriter::write() 分配 SequenceNumber                   │
+│                         ↓                                    │
+│ 3. 检查 size &gt; maxMessageSize?                               │
+│                         ↓ Yes                                │
+│ 4. 计算分片数: N = ceil(1MB / 64KB) = 16 片                  │
+│                         ↓                                    │
+│ 5. 创建 N 个 DATA_FRAG submessage                            │
+│    每个包含:                                                 │
+│    - fragmentStartingNum (0, 1, 2, ..., 15)                  │
+│    - fragmentsInSubmessage (通常为 1)                        │
+│    - fragmentSize (64KB, 64KB, ..., 剩余)                    │
+│                         ↓                                    │
+│ 6. 逐个发送分片（可靠模式下等待每个分片的确认）                 │
+└──────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p><strong>接收端 (Reader)</strong>：</p>
+<div class="codehilite"><pre><span></span><code>┌──────────────────────────────────────────────────────────────┐
+│ 1. 接收 DATA_FRAG(fragmentStartingNum=0)                     │
+│                         ↓                                    │
+│ 2. 检查: 这是某个大数据样本的第 0 个分片？                     │
+│    → 创建 FragmentedSample 对象，开始重组                     │
+│                         ↓                                    │
+│ 3. 接收 DATA_FRAG(fragmentStartingNum=1)                     │
+│                         ↓                                    │
+│ 4. 插入到对应位置，检查是否连续                                │
+│                         ↓                                    │
+│ 5. 继续接收直到 fragmentStartingNum = N-1                    │
+│                         ↓                                    │
+│ 6. 所有分片到齐 → 重组为完整样本 → 存入 HistoryCache         │
+│                         ↓                                    │
+│ 7. 触发 on_data_available() 回调                             │
+└──────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="45">4.5 分片重组的数据结构</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Fast-DDS 中的分片重组实现</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FragmentedChange</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 分片位图（追踪哪些分片已收到）</span>
+<span class="w">    </span><span class="c1">// 例如：16个分片 → 每个分片对应一个 bit</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fragment_bitmap_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 存储分片数据（使用连续的缓冲区）</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fragment_data_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 分片信息</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">total_fragments_</span><span class="p">;</span><span class="w">      </span><span class="c1">// 总分片数</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">received_fragments_</span><span class="p">;</span><span class="w">   </span><span class="c1">// 已接收分片数</span>
+<span class="w">    </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">fragment_size_</span><span class="p">;</span><span class="w">        </span><span class="c1">// 每个分片的大小</span>
+
+<span class="w">    </span><span class="c1">// 超时管理</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">time_point</span><span class="w"> </span><span class="n">last_fragment_time_</span><span class="p">;</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="k">constexpr</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">FRAGMENT_TIMEOUT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">seconds</span><span class="p">(</span><span class="mi">30</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 检查是否完整</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">is_complete</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">received_fragments_</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">total_fragments_</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 检查是否超时</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">is_timeout</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">chrono</span><span class="o">::</span><span class="n">steady_clock</span><span class="o">::</span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">last_fragment_time_</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">FRAGMENT_TIMEOUT</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 添加分片</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">add_fragment</span><span class="p">(</span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">fragment_num</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">uint8_t</span><span class="o">*</span><span class="w"> </span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="p">};</span>
+</code></pre></div>
+<h3 id="46">4.6 分片丢失处理与重传</h3>
+<div class="codehilite"><pre><span></span><code>场景：16个分片中，第 3、7 分片丢失
+
+Writer 发送:  [0] [1] [2] [3] [4] [5] [6] [7] [8] [9] [10] [11] [12] [13] [14] [15]
+              OK  OK  OK  X   OK  OK  OK  X   OK  OK  OK   OK   OK   OK   OK   OK
+
+Reader 收到:  [0] [1] [2]     [4] [5] [6]     [8] [9] [10] [11] [12] [13] [14] [15]
+              (缺少 3 和 7)
+
+Reader 的 ACKNACK 响应:
+┌──────────────────────────────────────────────────────────────┐
+│  ACKNACK Submessage                                          │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ readerSNState (Base = 16, 表示已确认到 Seq=15)          │  │
+│  │ bitmap = [0, 0, 0, 1, 0, 0, 0, 1, 0, ...]              │  │
+│  │          // bit 3 = 1 表示缺 Seq=3 的分片              │  │
+│  │          // bit 7 = 1 表示缺 Seq=7 的分片              │  │
+│  └────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────┘
+
+Writer 收到 ACKNACK:
+→ 重传 DATA_FRAG(fragmentStartingNum=3)
+→ 重传 DATA_FRAG(fragmentStartingNum=7)
+</code></pre></div>
+<hr/>
+<h2 id="_4">五、零拷贝与共享内存</h2>
+<h3 id="51-vs">5.1 传统拷贝 vs 零拷贝</h3>
+<div class="codehilite"><pre><span></span><code>传统方式（4次拷贝）:
+┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
+│ 应用数据 │ → │ 序列化  │ → │ Socket  │ → │ 内核    │ → │ 网卡    │
+│ 缓冲区  │   │ 缓冲区  │   │ 缓冲区  │   │ 缓冲区  │   │ 发送    │
+└─────────┘   └─────────┘   └─────────┘   └─────────┘   └─────────┘
+
+零拷贝方式（共享内存，0次拷贝）:
+┌──────────────────────────────────────────────────────────────────┐
+│                    共享内存段 (SHM)                               │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  应用直接写入 ──────────────────────────────► Reader 直接读取 │  │
+│  │  (通过内存映射)                    (通过内存映射)            │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h3 id="52-fast-dds">5.2 Fast-DDS 共享内存传输配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/transport/shared_mem/SharedMemTransportDescriptor.hpp&gt;</span>
+
+<span class="c1">// 配置共享内存传输</span>
+<span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+
+<span class="c1">// 添加共享内存传输</span>
+<span class="k">auto</span><span class="w"> </span><span class="n">shm_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SharedMemTransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">segment_size</span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">);</span><span class="w">  </span><span class="c1">// 2MB 共享内存段</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">port_queue_capacity</span><span class="p">(</span><span class="mi">1024</span><span class="p">);</span><span class="w">       </span><span class="c1">// 端口队列容量</span>
+<span class="n">shm_transport</span><span class="o">-&gt;</span><span class="n">healthy_check_timeout_ms</span><span class="p">(</span><span class="mi">1000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 健康检查超时</span>
+
+<span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span>
+
+<span class="c1">// 共享内存传输优先级高于 UDP</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">shm_transport</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="53-vs-udptcp">5.3 共享内存 vs UDP/TCP 对比</h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>UDPv4</th>
+<th>TCPv4</th>
+<th>共享内存 (SHM)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>延迟</strong></td>
+<td>~10-50μs</td>
+<td>~100-500μs</td>
+<td>~0.5-2μs</td>
+</tr>
+<tr>
+<td><strong>吞吐量</strong></td>
+<td>高</td>
+<td>中</td>
+<td>极高（内存速度）</td>
+</tr>
+<tr>
+<td><strong>CPU 占用</strong></td>
+<td>中</td>
+<td>高</td>
+<td>极低</td>
+</tr>
+<tr>
+<td><strong>跨机器</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>❌（仅限单机）</td>
+</tr>
+<tr>
+<td><strong>大数据</strong></td>
+<td>需分片</td>
+<td>自动处理</td>
+<td>无需分片（直接映射）</td>
+</tr>
+<tr>
+<td><strong>可靠性</strong></td>
+<td>尽力而为</td>
+<td>可靠</td>
+<td>需应用层确认</td>
+</tr>
+</tbody>
+</table>
+<h3 id="54">5.4 共享内存的实现机制</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 共享内存段管理</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SharedMemSegment</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 创建/打开共享内存段</span>
+<span class="w">    </span><span class="n">SharedMemSegment</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 内存映射</span>
+<span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">map</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 写入数据（零拷贝）</span>
+<span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">allocate_buffer</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">publish_buffer</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 读取数据（零拷贝）</span>
+<span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="nf">get_buffer</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">offset</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">release_buffer</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">buffer</span><span class="p">);</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">segment_name_</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">segment_size_</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">mapped_memory_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 环形缓冲区管理</span>
+<span class="w">    </span><span class="n">RingBuffer</span><span class="o">&lt;</span><span class="n">SharedMemBuffer</span><span class="o">&gt;</span><span class="w"> </span><span class="n">buffer_queue_</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// 端口（用于同步）</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SharedMemPort</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="c1">// 通知对端有新数据</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">notify</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 等待新数据通知</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nf">wait_for_notification</span><span class="p">(</span><span class="n">timeout</span><span class="p">);</span>
+
+<span class="k">private</span><span class="o">:</span>
+<span class="w">    </span><span class="n">sem_t</span><span class="w"> </span><span class="n">notification_semaphore_</span><span class="p">;</span><span class="w">  </span><span class="c1">// 进程间信号量</span>
+<span class="p">};</span>
+</code></pre></div>
+<hr/>
+<h2 id="_5">六、实战代码示例</h2>
+<h3 id="61">6.1 配置大消息分片传输</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipantFactory.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/domain/DomainParticipant.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/Publisher.hpp&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/dds/publisher/DataWriter.hpp&gt;</span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">eprosima</span><span class="o">::</span><span class="nn">fastdds</span><span class="o">::</span><span class="nn">dds</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. 配置 DomainParticipant，启用分片传输</span>
+<span class="w">    </span><span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 配置 UDPv4 传输，设置分片大小</span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">udp_transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">UDPv4TransportDescriptor</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">    </span><span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">maxMessageSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64000</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最大消息大小 64KB</span>
+<span class="w">    </span><span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">sendBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128000</span><span class="p">;</span><span class="w"> </span><span class="c1">// 发送缓冲区 128KB</span>
+<span class="w">    </span><span class="n">udp_transport</span><span class="o">-&gt;</span><span class="n">receiveBufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128000</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">participant_qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">user_transports</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">udp_transport</span><span class="p">);</span>
+<span class="w">    </span><span class="n">participant_qos</span><span class="p">.</span><span class="n">transport</span><span class="p">().</span><span class="n">use_builtin_transports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 2. 创建 Participant</span>
+<span class="w">    </span><span class="n">DomainParticipant</span><span class="o">*</span><span class="w"> </span><span class="n">participant</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="n">DomainParticipantFactory</span><span class="o">::</span><span class="n">get_instance</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">create_participant</span><span class="p">(</span>
+<span class="w">            </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">participant_qos</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 3. 注册大消息类型</span>
+<span class="w">    </span><span class="n">TypeSupport</span><span class="w"> </span><span class="n">type_support</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">LargeImagePubSubType</span><span class="p">());</span>
+<span class="w">    </span><span class="n">type_support</span><span class="p">.</span><span class="n">register_type</span><span class="p">(</span><span class="n">participant</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 4. 创建 Topic</span>
+<span class="w">    </span><span class="n">Topic</span><span class="o">*</span><span class="w"> </span><span class="n">topic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_topic</span><span class="p">(</span>
+<span class="w">        </span><span class="s">"LargeImageTopic"</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="n">type_support</span><span class="p">.</span><span class="n">get_type_name</span><span class="p">(),</span><span class="w"> </span>
+<span class="w">        </span><span class="n">TOPIC_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 5. 创建 Publisher</span>
+<span class="w">    </span><span class="n">Publisher</span><span class="o">*</span><span class="w"> </span><span class="n">publisher</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">participant</span><span class="o">-&gt;</span><span class="n">create_publisher</span><span class="p">(</span><span class="n">PUBLISHER_QOS_DEFAULT</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 6. 配置 DataWriter（关键：配置大消息支持）</span>
+<span class="w">    </span><span class="n">DataWriterQos</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 可靠传输（必须，确保分片不丢失）</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 历史策略</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">  </span><span class="c1">// 缓存最近5个大消息</span>
+
+<span class="w">    </span><span class="c1">// 资源限制（防止内存无限增长）</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_sample_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">  </span><span class="c1">// 10MB</span>
+
+<span class="w">    </span><span class="c1">// 异步发布（大消息推荐）</span>
+<span class="w">    </span><span class="n">writer_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS_PUBLISH_MODE</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">publisher</span><span class="o">-&gt;</span><span class="n">create_datawriter</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">writer_qos</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 7. 创建并发送大消息</span>
+<span class="w">    </span><span class="n">LargeImage</span><span class="w"> </span><span class="n">image</span><span class="p">;</span>
+<span class="w">    </span><span class="n">image</span><span class="p">.</span><span class="n">width</span><span class="p">(</span><span class="mi">1920</span><span class="p">);</span>
+<span class="w">    </span><span class="n">image</span><span class="p">.</span><span class="n">height</span><span class="p">(</span><span class="mi">1080</span><span class="p">);</span>
+<span class="w">    </span><span class="n">image</span><span class="p">.</span><span class="n">data</span><span class="p">().</span><span class="n">resize</span><span class="p">(</span><span class="mi">1920</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1080</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w">  </span><span class="c1">// RGB 图像，约 6MB</span>
+
+<span class="w">    </span><span class="c1">// 填充数据...</span>
+
+<span class="w">    </span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">write</span><span class="p">(</span><span class="o">&amp;</span><span class="n">image</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="62">6.2 接收大消息配置</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 接收端配置</span>
+<span class="n">DataReaderQos</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">;</span>
+
+<span class="c1">// 可靠传输（匹配 Writer）</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 历史策略</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">KEEP_LAST_HISTORY_QOS</span><span class="p">;</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+
+<span class="c1">// 资源限制</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_sample_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">  </span><span class="c1">// 10MB</span>
+
+<span class="c1">// 分片重组超时</span>
+<span class="n">reader_qos</span><span class="p">.</span><span class="n">reader_resource_limits</span><span class="p">().</span>
+<span class="w">    </span><span class="n">fragmented_samples_allocation</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">  </span><span class="c1">// 最多5个并发分片重组</span>
+
+<span class="n">DataReader</span><span class="o">*</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">subscriber</span><span class="o">-&gt;</span><span class="n">create_datareader</span><span class="p">(</span><span class="n">topic</span><span class="p">,</span><span class="w"> </span><span class="n">reader_qos</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="63">6.3 内存池监控与调优</h3>
+<div class="codehilite"><pre><span></span><code><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fastdds/rtps/history/WriterHistory.h&gt;</span>
+
+<span class="c1">// 自定义监控回调</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MemoryMonitorListener</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">DataWriterListener</span><span class="w"> </span><span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_offered_deadline_missed</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">OfferedDeadlineMissedStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Deadline missed! "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">total_count</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">on_offered_incompatible_qos</span><span class="p">(</span>
+<span class="w">        </span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">,</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="n">OfferedIncompatibleQosStatus</span><span class="o">&amp;</span><span class="w"> </span><span class="n">status</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Incompatible QoS! Last policy: "</span><span class="w"> </span>
+<span class="w">                  </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">status</span><span class="p">.</span><span class="n">last_policy_id</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">// 运行时调整内存池（高级用法）</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">adjust_memory_pool</span><span class="p">(</span><span class="n">DataWriter</span><span class="o">*</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 获取当前统计</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">WriterHistory</span><span class="o">*</span><span class="w"> </span><span class="n">history</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>
+<span class="w">        </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="n">fastdds</span><span class="o">::</span><span class="n">rtps</span><span class="o">::</span><span class="n">RTPSWriter</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">writer</span><span class="o">-&gt;</span><span class="n">get_rtps_writer</span><span class="p">())</span><span class="o">-&gt;</span><span class="n">history_</span><span class="p">;</span>
+
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">current_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">history</span><span class="o">-&gt;</span><span class="n">get_pool_size</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">max_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">history</span><span class="o">-&gt;</span><span class="n">get_max_pool_size</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">size_t</span><span class="w"> </span><span class="n">used_changes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">history</span><span class="o">-&gt;</span><span class="n">get_number_of_changes</span><span class="p">();</span>
+
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Memory pool: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">used_changes</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"/"</span><span class="w"> </span>
+<span class="w">              </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">current_pool_size</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">" (max: "</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">max_pool_size</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">")"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 如果使用率超过80%，考虑扩展</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">used_changes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">current_pool_size</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.8</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">"Warning: Memory pool near capacity!"</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h2 id="_6">七、性能调优建议</h2>
+<h3 id="71-checklist">7.1 内存池调优 checklist</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>配置建议</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>高频小消息</strong></td>
+<td><code>KeepLast(10)</code>, 预分配100个单元</td>
+<td>减少分配延迟</td>
+</tr>
+<tr>
+<td><strong>低频大消息</strong></td>
+<td><code>KeepAll</code>, 动态增长池</td>
+<td>避免数据丢失</td>
+</tr>
+<tr>
+<td><strong>可靠传输</strong></td>
+<td>增大池大小，启用异步发布</td>
+<td>缓存未确认样本</td>
+</tr>
+<tr>
+<td><strong>尽力传输</strong></td>
+<td>较小池即可</td>
+<td>不需要缓存确认</td>
+</tr>
+<tr>
+<td><strong>共享内存</strong></td>
+<td>设置足够的 segment_size</td>
+<td>避免频繁扩容</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72">7.2 分片传输最佳实践</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// ✅ 推荐配置：大消息传输</span>
+<span class="n">DataWriterQos</span><span class="w"> </span><span class="n">large_message_qos</span><span class="p">;</span>
+
+<span class="c1">// 1. 必须使用可靠传输</span>
+<span class="n">large_message_qos</span><span class="p">.</span><span class="n">reliability</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">RELIABLE_RELIABILITY_QOS</span><span class="p">;</span>
+
+<span class="c1">// 2. 使用异步发布（避免阻塞）</span>
+<span class="n">large_message_qos</span><span class="p">.</span><span class="n">publish_mode</span><span class="p">().</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ASYNCHRONOUS_PUBLISH_MODE</span><span class="p">;</span>
+
+<span class="c1">// 3. 设置合适的分片大小（匹配网络 MTU）</span>
+<span class="c1">// 在 TransportDescriptor 中配置：</span>
+<span class="c1">// maxMessageSize = 1400  // 如果通过 VPN 或特殊网络</span>
+<span class="c1">// maxMessageSize = 64000 // 局域网直接传输</span>
+
+<span class="c1">// 4. 增加 History 深度（缓存更多样本）</span>
+<span class="n">large_message_qos</span><span class="p">.</span><span class="n">history</span><span class="p">().</span><span class="n">depth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+
+<span class="c1">// 5. 设置资源限制上限</span>
+<span class="n">large_message_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_samples</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="p">;</span>
+<span class="n">large_message_qos</span><span class="p">.</span><span class="n">resource_limits</span><span class="p">().</span><span class="n">max_sample_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span><span class="w">  </span><span class="c1">// 100MB</span>
+
+<span class="c1">// ❌ 避免：以下配置会导致问题</span>
+<span class="c1">// 1. 大消息 + BEST_EFFORT（分片丢失无法恢复）</span>
+<span class="c1">// 2. KeepAll 但不设置 ResourceLimits（内存泄漏）</span>
+<span class="c1">// 3. 同步模式发送大消息（阻塞主线程）</span>
+</code></pre></div>
+<h3 id="73">7.3 监控与诊断</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">// 启用统计模块监控内存使用</span>
+<span class="n">DomainParticipantQos</span><span class="w"> </span><span class="n">qos</span><span class="p">;</span>
+<span class="n">qos</span><span class="p">.</span><span class="n">statistics</span><span class="p">().</span><span class="n">enable_statistics_datawriter</span><span class="p">(</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">statistics</span><span class="o">::</span><span class="n">PHYSICAL_DATA_TOPIC</span><span class="p">,</span><span class="w">  </span><span class="c1">// 物理层统计</span>
+<span class="w">    </span><span class="n">fastdds</span><span class="o">::</span><span class="n">statistics</span><span class="o">::</span><span class="n">StatusKind</span><span class="o">::</span><span class="n">ENABLE</span><span class="p">);</span>
+
+<span class="c1">// 监控指标：</span>
+<span class="c1">// - HISTORY2HISTORY_LATENCY: History 缓存延迟</span>
+<span class="c1">// - NETWORK_LATENCY: 网络传输延迟</span>
+<span class="c1">// - PUBLICATION_THROUGHPUT: 发布吞吐量</span>
+<span class="c1">// - RESENT_DATA: 重传数据量（分片丢失指标）</span>
+</code></pre></div>
+<h3 id="74">7.4 常见问题排查</h3>
+<table>
+<thead>
+<tr>
+<th>问题现象</th>
+<th>可能原因</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>内存持续增长</strong></td>
+<td>KeepAll + 无 ResourceLimits</td>
+<td>设置 max_samples 上限</td>
+</tr>
+<tr>
+<td><strong>大消息发送失败</strong></td>
+<td>超过 max_sample_size</td>
+<td>增大 resource_limits 配置</td>
+</tr>
+<tr>
+<td><strong>分片重组超时</strong></td>
+<td>网络丢包率高</td>
+<td>检查网络，或减小分片大小</td>
+</tr>
+<tr>
+<td><strong>延迟不稳定</strong></td>
+<td>内存池耗尽，触发动态分配</td>
+<td>增大初始 pool_size</td>
+</tr>
+<tr>
+<td><strong>共享内存创建失败</strong></td>
+<td>segment_size 过大</td>
+<td>减小 segment_size，使用多个段</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_7">八、总结</h2>
+<h3 id="_8">核心要点</h3>
+<ol>
+<li>
+<p><strong>内存池</strong>：预分配固定大小的 CacheChange，避免运行时 <code>malloc</code>，确保 O(1) 分配延迟</p>
+</li>
+<li>
+<p><strong>History 缓存</strong>：Writer 缓存未确认数据，Reader 缓存未取走数据，支持 KeepLast/KeepAll 两种模式</p>
+</li>
+<li>
+<p><strong>分片传输</strong>：大数据自动拆分为 ~64KB 的分片，通过 <code>DATA_FRAG</code> 子消息传输，支持可靠重传</p>
+</li>
+<li>
+<p><strong>零拷贝</strong>：共享内存传输（SHM）实现进程间零拷贝，延迟从 ~50μs 降至 ~1μs</p>
+</li>
+<li>
+<p><strong>配置要点</strong>：<br/>
+   - 大消息必须使用 <code>RELIABLE</code> + <code>ASYNCHRONOUS</code><br/>
+   - 设置合理的 <code>ResourceLimits</code> 防止内存泄漏<br/>
+   - 根据网络环境调整 <code>maxMessageSize</code></p>
+</li>
+</ol>
+<hr/>
+<p><em>文档版本: 1.0</em><br/>
+<em>最后更新: 2026-03-13</em><br/>
+<em>关联笔记: 01-RTPS-Source-Analysis.md, 04-QoS-Implementation.md, 05-Transport-Layer.md</em></p>
+    </main>
+</div>
+<button class="back-to-top">↑ 回到顶部</button>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Sidebar group toggle
+    document.querySelectorAll('.nav-group-title').forEach(el => {
+        el.addEventListener('click', () => el.parentElement.classList.toggle('open'));
+    });
+    // Auto-open group containing active item
+    const active = document.querySelector('.nav-item.active');
+    if (active) {
+        let g = active.closest('.nav-group');
+        while (g) { g.classList.add('open'); g = g.parentElement?.closest('.nav-group'); }
+    }
+    // Back to top
+    const btn = document.querySelector('.back-to-top');
+    window.addEventListener('scroll', () => {
+        btn.classList.toggle('visible', window.scrollY > 300);
+    });
+    btn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
+    // Search filter
+    const search = document.querySelector('.search-box');
+    if (search) {
+        search.addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+            });
+            document.querySelectorAll('.nav-group').forEach(g => {
+                const hasVisible = g.querySelector('.nav-item[style*="block"]');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>
